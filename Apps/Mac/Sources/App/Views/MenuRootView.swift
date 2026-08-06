@@ -22,6 +22,8 @@ struct MenuRootView: View {
         }
         .frame(width: 400, height: 560)
         .background(SBTheme.bg)
+        // 跟随系统：白天浅色 / 晚上深色（不强制 dark）
+        .preferredColorScheme(nil)
     }
 
     private var header: some View {
@@ -90,7 +92,7 @@ struct MenuRootView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(SBTheme.bg.opacity(0.95))
+        .background(SBTheme.panelElevated.opacity(0.98))
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(SBTheme.stroke)
@@ -110,21 +112,21 @@ struct SBButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: SBTheme.controlCorner, style: .continuous)
                     .fill(background)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: SBTheme.controlCorner, style: .continuous)
                             .stroke(border, lineWidth: 1)
                     )
             )
-            .opacity(configuration.isPressed ? 0.85 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
     }
 
     private var foreground: Color {
         switch kind {
         case .normal: SBTheme.text
         case .accent: .white
-        case .danger: Color(red: 1, green: 0.54, blue: 0.50)
+        case .danger: SBTheme.danger
         }
     }
 
@@ -138,8 +140,8 @@ struct SBButtonStyle: ButtonStyle {
 
     private var border: Color {
         switch kind {
-        case .normal: SBTheme.stroke
-        case .accent: SBTheme.accent.opacity(0.6)
+        case .normal: SBTheme.strokeStrong
+        case .accent: SBTheme.accent.opacity(0.55)
         case .danger: SBTheme.danger.opacity(0.35)
         }
     }

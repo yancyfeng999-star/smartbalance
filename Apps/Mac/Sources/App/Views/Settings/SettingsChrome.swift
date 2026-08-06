@@ -12,10 +12,11 @@ enum SettingsChrome {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                 .fill(SBTheme.panel)
+                .shadow(color: Color.black.opacity(0.05), radius: 6, y: 1)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                         .stroke(SBTheme.stroke, lineWidth: 1)
                 )
         )

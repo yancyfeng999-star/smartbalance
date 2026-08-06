@@ -10,7 +10,7 @@ struct BalanceCardView: View {
                 providerBadge
                 VStack(alignment: .leading, spacing: 2) {
                     Text(snapshot.displayName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(SBTheme.text)
                     HStack(spacing: 6) {
                         sourceChip
@@ -33,7 +33,7 @@ struct BalanceCardView: View {
                 let pct = progressPercent
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(SBTheme.progressTrack)
                         .frame(height: 4)
                     Capsule()
                         .fill(SBTheme.statusColor(snapshot.status))
@@ -63,15 +63,16 @@ struct BalanceCardView: View {
 
             Text(timeText)
                 .font(.system(size: 10))
-                .foregroundStyle(SBTheme.muted.opacity(0.8))
+                .foregroundStyle(SBTheme.muted.opacity(0.85))
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                 .fill(SBTheme.panel)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, y: 2)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(SBTheme.statusColor(snapshot.status).opacity(0.25), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                        .stroke(SBTheme.statusColor(snapshot.status).opacity(0.28), lineWidth: 1)
                 )
         )
     }
@@ -79,10 +80,10 @@ struct BalanceCardView: View {
     private var providerBadge: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(badgeColor.opacity(0.15))
+                .fill(badgeColor.opacity(0.14))
                 .frame(width: 32, height: 32)
             Text(badgeLetter)
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(badgeColor)
         }
     }

@@ -70,10 +70,11 @@ struct HomeView: View {
                     }
                     .padding(10)
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(SBTheme.panel)
+                            .shadow(color: Color.black.opacity(0.04), radius: 4, y: 1)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 10)
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .stroke(SBTheme.stroke, lineWidth: 1)
                             )
                     )
@@ -111,7 +112,7 @@ struct HomeView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(on ? SBTheme.ok.opacity(0.12) : Color.white.opacity(0.04))
+                .fill(on ? SBTheme.ok.opacity(0.14) : SBTheme.chipIdle)
         )
     }
 
@@ -136,10 +137,11 @@ struct HomeView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                 .fill(SBTheme.panel)
+                .shadow(color: Color.black.opacity(0.05), radius: 6, y: 1)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                         .stroke(SBTheme.stroke, lineWidth: 1)
                 )
         )
