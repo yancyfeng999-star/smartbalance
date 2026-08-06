@@ -353,15 +353,47 @@ final class AppModel: ObservableObject {
     }
 
     func setAmountThreshold(_ value: Double) {
-        settings.alertChannels.defaultAmountThreshold = value
-        settings.email.defaultAmountThreshold = value
-        persist()
+        setWarningAmount(value)
     }
 
     func setPercentThreshold(_ value: Double) {
-        settings.alertChannels.defaultPercentThreshold = value
-        settings.email.defaultPercentThreshold = value
+        setWarningPercent(value)
+    }
+
+    func setWarningAmount(_ value: Double) {
+        let v = max(1, value)
+        settings.alertChannels.warningAmount = v
+        if settings.alertChannels.criticalAmount > v {
+            settings.alertChannels.criticalAmount = max(1, v * 0.25)
+        }
+        settings.email.defaultAmountThreshold = v
         persist()
+        refresh()
+    }
+
+    func setCriticalAmount(_ value: Double) {
+        let w = settings.alertChannels.warningAmount
+        settings.alertChannels.criticalAmount = min(max(1, value), w)
+        persist()
+        refresh()
+    }
+
+    func setWarningPercent(_ value: Double) {
+        let v = max(1, min(99, value))
+        settings.alertChannels.warningPercent = v
+        if settings.alertChannels.criticalPercent > v {
+            settings.alertChannels.criticalPercent = max(1, v * 0.5)
+        }
+        settings.email.defaultPercentThreshold = v
+        persist()
+        refresh()
+    }
+
+    func setCriticalPercent(_ value: Double) {
+        let w = settings.alertChannels.warningPercent
+        settings.alertChannels.criticalPercent = min(max(1, value), w)
+        persist()
+        refresh()
     }
 
     func setLaunchAtLogin(_ on: Bool) {

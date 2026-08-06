@@ -150,10 +150,10 @@ enum SBTheme {
 
     static func statusLabel(_ status: BalanceStatus) -> String {
         switch status {
-        case .healthy: "充足"
-        case .warning: "偏低"
-        case .critical: "危急"
-        case .depleted: "耗尽"
+        case .healthy: "充足"   // > 偏低线
+        case .warning: "偏低"   // ≤ 偏低线
+        case .critical: "危急"  // ≤ 危急线
+        case .depleted: "耗尽"  // ≤ 0
         case .error: "失败"
         case .setup: "待配置"
         case .unknown: "未知"

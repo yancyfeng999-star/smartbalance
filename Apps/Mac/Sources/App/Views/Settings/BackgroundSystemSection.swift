@@ -95,23 +95,45 @@ struct BackgroundSystemSection: View {
                 }
 
                 if model.settings.alertChannels.quotaThresholdAlertsEnabled {
+                    Text("人民币金额分档（吉米/老张已折算 ¥）")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SBTheme.muted)
                     thresholdSlider(
-                        title: "金额阈值 ≤",
-                        value: model.settings.alertChannels.defaultAmountThreshold,
-                        range: 1...200,
+                        title: "偏低 ≤ ¥",
+                        value: model.settings.alertChannels.warningAmount,
+                        range: 20...2000,
                         unit: "",
-                        onChange: { model.setAmountThreshold($0) }
+                        onChange: { model.setWarningAmount($0) }
                     )
                     thresholdSlider(
-                        title: "剩余百分比 ≤",
-                        value: model.settings.alertChannels.defaultPercentThreshold,
-                        range: 5...50,
-                        unit: "%",
-                        onChange: { model.setPercentThreshold($0) }
+                        title: "危急 ≤ ¥",
+                        value: model.settings.alertChannels.criticalAmount,
+                        range: 1...500,
+                        unit: "",
+                        onChange: { model.setCriticalAmount($0) }
                     )
-                    Text("通道开关见上方「报警通知」卡片（Mac / 邮件）。")
+                    Text("有额度百分比时额外参考")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SBTheme.muted)
+                        .padding(.top, 4)
+                    thresholdSlider(
+                        title: "偏低 ≤",
+                        value: model.settings.alertChannels.warningPercent,
+                        range: 5...80,
+                        unit: "%",
+                        onChange: { model.setWarningPercent($0) }
+                    )
+                    thresholdSlider(
+                        title: "危急 ≤",
+                        value: model.settings.alertChannels.criticalPercent,
+                        range: 1...50,
+                        unit: "%",
+                        onChange: { model.setCriticalPercent($0) }
+                    )
+                    Text("档位：充足 → 偏低 → 危急 → 耗尽(≤0)。报警走 Mac 通知 / 邮件。")
                         .font(.system(size: 10))
                         .foregroundStyle(SBTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -120,7 +142,7 @@ struct BackgroundSystemSection: View {
     private var thresholdSubtitle: String {
         let ch = model.settings.alertChannels
         if !ch.quotaThresholdAlertsEnabled { return "已关闭 · 点开配置" }
-        return "已开启 · 金额≤\(Int(ch.defaultAmountThreshold)) · 剩余≤\(Int(ch.defaultPercentThreshold))%"
+        return "偏低¥\(Int(ch.warningAmount)) · 危急¥\(Int(ch.criticalAmount)) · \(Int(ch.warningPercent))%/\(Int(ch.criticalPercent))%"
     }
 
     private func thresholdSlider(

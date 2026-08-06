@@ -76,13 +76,19 @@ public actor BalanceService {
         do {
             var snap = try await provider.fetchBalance(account: account, credentials: credentials)
             snap.source = .api
-            let amountTh = account.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
-            let percentTh = account.alertPercentThreshold ?? settings.alertChannels.defaultPercentThreshold
+            let ch = settings.alertChannels
+            // 账号级可覆盖「偏低」金额线；危急/百分比用全局分档
+            let warningAmt = account.alertThreshold ?? ch.warningAmount
+            let criticalAmt = min(ch.criticalAmount, warningAmt)
+            let warningPct = account.alertPercentThreshold ?? ch.warningPercent
+            let criticalPct = min(ch.criticalPercent, warningPct)
             snap.status = BalanceSnapshot.resolveStatus(
                 amount: snap.amount,
                 remainingPercent: snap.remainingPercent,
-                amountThreshold: amountTh,
-                percentThreshold: percentTh
+                warningAmount: warningAmt,
+                criticalAmount: criticalAmt,
+                warningPercent: warningPct,
+                criticalPercent: criticalPct
             )
             return snap
         } catch {
