@@ -2,39 +2,42 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 视觉与布局对齐智额截图：
-/// - 顶栏：品牌 + 刷新文案 + 沙漏/刷新 + 图钉
-/// - 底栏三等分：刷新 | 设置 | 退出应用
-/// - 高度随内容收缩，上限滚动
+/// 对齐智额窗口：内容铺满整窗（非「小卡片浮在白窗上」）。
+/// - 菜单栏弹出：高度随内容收紧
+/// - 置顶窗：背景铺满；高度按内容收缩到合适尺寸
 struct MenuRootView: View {
     @ObservedObject var model: AppModel
     var runsInPinnedWindow: Bool = false
 
     private let maxPanelHeight: CGFloat = 640
-    private let minPanelHeight: CGFloat = 220
+    private let minPanelHeight: CGFloat = 240
+    private let panelWidth: CGFloat = 380
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
             if model.selectedTab == .home {
                 homeHeader
             } else {
                 settingsHeader
             }
 
+            // 中间：卡片区撑满剩余空间（智额同款）
             Group {
                 if needsScroll {
-                    ScrollView {
+                    ScrollView(.vertical, showsIndicators: true) {
                         content
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 10)
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 8)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                 } else {
                     content
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 10)
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
-            .frame(maxHeight: contentMaxHeight, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if model.selectedTab == .home {
                 homeFooter
@@ -42,12 +45,15 @@ struct MenuRootView: View {
                 settingsFooter
             }
         }
-        .padding(.top, 4)
-        .frame(width: SBTheme.panelWidth)
-        .frame(height: panelHeight)
+        .frame(width: panelWidth, height: panelHeight, alignment: .top)
+        .frame(maxWidth: runsInPinnedWindow ? .infinity : panelWidth)
         .background(SBTheme.bg)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .preferredColorScheme(nil)
+        .onAppear { syncPinnedWindowSize() }
+        .onChange(of: model.snapshots.count) { _, _ in syncPinnedWindowSize() }
+        .onChange(of: model.selectedTab) { _, _ in syncPinnedWindowSize() }
+        .onChange(of: model.banner) { _, _ in syncPinnedWindowSize() }
+        .onChange(of: model.recentAlerts.count) { _, _ in syncPinnedWindowSize() }
     }
 
     @ViewBuilder
@@ -59,44 +65,40 @@ struct MenuRootView: View {
         }
     }
 
-    // MARK: - Dynamic height
+    // MARK: - Height
 
-    /// 按卡片数量估算高度，内容少则矮，多则到上限后滚动。
     private var panelHeight: CGFloat {
         if model.selectedTab == .settings {
             return min(maxPanelHeight, 520)
         }
-        let header: CGFloat = 48
-        let footer: CGFloat = 54
-        let pad: CGFloat = 14
+        let header: CGFloat = 52
+        let footer: CGFloat = 56
+        let pad: CGFloat = 16
         let banner: CGFloat = model.banner == nil ? 0 : 44
         let cards = model.snapshots.count
-        let cardBlock: CGFloat = {
-            if cards == 0 { return 132 }
-            // 单卡约 118，间距 10
-            return CGFloat(cards) * 118 + CGFloat(max(0, cards - 1)) * 10
-        }()
+        let cardBlock: CGFloat = cards == 0
+            ? 140
+            : CGFloat(cards) * 120 + CGFloat(max(0, cards - 1)) * 10
         let alerts = min(2, model.recentAlerts.count)
         let alertBlock: CGFloat = alerts == 0 ? 0 : 22 + CGFloat(alerts) * 58
         let raw = header + footer + pad + banner + cardBlock + alertBlock
         return min(maxPanelHeight, max(minPanelHeight, raw))
     }
 
-    private var contentMaxHeight: CGFloat {
-        max(80, panelHeight - 48 - 54)
-    }
-
     private var needsScroll: Bool {
         if model.selectedTab == .settings { return true }
-        // 超过大约 4 张卡就滚
         return model.snapshots.count > 3 || model.recentAlerts.count > 2
+    }
+
+    private func syncPinnedWindowSize() {
+        guard runsInPinnedWindow else { return }
+        PinnedBalanceWindowController.shared.resize(width: panelWidth, height: panelHeight)
     }
 
     // MARK: - Header
 
     private var homeHeader: some View {
         HStack(spacing: 8) {
-            // 品牌标
             ZStack {
                 Circle()
                     .fill(
@@ -152,6 +154,10 @@ struct MenuRootView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(pinned ? SBTheme.accent : SBTheme.muted)
                     .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(pinned ? SBTheme.accent.opacity(0.14) : Color.clear)
+                    )
             }
             .buttonStyle(.plain)
             .help(runsInPinnedWindow || model.settings.windowPinned ? "取消置顶" : "置顶常驻窗口")
@@ -194,10 +200,12 @@ struct MenuRootView: View {
         .padding(.bottom, 8)
     }
 
-    // MARK: - Footer（三等分：刷新 | 设置 | 退出应用）
+    // MARK: - Footer
 
     private var homeFooter: some View {
         HStack(spacing: 8) {
+            // 对齐智额：左「打开后台」位 → 我们用「刷新」占位（顶栏已有刷新，底部再放一个一致性更强）
+            // 实际截图是 打开后台 | 设置 | 退出应用 — 余额端无后台，用刷新
             footerPill(title: "刷新", systemName: "arrow.triangle.2.circlepath") {
                 model.refresh()
             }
@@ -213,9 +221,10 @@ struct MenuRootView: View {
             }
             .help("完全退出智余（菜单栏图标会消失）")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 12)
+        .background(SBTheme.bg)
     }
 
     private var settingsFooter: some View {
@@ -235,6 +244,7 @@ struct MenuRootView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .background(SBTheme.bg)
     }
 
     private func footerPill(title: String, systemName: String, action: @escaping () -> Void) -> some View {
@@ -245,12 +255,12 @@ struct MenuRootView: View {
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundStyle(SBTheme.text.opacity(0.85))
+            .foregroundStyle(SBTheme.text.opacity(0.88))
             .frame(maxWidth: .infinity, minHeight: 36)
             .background(
                 RoundedRectangle(cornerRadius: SBTheme.controlCorner, style: .continuous)
                     .fill(SBTheme.footerFill)
-                    .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
+                    .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
             )
         }
         .buttonStyle(.plain)
@@ -266,7 +276,7 @@ struct MenuRootView: View {
     }
 }
 
-// MARK: - Shared buttons (settings forms)
+// MARK: - Shared buttons
 
 struct SBButtonStyle: ButtonStyle {
     enum Kind { case normal, accent, danger }
