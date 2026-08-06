@@ -1,7 +1,7 @@
 import SwiftUI
 import Domain
 
-/// 对齐智额：后台同步 · 额度阈值 · 登录启动 · 日志 · 更新 · 关于
+/// 后台同步 · 额度阈值 · 登录启动 · 日志 · 更新 · 关于
 struct BackgroundSystemSection: View {
     @ObservedObject var model: AppModel
 

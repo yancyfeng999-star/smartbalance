@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Fixed panel chrome（对齐智额 PinnedOrPopoverChrome）
+// MARK: - Fixed panel chrome
 
 /// Popover：固定 380×580，主页 ↔ 设置绝不改尺寸。
 /// 置顶窗：铺满宿主，由 NSWindow 控制外框，内容只滚动。

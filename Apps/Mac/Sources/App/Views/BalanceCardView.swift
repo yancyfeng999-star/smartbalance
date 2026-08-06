@@ -1,8 +1,8 @@
 import SwiftUI
 import Domain
 
-/// 智额风格余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
-/// 字号对齐 `ProviderSummaryCardView`：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
+/// 余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
+/// 字号：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
     var emphasized: Bool = false
@@ -283,7 +283,7 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
-        // 对齐智额：白卡 + 淡描边，选中/setup 用淡紫描边
+        //  白卡 + 淡描边，选中/setup 用淡紫描边
         let strokeColor: Color = {
             if snapshot.status == .setup { return SBTheme.accent.opacity(0.35) }
             if isHovering { return SBTheme.accent.opacity(0.28) }

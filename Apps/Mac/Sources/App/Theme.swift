@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 对齐智额截图：浅色软灰底 + 白卡片 + 圆角胶囊底栏；深色跟随系统。
+/// 浅色软灰底 + 白卡片 + 圆角胶囊底栏；深色跟随系统。
 enum SBTheme {
 
     // 壳：截图浅色 ~ #EBEDF5
@@ -65,7 +65,7 @@ enum SBTheme {
     static let cardCorner: CGFloat = 16
     static let shellCorner: CGFloat = 22
     static let controlCorner: CGFloat = 12
-    /// 弹层固定宽高（主页 = 设置，切换不跳尺寸）。对齐智额 PopoverContentHeight。
+    /// 弹层固定宽高（主页 = 设置，切换不跳尺寸）。
     static let panelWidth: CGFloat = 380
     static let preferredPanelHeight: CGFloat = 580
     static let minPanelHeight: CGFloat = 420
@@ -85,7 +85,7 @@ enum SBTheme {
         }
     }
 
-    /// 状态胶囊文案（对齐智额「充足 / 同步中」）
+    /// 状态胶囊文案（充足 / 偏低 / …）
     static func statusLabel(_ status: BalanceStatus) -> String {
         switch status {
         case .healthy: "充足"

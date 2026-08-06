@@ -1,7 +1,7 @@
 import Foundation
 import ServiceManagement
 
-/// 登录时启动（SMAppService，对齐智额）。
+/// 登录时启动（SMAppService）。
 public enum LaunchAtLogin {
     public static var isEnabled: Bool {
         SMAppService.mainApp.status == .enabled

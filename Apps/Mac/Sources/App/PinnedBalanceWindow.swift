@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 固定常驻窗口（对齐智额 pin）：默认 380×580，主页/设置同一外框，切换不跳。
+/// 固定常驻窗口：默认 380×580，主页/设置同一外框，切换不跳。
 @MainActor
 final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     static let shared = PinnedBalanceWindowController()

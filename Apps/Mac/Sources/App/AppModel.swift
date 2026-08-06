@@ -58,7 +58,7 @@ final class AppModel: ObservableObject {
         notificationStatusCaption = MacNotificationService.statusCaption(for: status)
     }
 
-    /// 顶栏刷新按钮左侧：仅时间（对齐智额「刷新 15:21」），无多余文案。
+    /// 顶栏刷新按钮左侧：仅时间（如「刷新 15:21」）。
     var refreshTimeText: String {
         if let lastRefreshAt {
             let f = DateFormatter()

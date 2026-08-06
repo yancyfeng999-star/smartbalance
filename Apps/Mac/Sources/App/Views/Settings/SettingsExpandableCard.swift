@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 智额同款可折叠设置卡：点标题展开，内容从标题下方软模糊落下。
+/// 可折叠设置卡：点标题展开，内容从标题下方软模糊落下。
 struct SettingsExpandableCard<Content: View>: View {
     let icon: String
     let iconColors: [Color]
@@ -32,7 +32,7 @@ struct SettingsExpandableCard<Content: View>: View {
                     }
 
                     VStack(alignment: .leading, spacing: 1) {
-                        // 智额设置折叠卡：标题 14 bold / 副文 10 medium
+                        // 设置折叠卡：标题 14 bold / 副文 10 medium
                         Text(title)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(SBTheme.text)

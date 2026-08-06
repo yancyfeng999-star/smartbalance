@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 嵌在一级设置卡内部的二级折叠卡（对齐智额：外层大卡 → 内层小卡）。
+/// 嵌在一级设置卡内部的二级折叠卡（外层大卡 → 内层小卡）。
 struct NestedSettingsCard<Content: View>: View {
     let icon: String
     let iconColors: [Color]

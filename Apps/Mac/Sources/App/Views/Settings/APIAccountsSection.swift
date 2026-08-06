@@ -3,7 +3,7 @@ import AppKit
 import Domain
 import Infrastructure
 
-/// 智额式两层嵌套：外层「API 账号」→ 内层按平台折叠卡 → 点开添加/编辑密钥。
+/// 两层嵌套：外层「API 账号」→ 内层按平台折叠卡 → 点开添加/编辑密钥。
 struct APIAccountsSection: View {
     @ObservedObject var model: AppModel
     var embedded: Bool = false

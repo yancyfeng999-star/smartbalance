@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Soft expand from under header（自智额移植）
+// MARK: - Soft expand from under header
 
 /// 内容从标题下方展开：先上提模糊，再落下清晰。
 struct SoftExpandFromHeaderModifier: ViewModifier, Animatable, Sendable {
@@ -32,7 +32,7 @@ struct SoftExpandFromHeaderModifier: ViewModifier, Animatable, Sendable {
     }
 }
 
-/// 应用统一动效（对齐智额）。
+/// 应用统一动效。
 enum AppMotion {
     /// 设置卡展开 / 收起
     static let expand: Animation = .spring(response: 0.42, dampingFraction: 0.90)

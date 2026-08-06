@@ -2,10 +2,10 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 对齐智额 MenuContentView：
+/// 菜单栏主壳：
 /// - 外层 **固定宽高**（Popover 380×580），主页 / 设置同一壳，切换不跳
 /// - 置顶窗铺满宿主，中间滚动
-/// - 底栏三钮 / 设置「完成」胶囊与智额一致
+/// - 底栏三钮 / 设置右下角「完成」胶囊
 struct MenuRootView: View {
     @ObservedObject var model: AppModel
     var runsInPinnedWindow: Bool = false
@@ -189,7 +189,7 @@ struct MenuRootView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(SBTheme.text)
             Spacer()
-            // 与左侧返回对称占位，标题居中（对齐智额）
+            // 与左侧返回对称占位，标题居中
             Color.clear.frame(width: 72, height: 1)
         }
     }
@@ -255,7 +255,7 @@ struct MenuRootView: View {
         }
     }
 
-    /// 智额 membershipCommandButton：11 semibold / 高 32 / 圆角 8 + 细描边
+    /// 底栏按钮：11 semibold / 高 32 / 圆角 8 + 细描边
     private func footerPill(title: String, systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemName)

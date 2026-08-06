@@ -109,7 +109,7 @@ struct HomeView: View {
             Text("智余 · 监控 API 余额")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
-            Text("和智额看「会员额度」不同：这里看各平台 API / Token 还剩多少钱。")
+            Text("在菜单栏查看各平台 API / Token 还剩多少钱。")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)

@@ -1,6 +1,6 @@
 import Foundation
 
-/// 余额健康状态（对齐智额状态色语义）。
+/// 余额健康状态。
 public enum BalanceStatus: String, Codable, Sendable, CaseIterable {
     case healthy
     case warning

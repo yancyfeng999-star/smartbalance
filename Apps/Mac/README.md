@@ -12,7 +12,7 @@ Alert*              SMTP / Notification            PinnedBalanceWindow
                     HTTPClient · VolcengineSigner
 ```
 
-弹层尺寸：宽 **380**、高 **580**（与智额一致）。
+弹层尺寸：宽 **380**、高 **580**。
 
 ---
 
