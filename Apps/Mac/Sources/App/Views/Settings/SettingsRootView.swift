@@ -10,7 +10,7 @@ import Domain
 struct SettingsRootView: View {
     @ObservedObject var model: AppModel
 
-    @State private var expandAPI = true
+    @State private var expandAPI = false
     @State private var expandAlert = false
 
     var body: some View {
