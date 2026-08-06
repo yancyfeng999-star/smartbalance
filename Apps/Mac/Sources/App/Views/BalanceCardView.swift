@@ -2,6 +2,7 @@ import SwiftUI
 import Domain
 
 /// 余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
+/// 交互对齐智额：悬停轻抬 + 描边/阴影，按下缩放反馈，再展开。
 /// 字号：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
@@ -11,12 +12,24 @@ struct BalanceCardView: View {
     @State private var isHovering = false
 
     var body: some View {
+        Button {
+            AppMotion.toggleExpand($isExpanded)
+        } label: {
+            cardContent
+        }
+        .buttonStyle(BalanceCardButtonStyle(isHovering: isHovering))
+        .onHover { hovering in
+            withAnimation(AppMotion.hover) {
+                isHovering = hovering
+            }
+        }
+        // 禁止内容 ideal 宽度撑破固定面板
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: isExpanded ? 10 : 0) {
             headerRow
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    AppMotion.toggleExpand($isExpanded)
-                }
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
@@ -42,13 +55,10 @@ struct BalanceCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
         // 展开只动卡片内部，不带动外层窗体
         .animation(AppMotion.expand, value: isExpanded)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        // 禁止内容 ideal 宽度撑破固定面板
-        .fixedSize(horizontal: false, vertical: true)
+        .animation(AppMotion.hover, value: isHovering)
     }
 
     // MARK: - Header（折叠时也完整可见）
@@ -246,22 +256,51 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
-        // 参考图：深色玻璃卡 + 细白描边；选中/setup 用蓝边
+        // 参考智额：悬停抬升底 + 蓝描边加粗
         let strokeColor: Color = {
             if snapshot.status == .setup { return SBTheme.selectionStroke }
-            if emphasized || isHovering { return SBTheme.selectionStroke }
+            if isHovering || emphasized || isExpanded { return SBTheme.selectionStroke }
             return SBTheme.cardStroke
         }()
         let fill: Color = {
-            if snapshot.status == .setup || emphasized { return SBTheme.cardTint }
+            if isHovering || snapshot.status == .setup || emphasized || isExpanded {
+                return SBTheme.cardTint
+            }
             return SBTheme.panel
         }()
+        let lineWidth: CGFloat = (isHovering || emphasized || isExpanded || snapshot.status == .setup) ? 1.2 : 1
         return RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
             .fill(fill)
             .overlay(
                 RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                    .strokeBorder(strokeColor, lineWidth: (emphasized || snapshot.status == .setup) ? 1.2 : 1)
+                    .strokeBorder(strokeColor, lineWidth: lineWidth)
             )
-            .shadow(color: Color.black.opacity(0.18), radius: 8, y: 2)
+            .shadow(color: Color.black.opacity(isHovering ? 0.22 : 0.18), radius: isHovering ? 10 : 8, y: 2)
+    }
+}
+
+// MARK: - 悬停抬升 + 按下压回（对齐智额）
+
+private struct BalanceCardButtonStyle: ButtonStyle {
+    var isHovering: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        let scale: CGFloat = pressed ? 0.985 : (isHovering ? 1.015 : 1.0)
+        return configuration.label
+            .scaleEffect(scale)
+            .shadow(
+                color: SBTheme.accent.opacity(isHovering && !pressed ? 0.18 : 0),
+                radius: isHovering && !pressed ? 10 : 0,
+                y: isHovering && !pressed ? 3 : 0
+            )
+            .overlay {
+                // 按下时轻微压暗，增强「点到了」的反馈
+                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                    .fill(Color.black.opacity(pressed ? 0.08 : 0))
+                    .allowsHitTesting(false)
+            }
+            .animation(AppMotion.hover, value: isHovering)
+            .animation(.easeOut(duration: 0.1), value: pressed)
     }
 }
