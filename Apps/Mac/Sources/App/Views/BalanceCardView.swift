@@ -283,23 +283,22 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
-        //  白卡 + 淡描边，选中/setup 用淡紫描边
+        // 参考图：深色玻璃卡 + 细白描边；选中/setup 用蓝边
         let strokeColor: Color = {
-            if snapshot.status == .setup { return SBTheme.accent.opacity(0.35) }
-            if isHovering { return SBTheme.accent.opacity(0.28) }
-            if emphasized { return SBTheme.cardStroke }
+            if snapshot.status == .setup { return SBTheme.selectionStroke }
+            if emphasized || isHovering { return SBTheme.selectionStroke }
             return SBTheme.cardStroke
         }()
         let fill: Color = {
-            if snapshot.status == .setup { return SBTheme.cardTint }
+            if snapshot.status == .setup || emphasized { return SBTheme.cardTint }
             return SBTheme.panel
         }()
         return RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
             .fill(fill)
             .overlay(
                 RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                    .strokeBorder(strokeColor, lineWidth: 1)
+                    .strokeBorder(strokeColor, lineWidth: (emphasized || snapshot.status == .setup) ? 1.2 : 1)
             )
-            .shadow(color: Color.black.opacity(0.03), radius: 4, y: 1)
+            .shadow(color: Color.black.opacity(0.18), radius: 8, y: 2)
     }
 }

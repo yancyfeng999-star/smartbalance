@@ -247,19 +247,19 @@ struct MenuRootView: View {
         }
     }
 
-    /// 底栏按钮：11 semibold / 高 32 / 圆角 8 + 细描边
+    /// 底栏按钮：对齐参考图深色圆角控件
     private func footerPill(title: String, systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemName)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
                 .labelStyle(.titleAndIcon)
-                .frame(maxWidth: .infinity, minHeight: 32)
+                .frame(maxWidth: .infinity, minHeight: 34)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(SBTheme.footerFill)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .strokeBorder(SBTheme.stroke, lineWidth: 0.8)
                         )
                 )
