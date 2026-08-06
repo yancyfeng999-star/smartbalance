@@ -38,6 +38,9 @@ struct SettingsView: View {
     @State private var percentTh = "20"
     @State private var cooldown = "3600"
 
+    /// 试解析 sheet 目标源
+    @State private var parseTarget: PlatformMailSource?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             dataSourceBlock
@@ -52,6 +55,9 @@ struct SettingsView: View {
             aboutBlock
         }
         .onAppear(perform: loadFields)
+        .sheet(item: $parseTarget) { src in
+            PasteMailParseSheet(source: src, model: model)
+        }
     }
 
     // MARK: - Data sources
@@ -150,18 +156,43 @@ struct SettingsView: View {
                     .foregroundStyle(SBTheme.muted)
             } else {
                 ForEach(model.settings.mailSources) { src in
-                    accountRow(
-                        title: src.displayName,
-                        subtitle: "发件人含 \(src.fromContains)",
-                        enabled: src.enabled,
-                        onToggle: { model.toggleMailSource(src.id, enabled: $0) },
-                        onDelete: { model.removeMailSource(src.id) }
-                    )
+                    mailSourceRow(src)
                     if src.id != model.settings.mailSources.last?.id {
                         Divider().overlay(SBTheme.stroke)
                     }
                 }
             }
+        }
+    }
+
+    private func mailSourceRow(_ src: PlatformMailSource) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(src.displayName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(SBTheme.text)
+                Text("发件人含 \(src.fromContains)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(SBTheme.muted)
+            }
+            Spacer(minLength: 4)
+            Button("试解析") {
+                parseTarget = src
+            }
+            .buttonStyle(SBButtonStyle(kind: .normal))
+            Toggle("", isOn: Binding(
+                get: { src.enabled },
+                set: { model.toggleMailSource(src.id, enabled: $0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            Button(role: .destructive) {
+                model.removeMailSource(src.id)
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundStyle(SBTheme.danger)
+            }
+            .buttonStyle(.plain)
         }
     }
 

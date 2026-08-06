@@ -22,6 +22,7 @@
 		31B6677798723C88070A22A4 /* AlertChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */; };
 		331811AC02FB4901970E00FE /* BalanceAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */; };
 		35F64C8CF38DEE2627D76D01 /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		38D14E81CC4DC8D7DD321FB3 /* PasteMailParseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2FD043BA66CBA66EEF92607 /* PasteMailParseSheet.swift */; };
 		38FD910AB0D1FE33446A6B66 /* BalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9627086E9C867E333AA891AA /* BalanceProvider.swift */; };
 		3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */; };
 		43FC64308A880785228BDB3F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9018B2789077E11374A1DB3 /* SettingsView.swift */; };
@@ -214,6 +215,7 @@
 		BA9EE2F71455A98947D22665 /* InfrastructureTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "InfrastructureTests-Info.plist"; sourceTree = "<group>"; };
 		BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceAccount.swift; sourceTree = "<group>"; };
 		BFF511AA84219FC125F3D197 /* BalanceMailParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceMailParser.swift; sourceTree = "<group>"; };
+		C2FD043BA66CBA66EEF92607 /* PasteMailParseSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteMailParseSheet.swift; sourceTree = "<group>"; };
 		C9018B2789077E11374A1DB3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartBalanceApp.swift; sourceTree = "<group>"; };
 		D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceStatus.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				F342A2116AC420D4A006039D /* BalanceCardView.swift */,
 				3597F046B4FAC85DF2C83703 /* HomeView.swift */,
 				1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */,
+				C2FD043BA66CBA66EEF92607 /* PasteMailParseSheet.swift */,
 				C9018B2789077E11374A1DB3 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -667,6 +670,7 @@
 				0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */,
 				48083B0B448C8941D61125DD /* HomeView.swift in Sources */,
 				C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */,
+				38D14E81CC4DC8D7DD321FB3 /* PasteMailParseSheet.swift in Sources */,
 				43FC64308A880785228BDB3F /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

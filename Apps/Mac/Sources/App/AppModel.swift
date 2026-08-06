@@ -151,6 +151,50 @@ final class AppModel: ObservableObject {
         persist()
     }
 
+    /// 粘贴邮件试解析（不访问 IMAP）。
+    func parsePastedMail(source: PlatformMailSource, subject: String, body: String) async -> BalanceSnapshot {
+        await service.parsePastedMail(
+            source: source,
+            subject: subject,
+            body: body,
+            settings: settings
+        )
+    }
+
+    /// 将试解析金额写入该平台源缓存，并更新首页卡片。
+    func writeLastParsedAmount(sourceId: UUID, amount: Double) {
+        guard let idx = settings.mailSources.firstIndex(where: { $0.id == sourceId }) else { return }
+        settings.mailSources[idx].lastParsedAmount = amount
+        settings.mailSources[idx].lastParsedAt = Date()
+        let src = settings.mailSources[idx]
+        persist()
+
+        let th = src.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
+        let status = BalanceSnapshot.resolveStatus(
+            amount: amount,
+            remainingPercent: nil,
+            amountThreshold: th,
+            percentThreshold: settings.alertChannels.defaultPercentThreshold
+        )
+        let snap = BalanceSnapshot(
+            accountId: sourceId,
+            displayName: src.displayName,
+            source: .platformEmail,
+            amount: amount,
+            unit: src.unit,
+            status: status,
+            detail: "试解析写入",
+            mailSubject: nil
+        )
+        if let sIdx = snapshots.firstIndex(where: { $0.accountId == sourceId }) {
+            snapshots[sIdx] = snap
+        } else {
+            snapshots.append(snap)
+            snapshots.sort { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        }
+        banner = "已写入 \(src.displayName) 上次金额 \(snap.primaryText)"
+    }
+
     func saveInboundMailbox(
         enabled: Bool,
         host: String,
