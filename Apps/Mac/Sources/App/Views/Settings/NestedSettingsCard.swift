@@ -1,9 +1,13 @@
 import SwiftUI
+import Domain
 
 /// 嵌在一级设置卡内部的二级折叠卡（外层大卡 → 内层小卡）。
 struct NestedSettingsCard<Content: View>: View {
-    let icon: String
-    let iconColors: [Color]
+    /// SF Symbol 回退（无 logo 时）
+    var icon: String = "app.fill"
+    var iconColors: [Color] = [SBTheme.accent, SBTheme.accent.opacity(0.7)]
+    /// 有平台 kind 时优先显示品牌 logo
+    var providerKind: ProviderKind? = nil
     let title: String
     let subtitle: String
     var badge: String? = nil
@@ -17,19 +21,23 @@ struct NestedSettingsCard<Content: View>: View {
                 AppMotion.toggleExpand($isExpanded)
             } label: {
                 HStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: iconColors,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                    if let providerKind {
+                        ProviderLogoView(kind: providerKind, size: 22)
+                    } else {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: iconColors,
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                            .frame(width: 22, height: 22)
-                        Image(systemName: icon)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                            Image(systemName: icon)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 1) {

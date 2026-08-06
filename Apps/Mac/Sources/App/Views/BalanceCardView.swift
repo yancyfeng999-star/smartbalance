@@ -201,56 +201,19 @@ struct BalanceCardView: View {
             )
     }
 
+    @ViewBuilder
     private var providerBadge: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [badgeColor.opacity(0.85), badgeColor.opacity(0.55)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 24, height: 24)
-            Text(badgeLetter)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-        }
-    }
-
-    private var badgeColor: Color {
-        switch snapshot.providerKind {
-        case .deepseek: Color(red: 0.25, green: 0.55, blue: 0.95)
-        case .newapi: Color(red: 0.45, green: 0.35, blue: 0.95)
-        case .openrouter: Color(red: 0.55, green: 0.25, blue: 0.75)
-        case .viraltok: Color(red: 0.15, green: 0.65, blue: 0.45)
-        case .laozhang: Color(red: 0.95, green: 0.55, blue: 0.20)
-        case .dmxapi: Color(red: 0.09, green: 0.64, blue: 0.72)
-        case .kimi: Color(red: 0.20, green: 0.20, blue: 0.22)
-        case .volcengine: Color(red: 0.15, green: 0.45, blue: 0.95)
-        case .mimo: Color(red: 0.95, green: 0.30, blue: 0.25)
-        case .minimax: Color(red: 0.55, green: 0.25, blue: 0.95)
-        case .none:
-            snapshot.source == .platformEmail
-                ? SBTheme.warn
-                : SBTheme.accent
-        }
-    }
-
-    private var badgeLetter: String {
-        if snapshot.source == .platformEmail, snapshot.providerKind == nil { return "邮" }
-        switch snapshot.providerKind {
-        case .deepseek: return "D"
-        case .newapi: return "N"
-        case .openrouter: return "O"
-        case .viraltok: return "V"
-        case .laozhang: return "张"
-        case .dmxapi: return "X"
-        case .kimi: return "K"
-        case .volcengine: return "火"
-        case .mimo: return "米"
-        case .minimax: return "M"
-        case .none: return "?"
+        if let kind = snapshot.providerKind {
+            ProviderLogoView(kind: kind, size: 24)
+        } else {
+            ZStack {
+                Circle()
+                    .fill(SBTheme.accent.opacity(0.85))
+                    .frame(width: 24, height: 24)
+                Text(snapshot.source == .platformEmail ? "邮" : "?")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
         }
     }
 

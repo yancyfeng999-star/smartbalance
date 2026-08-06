@@ -66,6 +66,7 @@ struct APIAccountsSection: View {
         return NestedSettingsCard(
             icon: iconName(for: kind),
             iconColors: iconColors(for: kind),
+            providerKind: kind,
             title: kind.displayName,
             subtitle: platformSubtitle(kind: kind, accounts: accounts),
             badge: accounts.isEmpty ? nil : "\(accounts.count)",
