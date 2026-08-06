@@ -31,7 +31,8 @@ BUNDLE_ID="com.smartbalance.app"
 CONFIG="Release"
 DERIVED="${ROOT}/build/DerivedData-Release"
 RELEASES_ROOT="${RELEASES_ROOT:-$REPO_ROOT/releases/Mac}"
-COPY_TO_DESKTOP="${COPY_TO_DESKTOP:-1}"
+# 默认不上桌面：发版只走 GitHub；需要本机副本时 COPY_TO_DESKTOP=1
+COPY_TO_DESKTOP="${COPY_TO_DESKTOP:-0}"
 DESKTOP_OUT="${DESKTOP_OUT:-$HOME/Desktop/智余-发布}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 FORCE_REPACKAGE="${FORCE_REPACKAGE:-0}"
@@ -264,34 +265,31 @@ EOF
     > SHA256SUMS.txt
 )
 
-printf '%s\n' "==> [5/5] 复制到桌面（只放 dmg/pkg，不散落 .app，避免 Spotlight 搜出多个智余）"
+printf '%s\n' "==> [5/5] 清理（默认不复制到桌面，发版只上 GitHub）"
+# 避免桌面残留裸 .app / 旧发布夹导致 Spotlight 多个智余
+rm -rf "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
 if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
   rm -rf "${DESKTOP_OUT}"
   mkdir -p "${DESKTOP_OUT}"
   cp -f "$DMG_CN" "$PKG_CN" "$STAGE/RELEASE_NOTES.md" "$STAGE/SHA256SUMS.txt" "${DESKTOP_OUT}/"
-  # 可选：COPY_APP_TO_DESKTOP=1 才放裸 app
   if [[ "${COPY_APP_TO_DESKTOP:-0}" == "1" ]]; then
     ditto --norsrc --noextattr --noqtn "$WORK/app/${APP_NAME}.app" "${HOME}/Desktop/${APP_NAME}.app"
     xattr -cr "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
-  else
-    rm -rf "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
   fi
+else
+  rm -rf "${DESKTOP_OUT}" 2>/dev/null || true
 fi
 
 echo ""
 echo "========== 打包完成 =========="
 echo "版本: ${VERSION} (build ${BUILD})"
-echo "目录: ${STAGE}"
+echo "本地暂存: ${STAGE}"
 ls -lh "${STAGE}"
 echo ""
-echo "桌面: ${DESKTOP_OUT}/"
-echo "  · ${APP_NAME}-${VERSION}.dmg  ← 推荐发给别人 / 本机安装"
-echo "  · ${APP_NAME}-${VERSION}.pkg  ← 安装向导"
-echo ""
-echo "正式安装请只保留一份：/Applications/${APP_NAME}.app"
-echo "（不要在工程 build/、桌面再留裸 .app，否则启动台会出现多个智余）"
-echo ""
-echo "GitHub Release 建议上传英文名："
+echo "上线资产（GitHub 英文名）："
 echo "  ${EN_NAME}-${VERSION}.dmg"
 echo "  ${EN_NAME}-${VERSION}.pkg"
 echo "标签: ${TAG}"
+if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
+  echo "（已额外复制到桌面 ${DESKTOP_OUT}/）"
+fi

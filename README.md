@@ -75,7 +75,8 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 |------|------|
 | `releases/Mac/vX.Y.Z/SmartBalance-X.Y.Z.dmg` | GitHub 主资产（拖进 Applications） |
 | `…/SmartBalance-X.Y.Z.pkg` | 安装向导 |
-| `~/Desktop/智余-发布/` | 本机副本 |
+
+发版只上传 GitHub Releases，**不复制到桌面**。需要本机副本时：`COPY_TO_DESKTOP=1 ./scripts/package-release.sh`。
 
 测试：`./scripts/run-tests.sh`
 
