@@ -145,7 +145,8 @@ struct MenuRootView: View {
             Button {
                 togglePin()
             } label: {
-                let pinned = runsInPinnedWindow || model.settings.windowPinned || PinnedBalanceWindowController.shared.isPinned
+                // 仅当置顶窗真正打开时点亮
+                let pinned = runsInPinnedWindow || model.pinWindowOpen
                 Image(systemName: pinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(pinned ? SBTheme.accent : SBTheme.text)
@@ -156,7 +157,11 @@ struct MenuRootView: View {
                     )
             }
             .buttonStyle(.plain)
-            .help(runsInPinnedWindow || model.settings.windowPinned ? "取消置顶" : "置顶常驻窗口（点其他应用不关闭）")
+            .help(
+                (runsInPinnedWindow || model.pinWindowOpen)
+                    ? "取消置顶"
+                    : "置顶常驻窗口（点其他应用不关闭）"
+            )
         }
     }
 

@@ -34,6 +34,9 @@ final class AppModel: ObservableObject {
 
     private let updateChecker = UpdateChecker()
 
+    /// 置顶窗是否打开（驱动图钉高亮；与磁盘标志解耦）
+    @Published var pinWindowOpen = false
+
     init() {
         var loaded = SettingsStore.shared.load()
         // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
@@ -41,7 +44,13 @@ final class AppModel: ObservableObject {
             loaded.apiQueryEnabled = true
             try? SettingsStore.shared.save(loaded)
         }
+        // 启动时置顶窗未打开，图钉应灭；清掉上次会话残留标志
+        if loaded.windowPinned {
+            loaded.windowPinned = false
+            try? SettingsStore.shared.save(loaded)
+        }
         self.settings = loaded
+        self.pinWindowOpen = false
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         Task { @MainActor in

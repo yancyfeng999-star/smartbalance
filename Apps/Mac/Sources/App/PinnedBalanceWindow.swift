@@ -46,6 +46,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         }
         if isOpening { return }
         isOpening = true
+        model.pinWindowOpen = true
         model.settings.windowPinned = true
         model.persist()
 
@@ -89,6 +90,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         // 固定默认外框；内容在壳内滚动，绝不按内容收缩
         positionTopRight(width: Self.defaultWidth, height: Self.defaultHeight)
         isOpen = true
+        model.pinWindowOpen = true
         model.settings.windowPinned = true
         model.persist()
         window?.orderFrontRegardless()
@@ -154,6 +156,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         isOpening = false
         isOpen = false
         if let model {
+            model.pinWindowOpen = false
             model.settings.windowPinned = false
             model.persist()
         }
@@ -165,6 +168,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         isOpen = false
         isOpening = false
         if let model {
+            model.pinWindowOpen = false
             model.settings.windowPinned = false
             model.persist()
         }
@@ -174,6 +178,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         isOpen = false
         isOpening = false
         if let model {
+            model.pinWindowOpen = false
             model.settings.windowPinned = false
             model.persist()
         }
