@@ -9,6 +9,7 @@ import Domain
 struct MenuRootView: View {
     @ObservedObject var model: AppModel
     var runsInPinnedWindow: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -23,7 +24,7 @@ struct MenuRootView: View {
                     .transition(.opacity)
             }
         }
-        .background(SBTheme.bg)
+        .background(SBTheme.shellBackground(for: colorScheme).ignoresSafeArea())
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
         .preferredColorScheme(nil)
         .onAppear {
@@ -238,16 +239,7 @@ struct MenuRootView: View {
                     .padding(.vertical, 10)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.95, green: 0.35, blue: 0.55),
-                                        Color(red: 0.78, green: 0.28, blue: 0.82),
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .fill(SBTheme.accentGradient)
                             .shadow(color: Color(red: 0.9, green: 0.3, blue: 0.5).opacity(0.28), radius: 6, y: 2)
                     )
             }

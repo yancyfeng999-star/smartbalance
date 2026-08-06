@@ -60,7 +60,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         let shell = MenuRootView(model: model, runsInPinnedWindow: true)
         let host = NSHostingView(rootView: shell)
         host.wantsLayer = true
-        host.layer?.backgroundColor = NSColor(srgbRed: 0.92, green: 0.93, blue: 0.96, alpha: 1).cgColor
+        host.layer?.backgroundColor = SBTheme.windowNSBackground.cgColor
 
         if window == nil {
             let win = NSWindow(
@@ -76,7 +76,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
             win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             win.minSize = NSSize(width: Self.minWidth, height: Self.minHeight)
             win.maxSize = NSSize(width: 10_000, height: 10_000)
-            win.backgroundColor = NSColor(srgbRed: 0.92, green: 0.93, blue: 0.96, alpha: 1)
+            win.backgroundColor = SBTheme.windowNSBackground
             win.isOpaque = true
             win.delegate = self
             window = win

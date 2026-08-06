@@ -6,7 +6,7 @@ import Domain
 /// 智余本职 = 查各平台 API / Token 余额并报警，**不需要**「开数据源」总开关。
 /// 1. API 账号 — 添加 Key / 手录
 /// 2. 报警通知 — Mac 通知 + SMTP 出站
-/// 3. 后台同步 / 阈值 / 登录启动 / 日志 / 更新 / 关于
+/// 3. 后台同步 / 阈值 / 登录启动 / 日志 / 更新 + 底部一句话关于
 struct SettingsRootView: View {
     @ObservedObject var model: AppModel
 

@@ -2,65 +2,127 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 浅色软灰底 + 白卡片 + 圆角胶囊底栏；深色跟随系统。
+/// 浅色：软灰紫底 + 白卡片；深色：深紫粉玻璃感（跟随系统）。
 enum SBTheme {
 
-    // 壳：截图浅色 ~ #EBEDF5
+    // 壳背景
     static let bg = adaptive(
-        light: NSColor(srgbRed: 0.92, green: 0.93, blue: 0.96, alpha: 1),
-        dark: NSColor(srgbRed: 0x0F / 255, green: 0x11 / 255, blue: 0x15 / 255, alpha: 1)
+        light: NSColor(srgbRed: 0.94, green: 0.92, blue: 0.98, alpha: 1),
+        dark: NSColor(srgbRed: 0.12, green: 0.08, blue: 0.22, alpha: 1)
     )
 
+    /// 卡片 / 面板填充
     static let panel = adaptive(
-        light: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.96),
-        dark: NSColor(srgbRed: 0x1A / 255, green: 0x1D / 255, blue: 0x24 / 255, alpha: 1)
+        light: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.95),
+        dark: NSColor(srgbRed: 0.22, green: 0.15, blue: 0.34, alpha: 0.92)
     )
 
-    /// 选中/强调卡片淡蓝底（ChatGPT 卡那种）
+    /// 选中 / setup 淡色底
     static let cardTint = adaptive(
-        light: NSColor(srgbRed: 0.93, green: 0.94, blue: 1.0, alpha: 1),
-        dark: NSColor(srgbRed: 0.16, green: 0.18, blue: 0.28, alpha: 1)
+        light: NSColor(srgbRed: 0.95, green: 0.93, blue: 1.0, alpha: 1),
+        dark: NSColor(srgbRed: 0.28, green: 0.18, blue: 0.42, alpha: 1)
     )
 
     static let footerFill = adaptive(
         light: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.88),
-        dark: NSColor(srgbRed: 0.12, green: 0.13, blue: 0.16, alpha: 1)
+        dark: NSColor(srgbRed: 0.18, green: 0.12, blue: 0.28, alpha: 0.95)
     )
 
     static let text = adaptive(
-        light: NSColor(srgbRed: 0.12, green: 0.13, blue: 0.18, alpha: 1),
-        dark: NSColor(srgbRed: 0.95, green: 0.96, blue: 0.97, alpha: 1)
+        light: NSColor(srgbRed: 0.15, green: 0.12, blue: 0.22, alpha: 1),
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.95)
     )
 
     static let muted = adaptive(
-        light: NSColor(srgbRed: 0.45, green: 0.48, blue: 0.55, alpha: 1),
-        dark: NSColor(srgbRed: 0.60, green: 0.64, blue: 0.70, alpha: 1)
+        light: NSColor(srgbRed: 0.45, green: 0.42, blue: 0.55, alpha: 1),
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.55)
     )
 
-    static let accent = Color(red: 0.35, green: 0.42, blue: 0.95) // soft indigo like screenshot
-    static let ok = Color(red: 0.25, green: 0.78, blue: 0.48)
-    static let warn = Color(red: 1.0, green: 0.62, blue: 0.04)
-    static let danger = Color(red: 1.0, green: 0.27, blue: 0.23)
+    /// 强调色：浅色紫粉、深色热粉
+    static let accent = adaptive(
+        light: NSColor(srgbRed: 0.55, green: 0.32, blue: 0.85, alpha: 1),
+        dark: NSColor(srgbRed: 0.85, green: 0.35, blue: 0.65, alpha: 1)
+    )
+
+    static let ok = adaptive(
+        light: NSColor(srgbRed: 0.22, green: 0.78, blue: 0.55, alpha: 1),
+        dark: NSColor(srgbRed: 0.35, green: 0.92, blue: 0.68, alpha: 1)
+    )
+    static let warn = adaptive(
+        light: NSColor(srgbRed: 0.92, green: 0.62, blue: 0.22, alpha: 1),
+        dark: NSColor(srgbRed: 0.98, green: 0.72, blue: 0.35, alpha: 1)
+    )
+    static let danger = adaptive(
+        light: NSColor(srgbRed: 0.92, green: 0.32, blue: 0.42, alpha: 1),
+        dark: NSColor(srgbRed: 0.98, green: 0.42, blue: 0.52, alpha: 1)
+    )
 
     static let stroke = adaptive(
-        light: NSColor(srgbRed: 0.55, green: 0.58, blue: 0.75, alpha: 0.18),
-        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
+        light: NSColor(srgbRed: 0.55, green: 0.32, blue: 0.85, alpha: 0.15),
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.22)
     )
 
     static let cardStroke = adaptive(
-        light: NSColor(srgbRed: 0.45, green: 0.50, blue: 0.85, alpha: 0.22),
-        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.12)
+        light: NSColor(srgbRed: 0.55, green: 0.32, blue: 0.85, alpha: 0.18),
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.25)
     )
 
     static let progressTrack = adaptive(
-        light: NSColor(srgbRed: 0.78, green: 0.80, blue: 0.88, alpha: 0.55),
-        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
+        light: NSColor(srgbRed: 0.78, green: 0.76, blue: 0.88, alpha: 0.55),
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.12)
     )
 
     static let chipIdle = adaptive(
         light: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.7),
-        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.06)
+        dark: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.08)
     )
+
+    /// 粉紫完成按钮渐变
+    static var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0.95, green: 0.40, blue: 0.55),
+                Color(red: 0.78, green: 0.28, blue: 0.82),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    /// 弹层背景渐变（深色更明显）
+    static func shellBackground(for scheme: ColorScheme) -> LinearGradient {
+        if scheme == .dark {
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.12, green: 0.08, blue: 0.22),
+                    Color(red: 0.18, green: 0.10, blue: 0.28),
+                    Color(red: 0.22, green: 0.12, blue: 0.32),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        return LinearGradient(
+            colors: [
+                Color(red: 0.98, green: 0.96, blue: 1.0),
+                Color(red: 0.96, green: 0.94, blue: 0.99),
+                Color(red: 0.94, green: 0.92, blue: 0.98),
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    /// 置顶窗 NSWindow 背景色（随系统）
+    static var windowNSBackground: NSColor {
+        NSColor(name: nil, dynamicProvider: { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            if isDark {
+                return NSColor(srgbRed: 0.12, green: 0.08, blue: 0.22, alpha: 1)
+            }
+            return NSColor(srgbRed: 0.94, green: 0.92, blue: 0.98, alpha: 1)
+        })
+    }
 
     static let cardCorner: CGFloat = 16
     static let shellCorner: CGFloat = 22

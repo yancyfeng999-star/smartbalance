@@ -7,7 +7,6 @@ struct BackgroundSystemSection: View {
 
     @State private var expandSync = false
     @State private var expandThreshold = false
-    @State private var expandAbout = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -16,7 +15,7 @@ struct BackgroundSystemSection: View {
             launchAtLoginCard
             logsCard
             updatesCard
-            aboutCard
+            aboutLine
         }
     }
 
@@ -270,29 +269,14 @@ struct BackgroundSystemSection: View {
         .background(cardShell)
     }
 
-    // MARK: 关于
+    // MARK: 关于（不折叠，一句话）
 
-    private var aboutCard: some View {
-        SettingsExpandableCard(
-            icon: "info.circle.fill",
-            iconColors: [Color(red: 0.45, green: 0.5, blue: 0.6), Color(red: 0.3, green: 0.35, blue: 0.45)],
-            title: "关于",
-            subtitle: "\(Brand.nameCN) · v\(model.appVersion)",
-            isExpanded: $expandAbout
-        ) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(Brand.nameCN) · \(Brand.nameEN)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(SBTheme.text)
-                Text("菜单栏查询各平台 API / Token 余额，偏低时 Mac 通知或邮件提醒。")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(SBTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("版本 \(model.appVersion)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.muted)
-            }
-        }
+    private var aboutLine: some View {
+        Text("\(Brand.nameCN) · 查 API 余额，偏低就提醒  ·  v\(model.appVersion)")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(SBTheme.muted)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 6)
     }
 
     // MARK: - Helpers
