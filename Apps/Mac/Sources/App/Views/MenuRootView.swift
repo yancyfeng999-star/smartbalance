@@ -12,7 +12,7 @@ struct MenuRootView: View {
                     if model.selectedTab == .home {
                         HomeView(model: model)
                     } else {
-                        SettingsView(model: model)
+                        SettingsRootView(model: model)
                     }
                 }
                 .padding(.horizontal, 14)
