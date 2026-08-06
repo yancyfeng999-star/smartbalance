@@ -9,11 +9,15 @@
 #   SHA256SUMS.txt
 #
 # 用法（在 Apps/Mac 下）：
-#   ./scripts/package-release.sh              # 用 Info.plist 当前版本
+#   ./scripts/package-release.sh              # 用 Info.plist 当前版本（本地试包）
 #   ./scripts/package-release.sh 0.2.1        # 指定版本（会先写入 Info.plist）
 #
-# 完整发版（升版本 + 打包 + GitHub）请用：
-#   ./scripts/release.sh
+# ⚠️ 规则：每次上线必须先升版本。完整发版请用：
+#   ./scripts/release.sh              # patch 升版 → 打包 → GitHub
+#   ./scripts/release.sh minor|major|0.3.0
+#
+# 若当前版本已打过 git tag（说明已上线过），默认拒绝重复打包，避免同版本覆盖上线。
+# 仅本地调试可： FORCE_REPACKAGE=1 ./scripts/package-release.sh
 #
 set -euo pipefail
 
@@ -30,6 +34,7 @@ RELEASES_ROOT="${RELEASES_ROOT:-$REPO_ROOT/releases/Mac}"
 COPY_TO_DESKTOP="${COPY_TO_DESKTOP:-1}"
 DESKTOP_OUT="${DESKTOP_OUT:-$HOME/Desktop/智余-发布}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+FORCE_REPACKAGE="${FORCE_REPACKAGE:-0}"
 
 VERSION_ARG="${1:-}"
 PLIST="${ROOT}/Sources/App/Info.plist"
@@ -37,11 +42,30 @@ PLIST="${ROOT}/Sources/App/Info.plist"
 # 若传入版本号，先写入 Info.plist（保证包内版本一致）
 if [[ -n "${VERSION_ARG}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION_ARG}" "$PLIST"
-  # 构建号若未随 release.sh 提升，则至少 +1
-  CUR_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+  # 构建号：release.sh 已 bump 过则设 BUMP_BUILD=0，否则 +1
   if [[ "${BUMP_BUILD:-1}" == "1" ]]; then
-    # release.sh 已 bump 过则设 BUMP_BUILD=0
-    :
+    CUR_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $((CUR_BUILD + 1))" "$PLIST"
+  fi
+fi
+
+# 读将要打包的营销版本，禁止对已发布 tag 重复打包（每次上线必须升版）
+PENDING_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+PENDING_TAG="v${PENDING_VERSION}"
+if [[ "${FORCE_REPACKAGE}" != "1" ]]; then
+  if git -C "${REPO_ROOT}" rev-parse "${PENDING_TAG}" >/dev/null 2>&1; then
+    echo "error: 版本 ${PENDING_VERSION} 已存在 tag ${PENDING_TAG}（说明已上线过）。" >&2
+    echo "       规则：每次打包上线必须先升版本。" >&2
+    echo "       请执行:  ./scripts/release.sh          # 自动 patch 升版并上线" >&2
+    echo "       或:      ./scripts/release.sh minor    # 升次版本" >&2
+    echo "       仅本地重打同版本包可: FORCE_REPACKAGE=1 ./scripts/package-release.sh" >&2
+    exit 1
+  fi
+  if [[ -d "${RELEASES_ROOT}/${PENDING_TAG}" ]] && [[ -f "${RELEASES_ROOT}/${PENDING_TAG}/SmartBalance-${PENDING_VERSION}.dmg" ]]; then
+    echo "error: 本地已有 ${PENDING_TAG} 安装包。每次上线须升版本。" >&2
+    echo "       请执行: ./scripts/release.sh" >&2
+    echo "       强制重打: FORCE_REPACKAGE=1 ./scripts/package-release.sh" >&2
+    exit 1
   fi
 fi
 

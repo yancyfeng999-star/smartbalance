@@ -25,7 +25,8 @@ BUILD="${NEW_BUILD}"
 TAG="v${VERSION}"
 
 echo "======== 2) 打包 ========"
-./scripts/package-release.sh "${VERSION}"
+# 版本与构建号已在 bump-version.sh 写好；禁止 package 再 +build
+BUMP_BUILD=0 FORCE_REPACKAGE=1 ./scripts/package-release.sh "${VERSION}"
 
 STAGE="${REPO}/releases/Mac/${TAG}"
 if [[ ! -d "${STAGE}" ]]; then
