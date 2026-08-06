@@ -106,5 +106,26 @@ let project = Project(
                 .target(name: "Domain"),
             ]
         ),
+    ],
+    schemes: [
+        .scheme(
+            name: "SmartBalance",
+            shared: true,
+            buildAction: .buildAction(targets: [.target("SmartBalance")]),
+            testAction: .targets(["DomainTests", "InfrastructureTests"]),
+            runAction: .runAction(configuration: .debug, executable: .target("SmartBalance"))
+        ),
+        .scheme(
+            name: "Domain",
+            shared: true,
+            buildAction: .buildAction(targets: [.target("Domain")]),
+            testAction: .targets(["DomainTests"])
+        ),
+        .scheme(
+            name: "Infrastructure",
+            shared: true,
+            buildAction: .buildAction(targets: [.target("Infrastructure")]),
+            testAction: .targets(["InfrastructureTests"])
+        ),
     ]
 )
