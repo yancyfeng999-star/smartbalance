@@ -17,6 +17,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var platformMailEnabled: Bool
     public var refreshIntervalSecs: Int
     public var lastAlertAtByAccount: [String: Date]
+    /// 是否置顶常驻窗口（对齐智额 pin）
+    public var windowPinned: Bool
 
     public init(
         accounts: [BalanceAccount] = [],
@@ -27,7 +29,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         apiQueryEnabled: Bool = true,
         platformMailEnabled: Bool = true,
         refreshIntervalSecs: Int = 600,
-        lastAlertAtByAccount: [String: Date] = [:]
+        lastAlertAtByAccount: [String: Date] = [:],
+        windowPinned: Bool = false
     ) {
         self.accounts = accounts
         self.mailSources = mailSources
@@ -38,6 +41,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.platformMailEnabled = platformMailEnabled
         self.refreshIntervalSecs = refreshIntervalSecs
         self.lastAlertAtByAccount = lastAlertAtByAccount
+        self.windowPinned = windowPinned
     }
 
     public var enabledAccounts: [BalanceAccount] {
@@ -70,6 +74,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         platformMailEnabled = try c.decodeIfPresent(Bool.self, forKey: .platformMailEnabled) ?? true
         refreshIntervalSecs = try c.decodeIfPresent(Int.self, forKey: .refreshIntervalSecs) ?? 600
         lastAlertAtByAccount = try c.decodeIfPresent([String: Date].self, forKey: .lastAlertAtByAccount) ?? [:]
+        windowPinned = try c.decodeIfPresent(Bool.self, forKey: .windowPinned) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -83,11 +88,13 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(platformMailEnabled, forKey: .platformMailEnabled)
         try c.encode(refreshIntervalSecs, forKey: .refreshIntervalSecs)
         try c.encode(lastAlertAtByAccount, forKey: .lastAlertAtByAccount)
+        try c.encode(windowPinned, forKey: .windowPinned)
     }
 
     private enum CodingKeys: String, CodingKey {
         case accounts, mailSources, inboundMailbox, email, alertChannels
         case apiQueryEnabled, platformMailEnabled, refreshIntervalSecs, lastAlertAtByAccount
+        case windowPinned
         case emailAlertModeEnabled
     }
 }

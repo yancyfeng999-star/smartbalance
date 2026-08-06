@@ -7,7 +7,10 @@ struct SmartBalanceApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuRootView(model: model)
+            MenuRootView(model: model, runsInPinnedWindow: false)
+                .onAppear {
+                    PinnedBalanceWindowController.shared.bind(model: model)
+                }
         } label: {
             Label {
                 Text(menuBarTitle)
