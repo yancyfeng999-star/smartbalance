@@ -57,7 +57,21 @@ struct SMTPSection: View {
             }
             TextField("用户名", text: $smtpUser)
                 .textFieldStyle(.roundedBorder)
-            SecureField("密码 / 授权码（留空不改）", text: $smtpPass)
+            if let mask = model.maskedSMTPPassword(), smtpPass.isEmpty {
+                HStack {
+                    Text("已保存密码")
+                        .font(.system(size: 11))
+                        .foregroundStyle(SBTheme.muted)
+                    Text(mask)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(SBTheme.text)
+                    Spacer()
+                    Text("留空则不改")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SBTheme.muted)
+                }
+            }
+            SecureField(model.hasSMTPPassword() ? "新密码（可选）" : "密码 / 授权码", text: $smtpPass)
                 .textFieldStyle(.roundedBorder)
             TextField("发件人", text: $mailFromAddr)
                 .textFieldStyle(.roundedBorder)

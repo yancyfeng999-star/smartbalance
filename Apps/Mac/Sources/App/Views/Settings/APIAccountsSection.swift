@@ -81,9 +81,15 @@ struct APIAccountsSection: View {
                 Text(acc.title)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(SBTheme.text)
-                Text(acc.kind.displayName + (model.hasSecret(for: acc) ? " · 已配置密钥" : " · 缺密钥"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(SBTheme.muted)
+                if let mask = model.maskedSecret(for: acc) {
+                    Text("\(acc.kind.displayName) · \(mask)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(SBTheme.muted)
+                } else {
+                    Text("\(acc.kind.displayName) · 缺密钥")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SBTheme.warn)
+                }
             }
             Spacer()
             Toggle("", isOn: Binding(

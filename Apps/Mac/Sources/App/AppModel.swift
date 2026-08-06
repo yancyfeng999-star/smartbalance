@@ -37,8 +37,9 @@ final class AppModel: ObservableObject {
     init() {
         self.settings = SettingsStore.shared.load()
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
-        AppLog.info("App launch · interval=\(settings.refreshIntervalSecs)s")
-        Task {
+        AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
+        Task { @MainActor in
+            MacNotificationService.shared.installDelegateIfNeeded()
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
         }
@@ -417,28 +418,71 @@ final class AppModel: ObservableObject {
         banner = "邮件报警设置已保存"
     }
 
-    func sendTestEmail() {
-        Task {
-            do {
-                try await service.sendTestEmail(settings: settings.email)
-                banner = "测试邮件已发送"
-            } catch {
-                banner = "测试邮件失败：\(error.localizedDescription)"
-            }
-        }
-    }
-
-    /// 测试按钮必达：不依赖余额状态，始终请求权限并投递测试通知。
+    /// 测试按钮：始终请求权限并投递；结果弹窗 + 首页 banner，避免「没反应」。
     func sendTestMacNotification() {
         Task {
             let granted = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
             if granted {
-                await service.sendTestMacNotification()
-                banner = "已发送测试 Mac 通知"
+                let ok = await MacNotificationService.shared.post(
+                    title: "【\(Brand.nameCN)】测试通知",
+                    body: "Mac 通知通道正常。余额异常时会在此提醒。",
+                    id: "test-mac"
+                )
+                let msg = ok ? "已发送测试 Mac 通知，请看右上角横幅" : "调度失败，请查看日志"
+                banner = msg
+                presentAlert(title: "Mac 通知", message: msg)
+                AppLog.info("Test Mac notification ok=\(ok)")
             } else {
-                banner = notificationStatusCaption
+                let msg = notificationStatusCaption
+                banner = msg
+                presentAlert(title: "Mac 通知未授权", message: msg + "\n\n可在「系统设置 → 通知 → 智余」中打开。")
             }
+        }
+    }
+
+    func sendTestEmail() {
+        Task {
+            do {
+                try await service.sendTestEmail(settings: settings.email)
+                let msg = "测试邮件已发送，请查收件箱"
+                banner = msg
+                presentAlert(title: "报警邮件", message: msg)
+                AppLog.info("Test email sent")
+            } catch {
+                let msg = "测试邮件失败：\(error.localizedDescription)"
+                banner = msg
+                presentAlert(title: "报警邮件失败", message: msg + "\n\n请确认 SMTP 主机/端口/授权码/发件收件人已保存。")
+                AppLog.error(msg)
+            }
+        }
+    }
+
+    /// 已存密钥的掩码展示（两端可见）。
+    func maskedSecret(for account: BalanceAccount) -> String? {
+        guard let s = keychain.get(account: account.secretRef), !s.isEmpty else { return nil }
+        return SecretMask.display(s)
+    }
+
+    func maskedIMAPPassword() -> String? {
+        guard let s = keychain.get(account: settings.inboundMailbox.passwordRef), !s.isEmpty else { return nil }
+        return SecretMask.display(s)
+    }
+
+    func maskedSMTPPassword() -> String? {
+        guard let s = keychain.get(account: settings.email.passwordRef), !s.isEmpty else { return nil }
+        return SecretMask.display(s)
+    }
+
+    private func presentAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "好")
+        // 菜单栏 App：异步弹，避免卡死
+        DispatchQueue.main.async {
+            alert.runModal()
         }
     }
 
@@ -448,6 +492,10 @@ final class AppModel: ObservableObject {
 
     func hasIMAPPassword() -> Bool {
         !(keychain.get(account: settings.inboundMailbox.passwordRef) ?? "").isEmpty
+    }
+
+    func hasSMTPPassword() -> Bool {
+        !(keychain.get(account: settings.email.passwordRef) ?? "").isEmpty
     }
 
     func persist() {

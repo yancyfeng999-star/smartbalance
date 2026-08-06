@@ -38,7 +38,21 @@ struct IMAPSection: View {
             }
             TextField("用户名 / 邮箱", text: $imapUser)
                 .textFieldStyle(.roundedBorder)
-            SecureField(model.hasIMAPPassword() ? "密码（留空不改）" : "密码 / 授权码", text: $imapPass)
+            if let mask = model.maskedIMAPPassword(), imapPass.isEmpty {
+                HStack {
+                    Text("已保存密码")
+                        .font(.system(size: 11))
+                        .foregroundStyle(SBTheme.muted)
+                    Text(mask)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(SBTheme.text)
+                    Spacer()
+                    Text("留空则不改")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SBTheme.muted)
+                }
+            }
+            SecureField(model.hasIMAPPassword() ? "新密码（可选）" : "密码 / 授权码", text: $imapPass)
                 .textFieldStyle(.roundedBorder)
             TextField("文件夹", text: $imapFolder)
                 .textFieldStyle(.roundedBorder)

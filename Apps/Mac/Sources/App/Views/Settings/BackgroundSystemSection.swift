@@ -35,28 +35,29 @@ struct BackgroundSystemSection: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(SBTheme.muted)
 
-                // 两行分段：关闭/15/30 与 1H/6H/24H
+                // 第一行：关闭 · 15 · 30 · 60 分钟
                 Picker("", selection: Binding(
                     get: { model.settings.refreshInterval },
                     set: { model.setRefreshInterval($0) }
                 )) {
-                    ForEach([RefreshInterval.off, .fifteenMinutes, .thirtyMinutes], id: \.self) { interval in
+                    ForEach(RefreshInterval.row1, id: \.self) { interval in
                         Text(interval.label).tag(interval)
                     }
                 }
                 .pickerStyle(.segmented)
 
+                // 第二行：4H · 12H · 24H
                 Picker("", selection: Binding(
                     get: { model.settings.refreshInterval },
                     set: { model.setRefreshInterval($0) }
                 )) {
-                    ForEach([RefreshInterval.oneHour, .sixHours, .twentyFourHours], id: \.self) { interval in
+                    ForEach(RefreshInterval.row2, id: \.self) { interval in
                         Text(interval.label).tag(interval)
                     }
                 }
                 .pickerStyle(.segmented)
 
-                Text("后台刷新菜单栏数据。选「关闭」最省电（仅打开菜单或手动刷新时更新）。1H / 6H / 24H 适合低频查余额。")
+                Text("后台刷新余额。选「关闭」最省电（仅手动/打开菜单时更新）。4H / 12H / 24H 适合低频查余额。")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -185,32 +186,28 @@ struct BackgroundSystemSection: View {
     // MARK: 日志
 
     private var logsCard: some View {
-        Button {
-            model.openLogs()
-        } label: {
-            HStack(spacing: 10) {
-                iconCircle(
-                    systemName: "doc.text.fill",
-                    colors: [Color(red: 0.55, green: 0.5, blue: 0.65), Color(red: 0.4, green: 0.38, blue: 0.5)]
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("日志")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(SBTheme.text)
-                    Text("查看应用日志 · ~/Library/Logs/SmartBalance")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(SBTheme.muted)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
+        HStack(spacing: 10) {
+            iconCircle(
+                systemName: "doc.text.fill",
+                colors: [Color(red: 0.55, green: 0.5, blue: 0.65), Color(red: 0.4, green: 0.38, blue: 0.5)]
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text("日志")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(SBTheme.text)
+                Text("~/Library/Logs/SmartBalance")
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
+                    .lineLimit(1)
             }
-            .padding(14)
-            .background(cardShell)
+            Spacer()
+            Button("打开") {
+                model.openLogs()
+            }
+            .buttonStyle(SBButtonStyle(kind: .accent))
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .background(cardShell)
     }
 
     // MARK: 软件更新
