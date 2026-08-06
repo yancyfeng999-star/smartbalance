@@ -130,7 +130,7 @@ public struct UpdateChecker: Sendable {
         }
     }
 
-    /// 优先 SmartBalance-*-macOS.zip / 智余*.zip
+    /// 优先 dmg → pkg → zip（对齐智额 ManualUpdateEvaluator）
     private func preferredZipURL(from releaseJSON: [String: Any]) -> URL? {
         guard let assets = releaseJSON["assets"] as? [[String: Any]] else { return nil }
         let namesAndURLs: [(String, URL)] = assets.compactMap { asset in
@@ -141,16 +141,21 @@ public struct UpdateChecker: Sendable {
             else { return nil }
             return (name, url)
         }
-        let preferred = namesAndURLs.first { name, _ in
+        let ranked = namesAndURLs.compactMap { name, url -> (Int, URL)? in
             let n = name.lowercased()
-            return n.contains("smartbalance") && n.hasSuffix(".zip")
+            let score: Int
+            if n.hasSuffix(".dmg") {
+                score = (n.contains("smartbalance") || n.contains("智余")) ? 0 : 1
+            } else if n.hasSuffix(".pkg") {
+                score = 2
+            } else if n.hasSuffix(".zip") {
+                score = 3
+            } else {
+                return nil
+            }
+            return (score, url)
         }
-        ?? namesAndURLs.first { name, _ in
-            let n = name.lowercased()
-            return n.hasSuffix(".zip") && (n.contains("macos") || n.contains("mac") || n.contains("智余"))
-        }
-        ?? namesAndURLs.first { $0.0.lowercased().hasSuffix(".zip") }
-        return preferred?.1
+        return ranked.sorted { $0.0 < $1.0 }.first?.1
     }
 
     /// 简易 semver 比较：a > b → 1

@@ -57,15 +57,19 @@ cd Apps/Mac
 tuist generate
 open SmartBalance.xcworkspace
 
-# Release 打包 → 桌面 智余.app + zip
+# Release 打包 → DMG + PKG（对齐智额）
 ./scripts/package-release.sh 0.2.0
 ```
 
 输出：
 
-- `~/Desktop/智余.app`
-- `~/Desktop/SmartBalance-0.2.0-macOS.zip`
-- `releases/SmartBalance-0.2.0-macOS.zip`
+| 文件 | 用途 |
+|------|------|
+| `releases/Mac/v0.2.0/智余-0.2.0.dmg` | **推荐**：打开后拖进 Applications |
+| `releases/Mac/v0.2.0/智余-0.2.0.pkg` | 双击安装向导 |
+| `SmartBalance-0.2.0.dmg` / `.pkg` | 英文名，适合 GitHub Release |
+| `~/Desktop/智余-发布/` | 同上副本 |
+| `~/Desktop/智余.app` | 本机立刻试跑 |
 
 测试：`./scripts/run-tests.sh`
 

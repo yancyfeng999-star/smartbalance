@@ -7,11 +7,14 @@ Apps/Mac/**/DerivedData/
 **/xcuserdata/
 **/.DS_Store
 
-# 本地打包输出（发布前再拷贝到 releases/）
+# 本地构建缓存
 Apps/Mac/dist/
-releases/*.zip
-releases/*.dmg
-!releases/.gitkeep
+# 大体积安装包默认不入库（需要时可强制 git add -f）
+releases/**/*.dmg
+releases/**/*.pkg
+releases/**/*.zip
+!releases/**/.gitkeep
+!releases/Mac/**/RELEASE_NOTES.md
 
 # 密钥
 **/.env
