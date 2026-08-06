@@ -2,22 +2,17 @@ import Foundation
 
 /// 应用持久化设置。
 public struct AppSettings: Codable, Equatable, Sendable {
-    /// API 直查账号。
     public var accounts: [BalanceAccount]
-    /// 平台邮件余额源（无实时 API 的平台）。
     public var mailSources: [PlatformMailSource]
-    /// IMAP 收件箱（读平台邮件）。
     public var inboundMailbox: InboundMailboxSettings
-    /// SMTP 出站报警。
     public var email: EmailAlertSettings
-    /// Mac 通知 + 邮件报警开关与阈值。
     public var alertChannels: AlertChannelSettings
 
     public var apiQueryEnabled: Bool
     public var platformMailEnabled: Bool
+    /// 后台同步间隔秒；0 = 关闭（仅手动/打开菜单时）。
     public var refreshIntervalSecs: Int
     public var lastAlertAtByAccount: [String: Date]
-    /// 是否置顶常驻窗口（对齐智额 pin）
     public var windowPinned: Bool
 
     public init(
@@ -28,7 +23,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         alertChannels: AlertChannelSettings = AlertChannelSettings(),
         apiQueryEnabled: Bool = true,
         platformMailEnabled: Bool = true,
-        refreshIntervalSecs: Int = 600,
+        refreshIntervalSecs: Int = 900,
         lastAlertAtByAccount: [String: Date] = [:],
         windowPinned: Bool = false
     ) {
@@ -52,7 +47,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mailSources.filter(\.enabled)
     }
 
-    /// 兼容旧 settings.json（仅 emailAlertModeEnabled 等字段）。
+    public var refreshInterval: RefreshInterval {
+        get { RefreshInterval.from(seconds: refreshIntervalSecs) }
+        set { refreshIntervalSecs = newValue.seconds ?? 0 }
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         accounts = try c.decodeIfPresent([BalanceAccount].self, forKey: .accounts) ?? []
@@ -68,11 +67,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
             ch.cooldownSeconds = email.cooldownSeconds
             ch.outboundEmailEnabled = try c.decodeIfPresent(Bool.self, forKey: .emailAlertModeEnabled) ?? true
             ch.macNotificationEnabled = true
+            ch.quotaThresholdAlertsEnabled = true
             alertChannels = ch
         }
         apiQueryEnabled = try c.decodeIfPresent(Bool.self, forKey: .apiQueryEnabled) ?? true
         platformMailEnabled = try c.decodeIfPresent(Bool.self, forKey: .platformMailEnabled) ?? true
-        refreshIntervalSecs = try c.decodeIfPresent(Int.self, forKey: .refreshIntervalSecs) ?? 600
+        refreshIntervalSecs = try c.decodeIfPresent(Int.self, forKey: .refreshIntervalSecs) ?? 900
         lastAlertAtByAccount = try c.decodeIfPresent([String: Date].self, forKey: .lastAlertAtByAccount) ?? [:]
         windowPinned = try c.decodeIfPresent(Bool.self, forKey: .windowPinned) ?? false
     }

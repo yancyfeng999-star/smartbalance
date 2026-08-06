@@ -26,8 +26,18 @@ final class AppModel: ObservableObject {
     private let service = BalanceService()
     private var refreshTask: Task<Void, Never>?
 
+    @Published var launchAtLoginEnabled: Bool = LaunchAtLogin.isEnabled
+    @Published var updateChecking = false
+    @Published var updateMessage: String?
+    @Published var updateOpenURL: URL?
+    @Published var updateAvailable = false
+
+    private let updateChecker = UpdateChecker()
+
     init() {
         self.settings = SettingsStore.shared.load()
+        self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        AppLog.info("App launch · interval=\(settings.refreshIntervalSecs)s")
         Task {
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
@@ -103,23 +113,28 @@ final class AppModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         banner = nil
+        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) mail=\(settings.enabledMailSources.count)")
         Task {
             let result = await service.refreshAll(settings: settings)
             self.snapshots = result.snapshots.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
             if !result.alerts.isEmpty {
                 self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
-                // 邮件通道失败 → 首页 banner 可见（emailed=false 且 message 带失败前缀）
                 if let fail = result.alerts.first(where: {
                     !$0.emailed && $0.message.hasPrefix("邮件发送失败")
                 }) {
                     let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
                     self.banner = firstLine
+                    AppLog.error(firstLine)
+                }
+                for a in result.alerts {
+                    AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
                 }
             }
             self.settings = result.settings
             self.lastRefreshAt = Date()
             self.isRefreshing = false
             try? store.save(self.settings)
+            AppLog.info("Refresh done · cards=\(self.snapshots.count)")
         }
     }
 
@@ -292,7 +307,74 @@ final class AppModel: ObservableObject {
     func setRefreshInterval(_ secs: Int) {
         settings.refreshIntervalSecs = secs
         persist()
+        AppLog.info("Background sync interval → \(secs)s")
         startAutoRefreshIfNeeded()
+    }
+
+    func setRefreshInterval(_ interval: RefreshInterval) {
+        setRefreshInterval(interval.seconds ?? 0)
+    }
+
+    func setQuotaThresholdAlertsEnabled(_ on: Bool) {
+        settings.alertChannels.quotaThresholdAlertsEnabled = on
+        persist()
+    }
+
+    func setAmountThreshold(_ value: Double) {
+        settings.alertChannels.defaultAmountThreshold = value
+        settings.email.defaultAmountThreshold = value
+        persist()
+    }
+
+    func setPercentThreshold(_ value: Double) {
+        settings.alertChannels.defaultPercentThreshold = value
+        settings.email.defaultPercentThreshold = value
+        persist()
+    }
+
+    func setLaunchAtLogin(_ on: Bool) {
+        if LaunchAtLogin.setEnabled(on) {
+            launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        } else {
+            launchAtLoginEnabled = LaunchAtLogin.isEnabled
+            banner = "无法修改「登录时启动」，请在 系统设置 → 通用 → 登录项 中检查"
+        }
+    }
+
+    func openLogs() {
+        AppLog.info("User opened logs folder")
+        AppLog.revealInFinder()
+    }
+
+    func checkForUpdates() {
+        guard !updateChecking else { return }
+        updateChecking = true
+        updateMessage = nil
+        updateOpenURL = nil
+        updateAvailable = false
+        Task {
+            let result = await updateChecker.check()
+            await MainActor.run {
+                self.updateChecking = false
+                self.updateMessage = result.message
+                self.updateOpenURL = result.openURL
+                self.updateAvailable = result.status == .available
+                AppLog.info("Update check: \(result.message)")
+                if result.status == .available {
+                    self.banner = result.message
+                }
+            }
+        }
+    }
+
+    func openUpdateURL() {
+        if let url = updateOpenURL {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
     }
 
     func saveOutboundEmail(

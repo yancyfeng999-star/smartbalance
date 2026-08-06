@@ -8,7 +8,7 @@ import Domain
 /// 2. API 账号 — 列表 + 添加
 /// 3. 平台邮件 — 邮件源 + IMAP（入站）
 /// 4. 报警通知 — Mac 通知 + SMTP（出站）
-/// 5. 通用 — 刷新间隔 + 关于
+/// 5. 后台同步 / 阈值 / 登录启动 / 日志 / 更新 / 关于
 struct SettingsRootView: View {
     @ObservedObject var model: AppModel
 
@@ -16,7 +16,6 @@ struct SettingsRootView: View {
     @State private var expandAPI = true
     @State private var expandMail = false
     @State private var expandAlert = false
-    @State private var expandGeneral = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -24,10 +23,9 @@ struct SettingsRootView: View {
             apiCard
             platformMailCard
             alertCard
-            generalCard
+            BackgroundSystemSection(model: model)
         }
         .onAppear {
-            // 无账号时默认展开 API；有平台邮件源时展开邮件卡
             if model.settings.accounts.isEmpty {
                 expandAPI = true
             }
@@ -151,54 +149,6 @@ struct SettingsRootView: View {
         if model.settings.alertChannels.macNotificationEnabled { parts.append("Mac") }
         if model.settings.alertChannels.outboundEmailEnabled { parts.append("邮件") }
         return parts.isEmpty ? "均已关闭" : parts.joined(separator: " · ") + " 已开"
-    }
-
-    // MARK: 5 · 通用
-
-    private var generalCard: some View {
-        SettingsExpandableCard(
-            icon: "slider.horizontal.3",
-            iconColors: [Color(red: 0.45, green: 0.48, blue: 0.55), Color(red: 0.3, green: 0.32, blue: 0.4)],
-            title: "通用",
-            subtitle: refreshSubtitle,
-            isExpanded: $expandGeneral
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                sectionLabel("刷新间隔")
-                Picker("间隔", selection: Binding(
-                    get: { model.settings.refreshIntervalSecs },
-                    set: { model.setRefreshInterval($0) }
-                )) {
-                    Text("仅手动").tag(0)
-                    Text("5 分钟").tag(300)
-                    Text("10 分钟").tag(600)
-                    Text("15 分钟").tag(900)
-                    Text("30 分钟").tag(1800)
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-
-                Divider().overlay(SBTheme.stroke)
-
-                sectionLabel("关于")
-                Text("\(Brand.nameCN) · \(Brand.nameEN)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(SBTheme.text)
-                Text("API 直查 · 平台邮件 · Mac 通知 · 邮件报警")
-                    .font(.system(size: 11))
-                    .foregroundStyle(SBTheme.muted)
-                Text("v0.1.0 · 仅 Mac · 密钥本机 Keychain")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SBTheme.muted)
-            }
-        }
-    }
-
-    private var refreshSubtitle: String {
-        let s = model.settings.refreshIntervalSecs
-        if s <= 0 { return "仅手动刷新" }
-        if s < 60 { return "\(s) 秒" }
-        return "每 \(s / 60) 分钟"
     }
 
     private func sectionLabel(_ text: String) -> some View {

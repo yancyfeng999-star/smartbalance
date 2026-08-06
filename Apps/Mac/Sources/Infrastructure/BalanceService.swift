@@ -241,7 +241,13 @@ public actor BalanceService {
         force: Bool = false,
         extraNote: String? = nil
     ) async -> AlertEvent? {
-        guard force || shouldAlert(status: snapshot.status) else { return nil }
+        // force：平台报警邮件；否则需开启「额度阈值报警」且状态偏低/危急/耗尽
+        if force {
+            // always continue
+        } else {
+            guard settings.alertChannels.quotaThresholdAlertsEnabled else { return nil }
+            guard shouldAlert(status: snapshot.status) else { return nil }
+        }
 
         let channels = settings.alertChannels
         guard channels.macNotificationEnabled || (channels.outboundEmailEnabled && settings.email.enabled) else {
