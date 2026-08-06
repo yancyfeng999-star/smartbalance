@@ -101,14 +101,21 @@ struct BackgroundSystemSection: View {
                     thresholdSlider(
                         title: "偏低 ≤ ¥",
                         value: model.settings.alertChannels.warningAmount,
-                        range: 20...2000,
+                        range: 30...2000,
                         unit: "",
                         onChange: { model.setWarningAmount($0) }
                     )
                     thresholdSlider(
+                        title: "不足 ≤ ¥",
+                        value: model.settings.alertChannels.midAmount,
+                        range: 10...500,
+                        unit: "",
+                        onChange: { model.setMidAmount($0) }
+                    )
+                    thresholdSlider(
                         title: "危急 ≤ ¥",
                         value: model.settings.alertChannels.criticalAmount,
-                        range: 1...500,
+                        range: 1...200,
                         unit: "",
                         onChange: { model.setCriticalAmount($0) }
                     )
@@ -124,13 +131,20 @@ struct BackgroundSystemSection: View {
                         onChange: { model.setWarningPercent($0) }
                     )
                     thresholdSlider(
+                        title: "不足 ≤",
+                        value: model.settings.alertChannels.midPercent,
+                        range: 3...50,
+                        unit: "%",
+                        onChange: { model.setMidPercent($0) }
+                    )
+                    thresholdSlider(
                         title: "危急 ≤",
                         value: model.settings.alertChannels.criticalPercent,
-                        range: 1...50,
+                        range: 1...40,
                         unit: "%",
                         onChange: { model.setCriticalPercent($0) }
                     )
-                    Text("档位：充足 → 偏低 → 危急 → 耗尽(≤0)。报警走 Mac 通知 / 邮件。")
+                    Text("档位：充足 → 偏低(≤100) → 不足(≤50) → 危急(≤20) → 耗尽(≤0)。")
                         .font(.system(size: 10))
                         .foregroundStyle(SBTheme.muted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -142,7 +156,7 @@ struct BackgroundSystemSection: View {
     private var thresholdSubtitle: String {
         let ch = model.settings.alertChannels
         if !ch.quotaThresholdAlertsEnabled { return "已关闭 · 点开配置" }
-        return "偏低¥\(Int(ch.warningAmount)) · 危急¥\(Int(ch.criticalAmount)) · \(Int(ch.warningPercent))%/\(Int(ch.criticalPercent))%"
+        return "偏低¥\(Int(ch.warningAmount)) · 不足¥\(Int(ch.midAmount)) · 危急¥\(Int(ch.criticalAmount))"
     }
 
     private func thresholdSlider(

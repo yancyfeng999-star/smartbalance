@@ -143,21 +143,14 @@ enum SBTheme {
         switch status {
         case .healthy: ok
         case .warning: warn
+        case .caution: Color(red: 1.0, green: 0.48, blue: 0.12) // 深橙，介于黄与红
         case .critical, .depleted, .error: danger
         case .unknown, .setup: muted
         }
     }
 
     static func statusLabel(_ status: BalanceStatus) -> String {
-        switch status {
-        case .healthy: "充足"   // > 偏低线
-        case .warning: "偏低"   // ≤ 偏低线
-        case .critical: "危急"  // ≤ 危急线
-        case .depleted: "耗尽"  // ≤ 0
-        case .error: "失败"
-        case .setup: "待配置"
-        case .unknown: "未知"
-        }
+        status.titleCN
     }
 
     private static func adaptive(light: NSColor, dark: NSColor) -> Color {

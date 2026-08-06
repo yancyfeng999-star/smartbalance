@@ -28,17 +28,17 @@ public struct AlertChannelSettings: Codable, Equatable, Sendable {
     public var outboundEmailEnabled: Bool
     public var quotaThresholdAlertsEnabled: Bool
 
-    /// 金额 ≤ 此值 → 偏低（人民币）
+    /// ≤ 此金额 → 偏低（默认 100）
     public var warningAmount: Double
-    /// 金额 ≤ 此值 → 危急（人民币，应 ≤ warning）
+    /// ≤ 此金额 → 不足（默认 50）
+    public var midAmount: Double
+    /// ≤ 此金额 → 危急（默认 20）
     public var criticalAmount: Double
-    /// 剩余 % ≤ 此值 → 偏低
     public var warningPercent: Double
-    /// 剩余 % ≤ 此值 → 危急
+    public var midPercent: Double
     public var criticalPercent: Double
     public var cooldownSeconds: Int
 
-    /// 兼容旧字段名
     public var defaultAmountThreshold: Double {
         get { warningAmount }
         set { warningAmount = newValue }
@@ -54,18 +54,24 @@ public struct AlertChannelSettings: Codable, Equatable, Sendable {
         outboundEmailEnabled: Bool = true,
         quotaThresholdAlertsEnabled: Bool = true,
         warningAmount: Double = BalanceTierDefaults.warningAmount,
+        midAmount: Double = BalanceTierDefaults.midAmount,
         criticalAmount: Double = BalanceTierDefaults.criticalAmount,
         warningPercent: Double = BalanceTierDefaults.warningPercent,
+        midPercent: Double = BalanceTierDefaults.midPercent,
         criticalPercent: Double = BalanceTierDefaults.criticalPercent,
         cooldownSeconds: Int = 3600
     ) {
         self.macNotificationEnabled = macNotificationEnabled
         self.outboundEmailEnabled = outboundEmailEnabled
         self.quotaThresholdAlertsEnabled = quotaThresholdAlertsEnabled
-        self.warningAmount = warningAmount
-        self.criticalAmount = min(criticalAmount, warningAmount)
-        self.warningPercent = warningPercent
-        self.criticalPercent = min(criticalPercent, warningPercent)
+        let ordered = Self.clampAmountTiers(warning: warningAmount, mid: midAmount, critical: criticalAmount)
+        self.warningAmount = ordered.w
+        self.midAmount = ordered.m
+        self.criticalAmount = ordered.c
+        let p = Self.clampPercentTiers(warning: warningPercent, mid: midPercent, critical: criticalPercent)
+        self.warningPercent = p.w
+        self.midPercent = p.m
+        self.criticalPercent = p.c
         self.cooldownSeconds = cooldownSeconds
     }
 
@@ -76,35 +82,49 @@ public struct AlertChannelSettings: Codable, Equatable, Sendable {
         quotaThresholdAlertsEnabled = try c.decodeIfPresent(Bool.self, forKey: .quotaThresholdAlertsEnabled) ?? true
         cooldownSeconds = try c.decodeIfPresent(Int.self, forKey: .cooldownSeconds) ?? 3600
 
-        // 新字段优先；否则从旧 defaultAmountThreshold 迁移
-        if let w = try c.decodeIfPresent(Double.self, forKey: .warningAmount) {
-            warningAmount = w
+        var w: Double
+        if let v = try c.decodeIfPresent(Double.self, forKey: .warningAmount) {
+            w = v
         } else if let old = try c.decodeIfPresent(Double.self, forKey: .defaultAmountThreshold) {
-            // 旧默认 10 太严，若用户仍是 10 则升到新默认 200
-            warningAmount = old <= 10 ? BalanceTierDefaults.warningAmount : old
+            // 旧 10/200 等迁移到新默认 100
+            w = (old <= 10 || old == 200) ? BalanceTierDefaults.warningAmount : old
         } else {
-            warningAmount = BalanceTierDefaults.warningAmount
+            w = BalanceTierDefaults.warningAmount
         }
 
-        if let crit = try c.decodeIfPresent(Double.self, forKey: .criticalAmount) {
-            criticalAmount = min(crit, warningAmount)
+        let mid: Double
+        if let v = try c.decodeIfPresent(Double.self, forKey: .midAmount) {
+            mid = v
         } else {
-            criticalAmount = min(BalanceTierDefaults.criticalAmount, warningAmount)
+            mid = BalanceTierDefaults.midAmount
         }
 
-        if let wp = try c.decodeIfPresent(Double.self, forKey: .warningPercent) {
-            warningPercent = wp
+        let crit: Double
+        if let v = try c.decodeIfPresent(Double.self, forKey: .criticalAmount) {
+            crit = v
+        } else {
+            crit = BalanceTierDefaults.criticalAmount
+        }
+
+        let amt = Self.clampAmountTiers(warning: w, mid: mid, critical: crit)
+        warningAmount = amt.w
+        midAmount = amt.m
+        criticalAmount = amt.c
+
+        var wp: Double
+        if let v = try c.decodeIfPresent(Double.self, forKey: .warningPercent) {
+            wp = v
         } else if let old = try c.decodeIfPresent(Double.self, forKey: .defaultPercentThreshold) {
-            warningPercent = old
+            wp = old
         } else {
-            warningPercent = BalanceTierDefaults.warningPercent
+            wp = BalanceTierDefaults.warningPercent
         }
-
-        if let cp = try c.decodeIfPresent(Double.self, forKey: .criticalPercent) {
-            criticalPercent = min(cp, warningPercent)
-        } else {
-            criticalPercent = min(BalanceTierDefaults.criticalPercent, warningPercent)
-        }
+        let mp = try c.decodeIfPresent(Double.self, forKey: .midPercent) ?? BalanceTierDefaults.midPercent
+        let cp = try c.decodeIfPresent(Double.self, forKey: .criticalPercent) ?? BalanceTierDefaults.criticalPercent
+        let pct = Self.clampPercentTiers(warning: wp, mid: mp, critical: cp)
+        warningPercent = pct.w
+        midPercent = pct.m
+        criticalPercent = pct.c
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -113,18 +133,36 @@ public struct AlertChannelSettings: Codable, Equatable, Sendable {
         try c.encode(outboundEmailEnabled, forKey: .outboundEmailEnabled)
         try c.encode(quotaThresholdAlertsEnabled, forKey: .quotaThresholdAlertsEnabled)
         try c.encode(warningAmount, forKey: .warningAmount)
+        try c.encode(midAmount, forKey: .midAmount)
         try c.encode(criticalAmount, forKey: .criticalAmount)
         try c.encode(warningPercent, forKey: .warningPercent)
+        try c.encode(midPercent, forKey: .midPercent)
         try c.encode(criticalPercent, forKey: .criticalPercent)
         try c.encode(cooldownSeconds, forKey: .cooldownSeconds)
-        // 旧字段双写，便于回滚
         try c.encode(warningAmount, forKey: .defaultAmountThreshold)
         try c.encode(warningPercent, forKey: .defaultPercentThreshold)
     }
 
+    /// 保证 warning ≥ mid ≥ critical > 0
+    public static func clampAmountTiers(warning: Double, mid: Double, critical: Double) -> (w: Double, m: Double, c: Double) {
+        var vals = [max(1, warning), max(1, mid), max(1, critical)].sorted(by: >)
+        if vals[0] == vals[1] { vals[1] = max(1, vals[0] * 0.5) }
+        if vals[1] == vals[2] { vals[2] = max(1, vals[1] * 0.4) }
+        if vals[2] >= vals[1] { vals[2] = max(1, vals[1] - 1) }
+        return (vals[0], vals[1], vals[2])
+    }
+
+    public static func clampPercentTiers(warning: Double, mid: Double, critical: Double) -> (w: Double, m: Double, c: Double) {
+        var vals = [min(99, max(1, warning)), min(99, max(1, mid)), min(99, max(1, critical))].sorted(by: >)
+        if vals[1] >= vals[0] { vals[1] = max(1, vals[0] - 1) }
+        if vals[2] >= vals[1] { vals[2] = max(1, vals[1] - 1) }
+        return (vals[0], vals[1], vals[2])
+    }
+
     private enum CodingKeys: String, CodingKey {
         case macNotificationEnabled, outboundEmailEnabled, quotaThresholdAlertsEnabled
-        case warningAmount, criticalAmount, warningPercent, criticalPercent, cooldownSeconds
+        case warningAmount, midAmount, criticalAmount
+        case warningPercent, midPercent, criticalPercent, cooldownSeconds
         case defaultAmountThreshold, defaultPercentThreshold
     }
 }

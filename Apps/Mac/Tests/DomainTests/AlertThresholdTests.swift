@@ -8,44 +8,37 @@ final class AlertThresholdTests: XCTestCase {
                 amount: 80,
                 remainingPercent: nil,
                 warningAmount: 100,
-                criticalAmount: 40
+                midAmount: 50,
+                criticalAmount: 20
             ),
             .warning
         )
         XCTAssertEqual(
             BalanceSnapshot.resolveStatus(
-                amount: 30,
+                amount: 40,
                 remainingPercent: nil,
                 warningAmount: 100,
-                criticalAmount: 40
+                midAmount: 50,
+                criticalAmount: 20
+            ),
+            .caution
+        )
+        XCTAssertEqual(
+            BalanceSnapshot.resolveStatus(
+                amount: 15,
+                remainingPercent: nil,
+                warningAmount: 100,
+                midAmount: 50,
+                criticalAmount: 20
             ),
             .critical
         )
     }
 
-    func testLegacyAmountThresholdAPI() {
-        // 旧 API：threshold=10 → warning=10, critical≈2.5
-        XCTAssertEqual(
-            BalanceSnapshot.resolveStatus(amount: 15, remainingPercent: nil, amountThreshold: 10, percentThreshold: 20),
-            .healthy
-        )
-        XCTAssertEqual(
-            BalanceSnapshot.resolveStatus(amount: 8, remainingPercent: nil, amountThreshold: 10, percentThreshold: 20),
-            .warning
-        )
-        XCTAssertEqual(
-            BalanceSnapshot.resolveStatus(amount: 2, remainingPercent: nil, amountThreshold: 10, percentThreshold: 20),
-            .critical
-        )
-    }
-
-    func testAlertChannelMigrationFromOldDefault10() throws {
-        // 旧设置 defaultAmountThreshold=10 → 解码后升到 200
-        let json = """
-        {"macNotificationEnabled":true,"outboundEmailEnabled":true,"quotaThresholdAlertsEnabled":true,"defaultAmountThreshold":10,"defaultPercentThreshold":20,"cooldownSeconds":3600}
-        """.data(using: .utf8)!
-        let ch = try JSONDecoder().decode(AlertChannelSettings.self, from: json)
-        XCTAssertEqual(ch.warningAmount, BalanceTierDefaults.warningAmount)
-        XCTAssertEqual(ch.criticalAmount, BalanceTierDefaults.criticalAmount)
+    func testStatusTitles() {
+        XCTAssertEqual(BalanceStatus.healthy.titleCN, "充足")
+        XCTAssertEqual(BalanceStatus.warning.titleCN, "偏低")
+        XCTAssertEqual(BalanceStatus.caution.titleCN, "不足")
+        XCTAssertEqual(BalanceStatus.critical.titleCN, "危急")
     }
 }

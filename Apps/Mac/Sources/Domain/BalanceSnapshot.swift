@@ -70,41 +70,38 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
 
     public var sourceBadgeCN: String { source.titleCN }
 
-    /// 多档状态（人民币金额 + 可选剩余百分比）。
-    ///
-    /// 金额档（默认）：
+    /// 金额四档 + 百分比（取更差）：
+    /// - 充足 > warning
+    /// - 偏低 ≤ warning（默认 100）
+    /// - 不足 ≤ mid（默认 50）
+    /// - 危急 ≤ critical（默认 20）
     /// - 耗尽 ≤ 0
-    /// - 危急 ≤ criticalAmount（默认 50）
-    /// - 偏低 ≤ warningAmount（默认 200）
-    /// - 充足 > warningAmount
-    ///
-    /// 百分比档（有 remainingPercent 时与金额取「更差」的一档）：
-    /// - 耗尽 ≤ 0
-    /// - 危急 ≤ criticalPercent（默认 10）
-    /// - 偏低 ≤ warningPercent（默认 30）
-    /// - 充足 > warningPercent
     public static func resolveStatus(
         amount: Double?,
         remainingPercent: Double?,
         warningAmount: Double = BalanceTierDefaults.warningAmount,
+        midAmount: Double = BalanceTierDefaults.midAmount,
         criticalAmount: Double = BalanceTierDefaults.criticalAmount,
         warningPercent: Double = BalanceTierDefaults.warningPercent,
+        midPercent: Double = BalanceTierDefaults.midPercent,
         criticalPercent: Double = BalanceTierDefaults.criticalPercent
     ) -> BalanceStatus {
         let byAmount = statusByAmount(
             amount,
             warning: warningAmount,
+            mid: midAmount,
             critical: criticalAmount
         )
         let byPercent = statusByPercent(
             remainingPercent,
             warning: warningPercent,
+            mid: midPercent,
             critical: criticalPercent
         )
         return worse(byAmount, byPercent)
     }
 
-    /// 兼容旧调用：`amountThreshold`≈偏低线，危急=偏低×0.25（至少 1）
+    /// 兼容旧双阈值 API
     public static func resolveStatus(
         amount: Double?,
         remainingPercent: Double?,
@@ -112,45 +109,64 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
         percentThreshold: Double
     ) -> BalanceStatus {
         let warning = max(1, amountThreshold)
-        let critical = max(1, min(warning * 0.25, warning - 1))
+        let mid = max(1, min(warning * 0.5, warning - 1))
+        let critical = max(1, min(warning * 0.2, mid - 1))
         let warnPct = max(1, percentThreshold)
-        let critPct = max(1, min(warnPct * 0.5, warnPct - 1))
+        let midPct = max(1, min(warnPct * 0.5, warnPct - 1))
+        let critPct = max(1, min(warnPct * 0.33, midPct - 1))
         return resolveStatus(
             amount: amount,
             remainingPercent: remainingPercent,
             warningAmount: warning,
+            midAmount: mid,
             criticalAmount: critical,
             warningPercent: warnPct,
+            midPercent: midPct,
             criticalPercent: critPct
         )
     }
 
-    private static func statusByAmount(_ amount: Double?, warning: Double, critical: Double) -> BalanceStatus? {
+    private static func orderedThresholds(_ a: Double, _ b: Double, _ c: Double) -> (Double, Double, Double) {
+        let sorted = [a, b, c].sorted(by: >)
+        return (sorted[0], sorted[1], sorted[2])
+    }
+
+    private static func statusByAmount(
+        _ amount: Double?,
+        warning: Double,
+        mid: Double,
+        critical: Double
+    ) -> BalanceStatus? {
         guard let amount else { return nil }
-        let w = max(critical, warning)
-        let c = min(critical, warning)
+        let (w, m, c) = orderedThresholds(warning, mid, critical)
         if amount <= 0 { return .depleted }
         if amount <= c { return .critical }
+        if amount <= m { return .caution }
         if amount <= w { return .warning }
         return .healthy
     }
 
-    private static func statusByPercent(_ pct: Double?, warning: Double, critical: Double) -> BalanceStatus? {
+    private static func statusByPercent(
+        _ pct: Double?,
+        warning: Double,
+        mid: Double,
+        critical: Double
+    ) -> BalanceStatus? {
         guard let pct else { return nil }
-        let w = max(critical, warning)
-        let c = min(critical, warning)
+        let (w, m, c) = orderedThresholds(warning, mid, critical)
         if pct <= 0 { return .depleted }
         if pct <= c { return .critical }
+        if pct <= m { return .caution }
         if pct <= w { return .warning }
         return .healthy
     }
 
-    /// 取更差档：耗尽 > 危急 > 偏低 > 充足 > 未知
     private static func worse(_ a: BalanceStatus?, _ b: BalanceStatus?) -> BalanceStatus {
         let rank: (BalanceStatus) -> Int = {
             switch $0 {
-            case .depleted: 5
-            case .critical: 4
+            case .depleted: 6
+            case .critical: 5
+            case .caution: 4
             case .warning: 3
             case .error: 2
             case .setup: 1
@@ -170,12 +186,13 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
 
 /// 默认分档（人民币）。
 public enum BalanceTierDefaults: Sendable {
-    /// 低于此为「偏低」
-    public static let warningAmount: Double = 200
-    /// 低于此为「危急」
-    public static let criticalAmount: Double = 50
-    /// 剩余 % 低于此为「偏低」
+    /// 偏低线
+    public static let warningAmount: Double = 100
+    /// 不足线（中间档）
+    public static let midAmount: Double = 50
+    /// 危急线
+    public static let criticalAmount: Double = 20
     public static let warningPercent: Double = 30
-    /// 剩余 % 低于此为「危急」
+    public static let midPercent: Double = 15
     public static let criticalPercent: Double = 10
 }

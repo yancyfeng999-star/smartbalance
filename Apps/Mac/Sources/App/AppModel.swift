@@ -361,37 +361,81 @@ final class AppModel: ObservableObject {
     }
 
     func setWarningAmount(_ value: Double) {
-        let v = max(1, value)
-        settings.alertChannels.warningAmount = v
-        if settings.alertChannels.criticalAmount > v {
-            settings.alertChannels.criticalAmount = max(1, v * 0.25)
-        }
-        settings.email.defaultAmountThreshold = v
+        let t = AlertChannelSettings.clampAmountTiers(
+            warning: value,
+            mid: settings.alertChannels.midAmount,
+            critical: settings.alertChannels.criticalAmount
+        )
+        settings.alertChannels.warningAmount = t.w
+        settings.alertChannels.midAmount = t.m
+        settings.alertChannels.criticalAmount = t.c
+        settings.email.defaultAmountThreshold = t.w
+        persist()
+        refresh()
+    }
+
+    func setMidAmount(_ value: Double) {
+        let t = AlertChannelSettings.clampAmountTiers(
+            warning: settings.alertChannels.warningAmount,
+            mid: value,
+            critical: settings.alertChannels.criticalAmount
+        )
+        settings.alertChannels.warningAmount = t.w
+        settings.alertChannels.midAmount = t.m
+        settings.alertChannels.criticalAmount = t.c
         persist()
         refresh()
     }
 
     func setCriticalAmount(_ value: Double) {
-        let w = settings.alertChannels.warningAmount
-        settings.alertChannels.criticalAmount = min(max(1, value), w)
+        let t = AlertChannelSettings.clampAmountTiers(
+            warning: settings.alertChannels.warningAmount,
+            mid: settings.alertChannels.midAmount,
+            critical: value
+        )
+        settings.alertChannels.warningAmount = t.w
+        settings.alertChannels.midAmount = t.m
+        settings.alertChannels.criticalAmount = t.c
         persist()
         refresh()
     }
 
     func setWarningPercent(_ value: Double) {
-        let v = max(1, min(99, value))
-        settings.alertChannels.warningPercent = v
-        if settings.alertChannels.criticalPercent > v {
-            settings.alertChannels.criticalPercent = max(1, v * 0.5)
-        }
-        settings.email.defaultPercentThreshold = v
+        let t = AlertChannelSettings.clampPercentTiers(
+            warning: value,
+            mid: settings.alertChannels.midPercent,
+            critical: settings.alertChannels.criticalPercent
+        )
+        settings.alertChannels.warningPercent = t.w
+        settings.alertChannels.midPercent = t.m
+        settings.alertChannels.criticalPercent = t.c
+        settings.email.defaultPercentThreshold = t.w
+        persist()
+        refresh()
+    }
+
+    func setMidPercent(_ value: Double) {
+        let t = AlertChannelSettings.clampPercentTiers(
+            warning: settings.alertChannels.warningPercent,
+            mid: value,
+            critical: settings.alertChannels.criticalPercent
+        )
+        settings.alertChannels.warningPercent = t.w
+        settings.alertChannels.midPercent = t.m
+        settings.alertChannels.criticalPercent = t.c
         persist()
         refresh()
     }
 
     func setCriticalPercent(_ value: Double) {
-        let w = settings.alertChannels.warningPercent
-        settings.alertChannels.criticalPercent = min(max(1, value), w)
+        let t = AlertChannelSettings.clampPercentTiers(
+            warning: settings.alertChannels.warningPercent,
+            mid: settings.alertChannels.midPercent,
+            critical: value
+        )
+        settings.alertChannels.warningPercent = t.w
+        settings.alertChannels.midPercent = t.m
+        settings.alertChannels.criticalPercent = t.c
         persist()
         refresh()
     }
