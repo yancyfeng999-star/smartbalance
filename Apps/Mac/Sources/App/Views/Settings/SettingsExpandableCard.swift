@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 智额风格可折叠设置卡：点标题展开，内容从标题下方展开。
+/// 智额同款可折叠设置卡：点标题展开，内容从标题下方软模糊落下。
 struct SettingsExpandableCard<Content: View>: View {
     let icon: String
     let iconColors: [Color]
@@ -11,10 +11,9 @@ struct SettingsExpandableCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // 固定标题行 —— 内容只在其下方展开
             Button {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                    isExpanded.toggle()
-                }
+                AppMotion.toggleExpand($isExpanded)
             } label: {
                 HStack(spacing: 10) {
                     ZStack {
@@ -49,24 +48,26 @@ struct SettingsExpandableCard<Content: View>: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(SBTheme.muted)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .animation(AppMotion.chevron, value: isExpanded)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .zIndex(1)
 
+            // 从标题底边展开
             if isExpanded {
-                VStack(alignment: .leading, spacing: 12) {
-                    Divider().overlay(SBTheme.stroke)
+                VStack(alignment: .leading, spacing: 0) {
+                    Divider()
+                        .overlay(SBTheme.stroke)
+                        .padding(.top, 12)
+                        .padding(.bottom, 12)
+
                     content()
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.top, 12)
-                .transition(
-                    .asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .top)),
-                        removal: .opacity
-                    )
-                )
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .transition(AppMotion.expandContent)
             }
         }
         .padding(14)
@@ -80,6 +81,8 @@ struct SettingsExpandableCard<Content: View>: View {
                 )
                 .shadow(color: Color.black.opacity(0.04), radius: 5, y: 1)
         )
+        // 裁剪，避免展开内容画到标题上方
         .clipShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
+        .animation(AppMotion.expand, value: isExpanded)
     }
 }

@@ -40,14 +40,41 @@ final class AppModel: ObservableObject {
         notificationStatusCaption = MacNotificationService.statusCaption(for: status)
     }
 
-    var statusLine: String {
-        if isRefreshing { return "刷新中…" }
+    /// 顶栏刷新按钮左侧：仅时间（对齐智额「刷新 15:21」），无多余文案。
+    var refreshTimeText: String {
         if let lastRefreshAt {
             let f = DateFormatter()
-            f.dateFormat = "HH:mm:ss"
-            return "更新于 \(f.string(from: lastRefreshAt))"
+            f.dateFormat = "HH:mm"
+            return "刷新 \(f.string(from: lastRefreshAt))"
         }
-        return Brand.taglineCN
+        return "—"
+    }
+
+    /// 打开当前首个已启用账号对应控制台；无账号时提示。
+    func openDashboard() {
+        guard let account = settings.enabledAccounts.first else {
+            banner = "请先添加 API 账号"
+            selectedTab = .settings
+            return
+        }
+        let urlString: String? = {
+            switch account.kind {
+            case .deepseek:
+                return "https://platform.deepseek.com"
+            case .openrouter:
+                return "https://openrouter.ai/activity"
+            case .viraltok:
+                return "https://www.viraltok.ai"
+            case .newapi:
+                let base = (account.baseURL ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                return base.isEmpty ? nil : base
+            }
+        }()
+        guard let urlString, let url = URL(string: urlString) else {
+            banner = "无法打开 \(account.kind.displayName) 后台地址"
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     // MARK: - Data sources

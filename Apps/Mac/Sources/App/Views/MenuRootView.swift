@@ -128,8 +128,9 @@ struct MenuRootView: View {
 
             Spacer(minLength: 6)
 
-            Text(model.statusLine)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+            // 仅显示刷新时间（如「刷新 15:21」），不要「更新于…」长文案
+            Text(model.refreshTimeText)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(SBTheme.muted)
                 .monospacedDigit()
 
@@ -204,12 +205,12 @@ struct MenuRootView: View {
 
     private var homeFooter: some View {
         HStack(spacing: 8) {
-            // 对齐智额：左「打开后台」位 → 我们用「刷新」占位（顶栏已有刷新，底部再放一个一致性更强）
-            // 实际截图是 打开后台 | 设置 | 退出应用 — 余额端无后台，用刷新
-            footerPill(title: "刷新", systemName: "arrow.triangle.2.circlepath") {
-                model.refresh()
+            // 对齐智额：打开后台 | 设置 | 退出应用
+            footerPill(title: "打开后台", systemName: "safari") {
+                model.openDashboard()
             }
-            .disabled(model.isRefreshing)
+            .keyboardShortcut("d")
+            .help("打开当前账号对应平台控制台")
 
             footerPill(title: "设置", systemName: "gearshape") {
                 model.selectedTab = .settings

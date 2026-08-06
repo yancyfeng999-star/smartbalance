@@ -3,6 +3,7 @@ import Domain
 
 struct HomeView: View {
     @ObservedObject var model: AppModel
+    @State private var animateIn = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -30,9 +31,17 @@ struct HomeView: View {
 
             if model.snapshots.isEmpty {
                 emptyState
+                    .opacity(animateIn ? 1 : 0)
+                    .offset(y: animateIn ? 0 : 8)
             } else {
                 ForEach(Array(model.snapshots.enumerated()), id: \.element.id) { index, snap in
                     BalanceCardView(snapshot: snap, emphasized: index == 0)
+                        .opacity(animateIn ? 1 : 0)
+                        .offset(y: animateIn ? 0 : 10)
+                        .animation(
+                            AppMotion.appear.delay(Double(index) * 0.05),
+                            value: animateIn
+                        )
                 }
             }
 
@@ -44,6 +53,18 @@ struct HomeView: View {
                 ForEach(model.recentAlerts.prefix(2)) { alert in
                     alertRow(alert)
                 }
+            }
+        }
+        .onAppear {
+            withAnimation(AppMotion.appear) {
+                animateIn = true
+            }
+        }
+        .onChange(of: model.snapshots.count) { _, _ in
+            // 刷新后重新轻入
+            animateIn = false
+            withAnimation(AppMotion.appear) {
+                animateIn = true
             }
         }
     }

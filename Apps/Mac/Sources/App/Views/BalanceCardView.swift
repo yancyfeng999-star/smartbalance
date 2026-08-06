@@ -1,10 +1,11 @@
 import SwiftUI
 import Domain
 
-/// 智额风格余额卡：图标 + 名称徽章 + 状态胶囊 + 金额/进度。
+/// 智额风格余额卡：图标 + 名称徽章 + 状态胶囊 + 金额/进度 + 悬停轻抬。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
     var emphasized: Bool = false
+    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -26,6 +27,16 @@ struct BalanceCardView: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
+        .scaleEffect(isHovering ? 1.012 : 1.0)
+        .shadow(
+            color: SBTheme.accent.opacity(isHovering ? 0.14 : 0),
+            radius: isHovering ? 10 : 0,
+            y: isHovering ? 3 : 0
+        )
+        .animation(AppMotion.hover, value: isHovering)
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 
     private var headerRow: some View {
@@ -226,15 +237,18 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-            .fill(emphasized ? SBTheme.cardTint : SBTheme.panel)
+        let strokeColor: Color = {
+            if isHovering { return SBTheme.accent.opacity(0.45) }
+            if emphasized { return SBTheme.accent.opacity(0.35) }
+            return SBTheme.cardStroke
+        }()
+        return RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+            .fill(emphasized || isHovering ? SBTheme.cardTint : SBTheme.panel)
             .overlay(
                 RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                    .strokeBorder(
-                        emphasized ? SBTheme.accent.opacity(0.35) : SBTheme.cardStroke,
-                        lineWidth: emphasized ? 1.2 : 1
-                    )
+                    .strokeBorder(strokeColor, lineWidth: isHovering || emphasized ? 1.2 : 1)
             )
             .shadow(color: Color.black.opacity(0.04), radius: 6, y: 2)
     }
 }
+
