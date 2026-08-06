@@ -20,7 +20,7 @@ struct MenuRootView: View {
             }
             footer
         }
-        .frame(width: 380, height: 560)
+        .frame(width: 400, height: 560)
         .background(SBTheme.bg)
     }
 

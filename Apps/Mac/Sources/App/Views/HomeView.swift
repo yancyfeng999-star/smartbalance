@@ -9,15 +9,26 @@ struct HomeView: View {
             modeChips
 
             if let banner = model.banner {
-                Text(banner)
-                    .font(.system(size: 11))
-                    .foregroundStyle(SBTheme.warn)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(SBTheme.warn.opacity(0.12))
-                    )
+                HStack(alignment: .top, spacing: 8) {
+                    Text(banner)
+                        .font(.system(size: 11))
+                        .foregroundStyle(SBTheme.warn)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        model.banner = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(SBTheme.muted)
+                    }
+                    .buttonStyle(.plain)
+                    .help("关闭")
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(SBTheme.warn.opacity(0.12))
+                )
             }
 
             if model.snapshots.isEmpty {
@@ -109,10 +120,14 @@ struct HomeView: View {
             Text("还没有余额卡片")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
-            Text("大多数平台：设置里添加 API 账号。\n不能实时查的平台：配置 IMAP + 平台发件人规则，用固定邮件确认余额。\n报警：可同时开 Mac 通知与邮件报警。")
-                .font(.system(size: 12))
-                .foregroundStyle(SBTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("· 能 API 查的：设置 → 添加 API 账号")
+                Text("· 只能收邮件的：设置 → 平台邮件源 + IMAP")
+                Text("· 报警：打开 Mac 通知和/或邮件报警")
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(SBTheme.muted)
+            .fixedSize(horizontal: false, vertical: true)
             Button("去设置") {
                 model.selectedTab = .settings
             }
