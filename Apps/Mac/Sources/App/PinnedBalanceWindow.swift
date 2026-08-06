@@ -2,18 +2,21 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 固定常驻窗口（对齐智额 pin）：内容铺满，高度按内容收缩，无底部大块留白。
+/// 固定常驻窗口（对齐智额 pin）：默认 380×580，主页/设置同一外框，切换不跳。
 @MainActor
 final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     static let shared = PinnedBalanceWindowController()
 
     static let minWidth: CGFloat = 380
-    static let defaultWidth: CGFloat = 400
-    static let defaultHeight: CGFloat = 320
+    static let defaultWidth: CGFloat = 380
+    static let defaultHeight: CGFloat = 580
+    static let minHeight: CGFloat = 420
 
     private var window: NSWindow?
     private var isOpening = false
     private(set) var isOpen = false
+    /// 用户是否亲手拖过尺寸；拖过后不再强制回默认。
+    private var userResized = false
     private weak var model: AppModel?
 
     private override init() {
@@ -56,7 +59,6 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
 
         let shell = MenuRootView(model: model, runsInPinnedWindow: true)
         let host = NSHostingView(rootView: shell)
-        // 浅色底与 SwiftUI 一致，避免窗外白边
         host.wantsLayer = true
         host.layer?.backgroundColor = NSColor(srgbRed: 0.92, green: 0.93, blue: 0.96, alpha: 1).cgColor
 
@@ -72,7 +74,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
             win.level = .floating
             win.hidesOnDeactivate = false
             win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            win.minSize = NSSize(width: Self.minWidth, height: 220)
+            win.minSize = NSSize(width: Self.minWidth, height: Self.minHeight)
             win.maxSize = NSSize(width: 10_000, height: 10_000)
             win.backgroundColor = NSColor(srgbRed: 0.92, green: 0.93, blue: 0.96, alpha: 1)
             win.isOpaque = true
@@ -82,8 +84,9 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
 
         window?.contentView = host
         host.autoresizingMask = [.width, .height]
+        userResized = false
 
-        // 先按默认高度摆位，SwiftUI onAppear 会 resize 到内容高度
+        // 固定默认外框；内容在壳内滚动，绝不按内容收缩
         positionTopRight(width: Self.defaultWidth, height: Self.defaultHeight)
         isOpen = true
         model.settings.windowPinned = true
@@ -93,12 +96,27 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         dismissMenuBarPopover()
     }
 
-    /// 由 MenuRootView 在内容变化时调用，消除底部空白。
-    func resize(width: CGFloat, height: CGFloat) {
+    /// 保证默认尺寸；切主页/设置时调用。用户拖过则只保证不小于最小值。
+    func ensureDefaultSize(force: Bool = true) {
         guard isOpen, let win = window else { return }
-        let w = max(Self.minWidth, width)
-        let h = max(220, min(640, height))
-        positionTopRight(width: w, height: h)
+        if userResized && !force {
+            let size = win.frame.size
+            if size.width < Self.minWidth || size.height < Self.minHeight {
+                positionTopRight(
+                    width: max(Self.minWidth, size.width),
+                    height: max(Self.minHeight, size.height)
+                )
+            }
+            return
+        }
+        positionTopRight(width: Self.defaultWidth, height: Self.defaultHeight)
+    }
+
+    /// 兼容旧调用
+    func resize(width: CGFloat, height: CGFloat) {
+        ensureDefaultSize(force: false)
+        _ = width
+        _ = height
     }
 
     func positionTopRight(width: CGFloat? = nil, height: CGFloat? = nil, preferDefaultSize: Bool = false) {
@@ -112,14 +130,24 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
             size.height = min(Self.defaultHeight, visible.height)
         }
         size.width = max(Self.minWidth, size.width)
-        size.height = min(max(220, size.height), visible.height)
+        size.height = min(max(Self.minHeight, size.height), visible.height)
         let x = visible.maxX - size.width
         let y = visible.maxY - size.height
+        // animate: false — 切 Tab 不闪
         win.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true, animate: false)
     }
 
     private func positionTopRight() {
         positionTopRight(preferDefaultSize: false)
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard isOpen, let win = window, win === (notification.object as? NSWindow) else { return }
+        let size = win.frame.size
+        // 明显偏离默认 → 记为用户拖拽
+        if abs(size.width - Self.defaultWidth) > 4 || abs(size.height - Self.defaultHeight) > 4 {
+            userResized = true
+        }
     }
 
     func close() {

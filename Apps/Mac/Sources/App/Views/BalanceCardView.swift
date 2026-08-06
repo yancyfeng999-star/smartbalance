@@ -1,52 +1,66 @@
 import SwiftUI
 import Domain
 
-/// 智额风格余额卡：图标 + 名称徽章 + 状态胶囊 + 金额/进度 + 悬停轻抬。
+/// 智额风格余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
+/// 字号对齐 `ProviderSummaryCardView`：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
     var emphasized: Bool = false
+    /// 默认折叠，与设置页折叠卡一致。
+    @State private var isExpanded = false
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: isExpanded ? 10 : 0) {
             headerRow
-            metersRow
-            if let err = snapshot.errorMessage, !err.isEmpty {
-                Text(err)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(SBTheme.danger)
-                    .lineLimit(2)
-            } else if !snapshot.detail.isEmpty {
-                Text(snapshot.detail)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(SBTheme.muted)
-                    .lineLimit(2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    AppMotion.toggleExpand($isExpanded)
+                }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    metersRow
+                    if let err = snapshot.errorMessage, !err.isEmpty {
+                        Text(err)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(SBTheme.danger)
+                            .lineLimit(3)
+                    } else if !snapshot.detail.isEmpty {
+                        Text(snapshot.detail)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(SBTheme.muted)
+                            .lineLimit(3)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .transition(AppMotion.expandContent)
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 14)
+        .padding(.vertical, isExpanded ? 14 : 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
-        .scaleEffect(isHovering ? 1.012 : 1.0)
-        .shadow(
-            color: SBTheme.accent.opacity(isHovering ? 0.14 : 0),
-            radius: isHovering ? 10 : 0,
-            y: isHovering ? 3 : 0
-        )
-        .animation(AppMotion.hover, value: isHovering)
+        .clipShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
+        // 展开只动卡片内部，不带动外层窗体
+        .animation(AppMotion.expand, value: isExpanded)
         .onHover { hovering in
             isHovering = hovering
         }
+        // 禁止内容 ideal 宽度撑破固定面板
+        .fixedSize(horizontal: false, vertical: true)
     }
 
+    // MARK: - Header（折叠时也完整可见）
+
     private var headerRow: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 8) {
             providerBadge
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(snapshot.displayName)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(SBTheme.text)
                         .lineLimit(1)
 
@@ -54,7 +68,7 @@ struct BalanceCardView: View {
                         Text(kind.displayName)
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(SBTheme.accent)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 7)
                             .padding(.vertical, 2)
                             .background(
                                 Capsule(style: .continuous)
@@ -65,7 +79,7 @@ struct BalanceCardView: View {
                         Text("平台邮件")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(SBTheme.warn)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 7)
                             .padding(.vertical, 2)
                             .background(
                                 Capsule(style: .continuous)
@@ -74,20 +88,46 @@ struct BalanceCardView: View {
                     }
                 }
 
-                Text(sourceLine)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(SBTheme.muted)
-                    .lineLimit(1)
+                // 折叠：主金额；展开：来源时间
+                if isExpanded {
+                    Text(sourceLine)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .lineLimit(1)
+                } else {
+                    Text(collapsedSubtitle)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(SBTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
             }
 
             Spacer(minLength: 4)
 
             statusPill
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(SBTheme.muted)
+                .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                .animation(AppMotion.chevron, value: isExpanded)
         }
     }
 
+    private var collapsedSubtitle: String {
+        if let err = snapshot.errorMessage, !err.isEmpty, snapshot.amount == nil {
+            return err
+        }
+        // primaryText 已带 ¥ / $ / 单位
+        return snapshot.primaryText
+    }
+
+    // MARK: - Meters（展开）
+
     private var metersRow: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 10) {
             meterColumn(
                 title: "可用",
                 value: snapshot.primaryText,
@@ -120,25 +160,26 @@ struct BalanceCardView: View {
     }
 
     private func meterColumn(title: String, value: String, progress: CGFloat, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                 Spacer(minLength: 2)
                 Text(value)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .monospacedDigit()
                     .foregroundStyle(SBTheme.text)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.85)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule()
+                    Capsule(style: .continuous)
                         .fill(SBTheme.progressTrack)
                         .frame(height: 5)
-                    Capsule()
-                        .fill(color)
+                    Capsule(style: .continuous)
+                        .fill(color.opacity(0.88))
                         .frame(width: max(4, geo.size.width * max(0, min(1, progress))), height: 5)
                 }
             }
@@ -148,22 +189,15 @@ struct BalanceCardView: View {
     }
 
     private var statusPill: some View {
-        let label: String = {
-            if snapshot.status == .error || snapshot.status == .setup {
-                return SBTheme.statusLabel(snapshot.status)
-            }
-            // 刷新中由外层处理；这里 healthy → 充足
-            return SBTheme.statusLabel(snapshot.status)
-        }()
         let color = SBTheme.statusColor(snapshot.status)
-        return Text(label)
-            .font(.system(size: 11, weight: .bold))
+        return Text(SBTheme.statusLabel(snapshot.status))
+            .font(.system(size: 10, weight: .bold))
             .foregroundStyle(color)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
             .background(
                 Capsule(style: .continuous)
-                    .fill(color.opacity(0.14))
+                    .fill(color.opacity(0.16))
             )
     }
 
@@ -177,9 +211,9 @@ struct BalanceCardView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 30, height: 30)
+                .frame(width: 24, height: 24)
             Text(badgeLetter)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
         }
     }
@@ -190,6 +224,12 @@ struct BalanceCardView: View {
         case .newapi: Color(red: 0.45, green: 0.35, blue: 0.95)
         case .openrouter: Color(red: 0.55, green: 0.25, blue: 0.75)
         case .viraltok: Color(red: 0.15, green: 0.65, blue: 0.45)
+        case .laozhang: Color(red: 0.95, green: 0.55, blue: 0.20)
+        case .dmxapi: Color(red: 0.09, green: 0.64, blue: 0.72)
+        case .kimi: Color(red: 0.20, green: 0.20, blue: 0.22)
+        case .volcengine: Color(red: 0.15, green: 0.45, blue: 0.95)
+        case .mimo: Color(red: 0.95, green: 0.30, blue: 0.25)
+        case .minimax: Color(red: 0.55, green: 0.25, blue: 0.95)
         case .none:
             snapshot.source == .platformEmail
                 ? SBTheme.warn
@@ -204,6 +244,12 @@ struct BalanceCardView: View {
         case .newapi: return "N"
         case .openrouter: return "O"
         case .viraltok: return "V"
+        case .laozhang: return "张"
+        case .dmxapi: return "X"
+        case .kimi: return "K"
+        case .volcengine: return "火"
+        case .mimo: return "米"
+        case .minimax: return "M"
         case .none: return "?"
         }
     }
@@ -237,18 +283,23 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
+        // 对齐智额：白卡 + 淡描边，选中/setup 用淡紫描边
         let strokeColor: Color = {
-            if isHovering { return SBTheme.accent.opacity(0.45) }
-            if emphasized { return SBTheme.accent.opacity(0.35) }
+            if snapshot.status == .setup { return SBTheme.accent.opacity(0.35) }
+            if isHovering { return SBTheme.accent.opacity(0.28) }
+            if emphasized { return SBTheme.cardStroke }
             return SBTheme.cardStroke
         }()
+        let fill: Color = {
+            if snapshot.status == .setup { return SBTheme.cardTint }
+            return SBTheme.panel
+        }()
         return RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-            .fill(emphasized || isHovering ? SBTheme.cardTint : SBTheme.panel)
+            .fill(fill)
             .overlay(
                 RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                    .strokeBorder(strokeColor, lineWidth: isHovering || emphasized ? 1.2 : 1)
+                    .strokeBorder(strokeColor, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 6, y: 2)
+            .shadow(color: Color.black.opacity(0.03), radius: 4, y: 1)
     }
 }
-

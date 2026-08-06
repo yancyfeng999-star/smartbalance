@@ -2,7 +2,11 @@ import Foundation
 import Domain
 
 /// New-API / one-api 兼容中转站余额。
-/// 典型：GET {base}/api/user/self  Header: Authorization: Bearer <token> 或 {token}
+/// GET {base}/api/user/self
+/// Headers:
+///   Authorization: Bearer <系统访问令牌>（部分站点裸 token）
+///   New-API-User: <用户 ID>
+/// 注意：系统访问令牌 ≠ 模型 sk-；用户 ID 在个人中心 / 管理后台。
 public struct NewAPIBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .newapi
     private let http: any HTTPClient
@@ -13,6 +17,10 @@ public struct NewAPIBalanceProvider: BalanceProvider {
 
     public func fetchBalance(account: BalanceAccount, credentials: ProviderCredentials) async throws -> BalanceSnapshot {
         guard !credentials.apiKey.isEmpty else { throw BalanceProviderError.missingCredential }
+        let userId = (credentials.userId ?? account.userId ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !userId.isEmpty else { throw BalanceProviderError.missingUserId }
+
         let rawBase = (credentials.baseURL ?? account.baseURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !rawBase.isEmpty else { throw BalanceProviderError.invalidURL }
 
@@ -25,8 +33,9 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         request.httpMethod = "GET"
         // New-API 常见两种写法，优先 Bearer。
         request.setValue("Bearer \(credentials.apiKey)", forHTTPHeaderField: "Authorization")
+        // 与官方一致：New-API-User（HTTP 头大小写不敏感，亦兼容 New-Api-User）
+        request.setValue(userId, forHTTPHeaderField: "New-API-User")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("New-API", forHTTPHeaderField: "New-API-User")
         request.timeoutInterval = 20
 
         var (data, response) = try await http.data(for: request)
@@ -46,6 +55,11 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         }
 
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let success = root?["success"] as? Bool, success == false {
+            let msg = (root?["message"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "获取用户信息失败"
+            throw BalanceProviderError.providerMessage(msg)
+        }
+
         let dataNode = (root?["data"] as? [String: Any]) ?? root ?? [:]
 
         // quota 常为「点」，展示时 / 500000 ≈ 美元（New-API 常见换算），同时保留原始点。
@@ -84,6 +98,7 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         let username = (dataNode["username"] as? String) ?? (dataNode["display_name"] as? String)
         var detailParts: [String] = []
         if let username { detailParts.append(username) }
+        detailParts.append("UID \(userId)")
         if let quota, !isUnlimited { detailParts.append(String(format: "剩余点数 %.0f", quota)) }
         if let usedQuota, !isUnlimited { detailParts.append(String(format: "已用 %.0f", usedQuota)) }
         if isUnlimited { detailParts.append("无限额度") }

@@ -1,70 +1,71 @@
-# 智余 · 用户指南（V1）
+# 智余 · 用户指南
 
-菜单栏应用 · 无 Dock 图标 · macOS 15+
+菜单栏应用 · 无 Dock · macOS 15+
 
-## 启动
+## 安装运行
 
 ```bash
 cd Apps/Mac
-./scripts/build-test-app.sh   # Release → ~/Desktop/智余.app
+./scripts/build-test-app.sh
 open ~/Desktop/智余.app
 ```
 
-或在 Xcode 打开 `SmartBalance.xcworkspace` 后 Run。
+或 Xcode 打开 `SmartBalance.xcworkspace` 后 Run。  
+菜单栏出现 **¥** /「智余」即可点开。
 
-菜单栏出现 **¥** 图标（`yensign.circle.fill`）与「智余」标题，点击打开面板。
+---
 
-## 5 分钟上手
+## 上手
 
-### 1. API 查余额（多数平台）
+### 1. 添加账号
 
-1. 面板 → **设置**
-2. 确认「API 查询」开启
-3. **添加 API 账号**：选 DeepSeek / New-API / OpenRouter，填密钥（New-API 还需 Base URL）
-4. 回 **首页** → **刷新**
+**设置 → API 账号 → 点开平台**
 
-卡片显示金额、状态色、来源徽章 **API**。
-
-### 2. 平台邮件（无实时 API 时）
-
-1. 设置 → 打开「平台邮件」
-2. **添加平台邮件源**：填显示名、发件人包含（必填）、主题/正则可选
-3. **IMAP 收件箱**：主机/端口/TLS/账号，密码存 Keychain；点「保存 IMAP」
-4. 可用 **试解析** 粘贴一封历史邮件正文验证正则
-5. 首页 **刷新** → 匹配到的卡片来源为 **平台邮件**
-
-### 3. 报警
-
-| 通道 | 设置位置 | 说明 |
-|------|----------|------|
-| Mac 通知 | 报警通道 | 首次会请求系统权限；可「测试 Mac 通知」 |
-| 邮件报警 | 报警通道 + SMTP | 465 + TLS；QQ/163/Gmail 快捷填入；可「测试报警邮件」 |
-
-触发：余额状态为偏低 / 危急 / 耗尽，或平台新邮件含报警关键词。冷却秒数防止刷屏；发送失败不进入冷却。
-
-### 4. 刷新间隔
-
-设置 → 刷新间隔：仅手动 / 5 / 10 / 15 / 30 分钟。
-
-## 数据存放
-
-| 内容 | 位置 |
+| 平台 | 填写 |
 |------|------|
-| 设置 JSON | `~/Library/Application Support/SmartBalance/settings.json` |
-| API Key / 邮箱密码 | Keychain，service `com.smartbalance.app` |
+| DeepSeek / OpenRouter / Kimi / ViralTok / 老张 | API Key 或系统令牌 |
+| New-API | Base URL + 用户 ID + 系统访问令牌 |
+| DMXAPI | 用户 ID + 系统访问令牌 |
+| 火山引擎 | Access Key ID + Secret Access Key |
+| MiMo / MiniMax | 手录金额（可选），默认每天提醒 |
 
-密钥**不**写入设置文件、**不**上传。
+回首页点 **刷新**。
 
-## 常见问题
+### 2. 报警
 
-- **401 / 密钥错误**：检查 Key 与 Base URL；New-API 路径因站而异。
-- **IMAP 无卡片**：确认平台邮件源发件人字符串、IMAP 已启用且密码正确。
-- **SMTP 失败**：优先 465 + TLS；当前不支持 587 STARTTLS。失败时首页有可关闭 banner。
-- **通知不出现**：系统设置 → 通知 → 智余；设置页查看通知状态文案。
+**设置 → 报警通知**
 
-## 与智额
+- 打开 Mac 通知 / 邮件报警  
+- 邮件需配置 SMTP（建议 465 + TLS）  
+- 可用「测试」验证  
 
-| 应用 | 关注点 |
-|------|--------|
-| 智额 SmartQuota | 会员额度 |
-| 智余 SmartBalance | API / 平台邮件余额 + 双通道报警 |
+阈值在 **后台同步** 中调整。
+
+### 3. 刷新间隔
+
+**设置 → 后台同步**：仅手动 / 5 / 10 / 15 / 30 分钟。
+
+### 4. 置顶
+
+点图钉打开常驻窗口，切换应用不会自动关闭。
+
+---
+
+## 数据位置
+
+| 内容 | 路径 |
+|------|------|
+| 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
+| 密钥 | `…/secrets.vault`（首次读取时指纹或密码解锁） |
+
+---
+
+## FAQ
+
+| 问题 | 处理 |
+|------|------|
+| 401 / 缺用户 ID | New-API、DMXAPI 必须填用户 ID；用**系统令牌**不是模型 sk- |
+| 火山报错 | 检查 AK/SK 与账单查询权限 |
+| SMTP 失败 | 用 465 TLS；暂不支持 587 |
+| 无通知 | 系统设置 → 通知 → 智余 |
+| 窗口尺寸乱跳 | 请使用当前版本（主页与设置固定同宽高） |

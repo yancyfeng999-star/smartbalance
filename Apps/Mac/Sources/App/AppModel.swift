@@ -22,7 +22,7 @@ final class AppModel: ObservableObject {
     }
 
     private let store = SettingsStore.shared
-    private let keychain = KeychainStore.shared
+    private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
     private var refreshTask: Task<Void, Never>?
 
@@ -35,13 +35,20 @@ final class AppModel: ObservableObject {
     private let updateChecker = UpdateChecker()
 
     init() {
-        self.settings = SettingsStore.shared.load()
+        var loaded = SettingsStore.shared.load()
+        // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
+        if !loaded.apiQueryEnabled {
+            loaded.apiQueryEnabled = true
+            try? SettingsStore.shared.save(loaded)
+        }
+        self.settings = loaded
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
+            rescheduleManualReminders()
         }
         startAutoRefreshIfNeeded()
     }
@@ -76,6 +83,18 @@ final class AppModel: ObservableObject {
                 return "https://openrouter.ai/activity"
             case .viraltok:
                 return "https://www.viraltok.ai"
+            case .laozhang:
+                return "https://api2.laozhang.ai"
+            case .dmxapi:
+                return "https://www.dmxapi.cn"
+            case .kimi:
+                return "https://platform.kimi.com/console/api-keys"
+            case .volcengine:
+                return "https://console.volcengine.com/finance/account-overview/"
+            case .mimo:
+                return "https://platform.xiaomimimo.com/console/balance"
+            case .minimax:
+                return "https://platform.minimaxi.com/user-center/payment/balance"
             case .newapi:
                 let base = (account.baseURL ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 return base.isEmpty ? nil : base
@@ -88,34 +107,35 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
-    // MARK: - Data sources
-
-    var apiQueryOn: Bool {
-        get { settings.apiQueryEnabled }
-        set {
-            settings.apiQueryEnabled = newValue
-            persist()
-            startAutoRefreshIfNeeded()
-        }
-    }
-
-    var platformMailOn: Bool {
-        get { settings.platformMailEnabled }
-        set {
-            settings.platformMailEnabled = newValue
-            persist()
-            startAutoRefreshIfNeeded()
-        }
-    }
-
     // MARK: - Refresh
 
     func refresh() {
         guard !isRefreshing else { return }
         isRefreshing = true
         banner = nil
-        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) mail=\(settings.enabledMailSources.count)")
+        // 兼容旧设置：若用户曾关掉「数据源」总开关，强制恢复（产品本职就是查余额）
+        if !settings.apiQueryEnabled {
+            settings.apiQueryEnabled = true
+            try? store.save(settings)
+        }
+        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count)")
         Task {
+            // 仅当有「需要密钥的 API 账号」或 SMTP 报警密码时才解锁密钥库。
+            let hasKeyAccounts = settings.enabledAccounts.contains { !$0.kind.isManualEntry }
+            let needsSecrets = hasKeyAccounts || settings.alertChannels.outboundEmailEnabled
+            if needsSecrets {
+                do {
+                    try await secrets.unlockSessionIfNeeded(
+                        reason: "智余需要验证身份以读取 API 密钥与报警邮箱密码"
+                    )
+                } catch {
+                    self.banner = "未通过验证：\(error.localizedDescription)（可用指纹或本机密码）"
+                    self.isRefreshing = false
+                    AppLog.error("Secret unlock failed: \(error.localizedDescription)")
+                    return
+                }
+            }
+
             let result = await service.refreshAll(settings: settings)
             self.snapshots = result.snapshots.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
             if !result.alerts.isEmpty {
@@ -141,8 +161,7 @@ final class AppModel: ObservableObject {
 
     func startAutoRefreshIfNeeded() {
         refreshTask?.cancel()
-        let anySource = settings.apiQueryEnabled || settings.platformMailEnabled
-        guard anySource, settings.refreshIntervalSecs > 0 else { return }
+        guard settings.refreshIntervalSecs > 0 else { return }
         let interval = settings.refreshIntervalSecs
         refreshTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 800_000_000)
@@ -157,133 +176,133 @@ final class AppModel: ObservableObject {
 
     // MARK: - API accounts
 
-    func addAccount(kind: ProviderKind, displayName: String, baseURL: String?, secret: String) {
-        let account = BalanceAccount(kind: kind, displayName: displayName, baseURL: baseURL)
-        if !secret.isEmpty {
+    func addAccount(
+        kind: ProviderKind,
+        displayName: String,
+        baseURL: String?,
+        userId: String? = nil,
+        secret: String,
+        manualAmount: Double? = nil
+    ) {
+        let account = BalanceAccount(
+            kind: kind,
+            displayName: displayName,
+            baseURL: baseURL,
+            userId: userId,
+            manualAmount: kind.isManualEntry ? manualAmount : nil,
+            manualUnit: kind.isManualEntry ? kind.defaultManualUnit : nil,
+            manualUpdatedAt: (kind.isManualEntry && manualAmount != nil) ? Date() : nil,
+            dailyReminderEnabled: kind.isManualEntry ? true : nil
+        )
+        if kind.needsSecret, !secret.isEmpty {
             do {
-                try keychain.set(secret, account: account.secretRef)
+                try secrets.set(secret, account: account.secretRef)
             } catch {
-                banner = "密钥写入 Keychain 失败：\(error.localizedDescription)"
+                banner = "密钥保存失败：\(error.localizedDescription)"
                 return
             }
         }
         settings.accounts.append(account)
         persist()
-        banner = "账号已保存"
+        rescheduleManualReminders()
+        banner = kind.isManualEntry ? "已添加手录账号 · 每天 10:00 提醒核对" : "账号已保存"
         refresh()
     }
 
     func removeAccount(_ id: UUID) {
         if let acc = settings.accounts.first(where: { $0.id == id }) {
-            keychain.delete(account: acc.secretRef)
+            secrets.delete(account: acc.secretRef)
         }
         settings.accounts.removeAll { $0.id == id }
         snapshots.removeAll { $0.accountId == id }
         persist()
+        rescheduleManualReminders()
+    }
+
+    /// 给已有账号补填/更新密钥（不必删号重加）。
+    func updateAccountSecret(id: UUID, secret: String) {
+        guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
+        let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            banner = "密钥不能为空"
+            return
+        }
+        do {
+            try secrets.set(trimmed, account: acc.secretRef)
+            banner = "已更新 \(acc.title) 的密钥"
+            objectWillChange.send()
+            refresh()
+        } catch {
+            banner = "密钥保存失败：\(error.localizedDescription)"
+        }
+    }
+
+    /// 补填 / 修改用户 ID（New-API、DMXAPI 等需要）。
+    func updateAccountUserId(id: UUID, userId: String) {
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            banner = "用户 ID 不能为空"
+            return
+        }
+        settings.accounts[idx].userId = trimmed
+        persist()
+        banner = "已更新 \(settings.accounts[idx].title) 的用户 ID"
+        refresh()
+    }
+
+    /// 手录余额（MiMo / MiniMax）。
+    func updateManualAmount(id: UUID, amountText: String, unit: String? = nil) {
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+        let cleaned = amountText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "¥", with: "")
+            .replacingOccurrences(of: "￥", with: "")
+            .replacingOccurrences(of: "$", with: "")
+        guard let value = Double(cleaned) else {
+            banner = "请输入有效数字金额"
+            return
+        }
+        settings.accounts[idx].manualAmount = value
+        if let unit, !unit.isEmpty {
+            settings.accounts[idx].manualUnit = unit
+        } else if settings.accounts[idx].manualUnit == nil {
+            settings.accounts[idx].manualUnit = settings.accounts[idx].kind.defaultManualUnit
+        }
+        settings.accounts[idx].manualUpdatedAt = Date()
+        persist()
+        banner = "已更新 \(settings.accounts[idx].title)：\(settings.accounts[idx].resolvedManualUnit)\(String(format: "%.2f", value))"
+        refresh()
+    }
+
+    func setDailyReminder(id: UUID, enabled: Bool) {
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+        settings.accounts[idx].dailyReminderEnabled = enabled
+        persist()
+        rescheduleManualReminders()
     }
 
     func toggleAccount(_ id: UUID, enabled: Bool) {
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
         settings.accounts[idx].enabled = enabled
         persist()
+        rescheduleManualReminders()
     }
 
-    // MARK: - Platform mail sources
-
-    func addMailSource(displayName: String, fromContains: String, subjectContains: String, unit: String, regex: String) {
-        let src = PlatformMailSource(
-            displayName: displayName.isEmpty ? fromContains : displayName,
-            fromContains: fromContains,
-            subjectContains: subjectContains,
-            amountRegex: regex,
-            unit: unit.isEmpty ? "¥" : unit
-        )
-        settings.mailSources.append(src)
-        persist()
-        refresh()
-    }
-
-    func removeMailSource(_ id: UUID) {
-        settings.mailSources.removeAll { $0.id == id }
-        snapshots.removeAll { $0.accountId == id }
-        persist()
-    }
-
-    func toggleMailSource(_ id: UUID, enabled: Bool) {
-        guard let idx = settings.mailSources.firstIndex(where: { $0.id == id }) else { return }
-        settings.mailSources[idx].enabled = enabled
-        persist()
-    }
-
-    /// 粘贴邮件试解析（不访问 IMAP）。
-    func parsePastedMail(source: PlatformMailSource, subject: String, body: String) async -> BalanceSnapshot {
-        await service.parsePastedMail(
-            source: source,
-            subject: subject,
-            body: body,
-            settings: settings
-        )
-    }
-
-    /// 将试解析金额写入该平台源缓存，并更新首页卡片。
-    func writeLastParsedAmount(sourceId: UUID, amount: Double) {
-        guard let idx = settings.mailSources.firstIndex(where: { $0.id == sourceId }) else { return }
-        settings.mailSources[idx].lastParsedAmount = amount
-        settings.mailSources[idx].lastParsedAt = Date()
-        let src = settings.mailSources[idx]
-        persist()
-
-        let th = src.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
-        let status = BalanceSnapshot.resolveStatus(
-            amount: amount,
-            remainingPercent: nil,
-            amountThreshold: th,
-            percentThreshold: settings.alertChannels.defaultPercentThreshold
-        )
-        let snap = BalanceSnapshot(
-            accountId: sourceId,
-            displayName: src.displayName,
-            source: .platformEmail,
-            amount: amount,
-            unit: src.unit,
-            status: status,
-            detail: "试解析写入",
-            mailSubject: nil
-        )
-        if let sIdx = snapshots.firstIndex(where: { $0.accountId == sourceId }) {
-            snapshots[sIdx] = snap
-        } else {
-            snapshots.append(snap)
-            snapshots.sort { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+    /// 每天 10:00 提醒手录账号打开网页核对并更新金额。
+    func rescheduleManualReminders() {
+        let names = settings.accounts
+            .filter { $0.enabled && $0.kind.isManualEntry && $0.wantsDailyReminder }
+            .map(\.title)
+        Task {
+            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            await MacNotificationService.shared.scheduleDailyManualBalanceReminder(
+                hour: 10,
+                minute: 0,
+                names: names
+            )
         }
-        banner = "已写入 \(src.displayName) 上次金额 \(snap.primaryText)"
-    }
-
-    func saveInboundMailbox(
-        enabled: Bool,
-        host: String,
-        port: Int,
-        useTLS: Bool,
-        username: String,
-        password: String,
-        folder: String
-    ) {
-        settings.inboundMailbox.enabled = enabled
-        settings.inboundMailbox.imapHost = host
-        settings.inboundMailbox.imapPort = port
-        settings.inboundMailbox.useTLS = useTLS
-        settings.inboundMailbox.username = username
-        settings.inboundMailbox.folder = folder.isEmpty ? "INBOX" : folder
-        if !password.isEmpty {
-            do {
-                try keychain.set(password, account: settings.inboundMailbox.passwordRef)
-            } catch {
-                banner = "IMAP 密码写入 Keychain 失败：\(error.localizedDescription)"
-                return
-            }
-        }
-        persist()
-        banner = "IMAP 收件箱已保存"
     }
 
     // MARK: - Alert channels
@@ -408,9 +427,9 @@ final class AppModel: ObservableObject {
         settings.email.enabled = settings.alertChannels.outboundEmailEnabled
         if !password.isEmpty {
             do {
-                try keychain.set(password, account: settings.email.passwordRef)
+                try secrets.set(password, account: settings.email.passwordRef)
             } catch {
-                banner = "SMTP 密码写入 Keychain 失败：\(error.localizedDescription)"
+                banner = "SMTP 密码保存失败：\(error.localizedDescription)"
                 return
             }
         }
@@ -458,20 +477,30 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 已存密钥的掩码展示（两端可见）。
+    /// 已存密钥的掩码展示（两端可见）。未解锁会话时只提示「已保存」。
     func maskedSecret(for account: BalanceAccount) -> String? {
-        guard let s = keychain.get(account: account.secretRef), !s.isEmpty else { return nil }
-        return SecretMask.display(s)
-    }
-
-    func maskedIMAPPassword() -> String? {
-        guard let s = keychain.get(account: settings.inboundMailbox.passwordRef), !s.isEmpty else { return nil }
-        return SecretMask.display(s)
+        if let s = secrets.get(account: account.secretRef), !s.isEmpty {
+            // 火山 AK/SK 两行：只遮罩展示 AK
+            if account.kind.needsAccessKeyPair,
+               let pair = VolcengineSigner.unpackCredentials(s) {
+                return "AK " + SecretMask.display(pair.accessKeyId)
+            }
+            return SecretMask.display(s)
+        }
+        if secrets.contains(account: account.secretRef) {
+            return secrets.isSessionUnlocked ? nil : "已保存 · 点刷新用指纹解锁"
+        }
+        return nil
     }
 
     func maskedSMTPPassword() -> String? {
-        guard let s = keychain.get(account: settings.email.passwordRef), !s.isEmpty else { return nil }
-        return SecretMask.display(s)
+        if let s = secrets.get(account: settings.email.passwordRef), !s.isEmpty {
+            return SecretMask.display(s)
+        }
+        if secrets.contains(account: settings.email.passwordRef) {
+            return secrets.isSessionUnlocked ? nil : "已保存 · 点刷新用指纹解锁"
+        }
+        return nil
     }
 
     private func presentAlert(title: String, message: String) {
@@ -487,15 +516,29 @@ final class AppModel: ObservableObject {
     }
 
     func hasSecret(for account: BalanceAccount) -> Bool {
-        !(keychain.get(account: account.secretRef) ?? "").isEmpty
-    }
-
-    func hasIMAPPassword() -> Bool {
-        !(keychain.get(account: settings.inboundMailbox.passwordRef) ?? "").isEmpty
+        secrets.contains(account: account.secretRef)
     }
 
     func hasSMTPPassword() -> Bool {
-        !(keychain.get(account: settings.email.passwordRef) ?? "").isEmpty
+        secrets.contains(account: settings.email.passwordRef)
+    }
+
+    var secretsSessionUnlocked: Bool { secrets.isSessionUnlocked }
+
+    /// 主动用指纹解锁（设置页点一下即可，不必等刷新）。
+    func unlockSecrets() {
+        Task {
+            do {
+                try await secrets.unlockSessionIfNeeded(
+                    reason: "智余需要验证身份以显示已保存的密钥"
+                )
+                // 触发界面刷新掩码
+                objectWillChange.send()
+                banner = "已通过指纹/密码验证"
+            } catch {
+                banner = "验证失败：\(error.localizedDescription)"
+            }
+        }
     }
 
     func persist() {

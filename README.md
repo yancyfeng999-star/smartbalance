@@ -1,49 +1,55 @@
 # 智余 · SmartBalance
 
+macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac 通知 + 邮件报警**。
+
 | | |
 |--|--|
-| **中文名** | 智余 |
-| **英文名** | SmartBalance |
-| **平台** | macOS 15+ 菜单栏 |
-| **状态** | V1 代码完成 · 见 [PROJECT_STATUS.md](./PROJECT_STATUS.md) |
+| 平台 | macOS 15+ |
+| 形态 | 菜单栏（无 Dock） |
+| 对照 | [智额 SmartQuota](../智额/) 看会员额度；智余看 API 余额 |
 
-## 怎么工作
+---
 
-### 数据源（知道余额）
+## 仓库结构
 
-| 路径 | 适用 | 做法 |
-|------|------|------|
-| **API 直查** | 大多数平台 | Key / BaseURL 调余额接口（DeepSeek · New-API · OpenRouter） |
-| **平台邮件** | 无实时查询的平台 | IMAP 读其**固定发件邮箱**来信并解析金额 |
+```text
+.
+├── README.md                 # 本文件
+├── PRODUCT.md                # 产品说明
+├── PROJECT_STATUS.md         # 实现状态
+├── docs/USER_GUIDE.md        # 用户指南
+└── Apps/Mac/                 # 全部源码（Tuist + Swift 6）
+    ├── Sources/
+    │   ├── Domain/           # 模型、阈值、ProviderKind
+    │   ├── Infrastructure/   # 网络、密钥库、SMTP、各平台 Provider
+    │   └── App/              # SwiftUI 主页 / 设置 / 置顶窗
+    ├── Tests/
+    ├── scripts/
+    └── Project.swift
+```
 
-### 报警通道（通知你）
+---
 
-| 通道 | 说明 |
+## 支持的平台
+
+| 方式 | 平台 |
 |------|------|
-| **Mac 通知** | 系统通知中心 |
-| **邮件报警** | SMTP 发到你的邮箱（推荐 465 + TLS） |
+| API Key | DeepSeek · OpenRouter · Kimi · ViralTok · 老张 API |
+| 系统令牌 + 用户 ID | New-API 中转 · DMXAPI |
+| AK / SK 签名 | 火山引擎（费用中心 QueryBalanceAcct） |
+| 手录 + 每日提醒 | 小米 MiMo · MiniMax |
 
-触发：余额偏低 / 危急 / 耗尽；或平台新邮件含报警关键词。
+---
 
-与 [智额](../智额/) 互补：智额看会员额度，智余看 API 余额并报警。
-
-## 文档
-
-- [PRODUCT.md](./PRODUCT.md) — 产品说明与成功标准  
-- [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) — 简短用户指南  
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — 实现状态与手工验收表  
-- [RESEARCH.md](./RESEARCH.md)  
-- [Apps/Mac/README.md](./Apps/Mac/README.md) — 架构与构建  
-- [V1 实现计划](./docs/superpowers/plans/2026-08-06-smartbalance-v1.md)
-
-## 运行
+## 构建与运行
 
 ```bash
 cd Apps/Mac
-# 开发
-tuist generate && open SmartBalance.xcworkspace
+tuist generate
+open SmartBalance.xcworkspace
+# Xcode 选择 SmartBalance → Run
 
-# 或一键 Release 到桌面
+# 或一键打 Release 到桌面
 ./scripts/build-test-app.sh
 open ~/Desktop/智余.app
 ```
@@ -53,3 +59,23 @@ open ~/Desktop/智余.app
 ```bash
 cd Apps/Mac && ./scripts/run-tests.sh
 ```
+
+---
+
+## 本机数据
+
+| 内容 | 路径 |
+|------|------|
+| 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
+| 密钥 | `~/Library/Application Support/SmartBalance/secrets.vault`（0600） |
+
+密钥不写入设置文件、不上传。首次读密钥时可用指纹 / 本机密码解锁会话。
+
+---
+
+## 文档
+
+- [PRODUCT.md](./PRODUCT.md) — 产品定位与范围  
+- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — 功能清单与验收  
+- [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) — 上手与 FAQ  
+- [Apps/Mac/README.md](./Apps/Mac/README.md) — 架构与扩展 Provider  

@@ -65,7 +65,16 @@ enum SBTheme {
     static let cardCorner: CGFloat = 16
     static let shellCorner: CGFloat = 22
     static let controlCorner: CGFloat = 12
-    static let panelWidth: CGFloat = 360
+    /// 弹层固定宽高（主页 = 设置，切换不跳尺寸）。对齐智额 PopoverContentHeight。
+    static let panelWidth: CGFloat = 380
+    static let preferredPanelHeight: CGFloat = 580
+    static let minPanelHeight: CGFloat = 420
+
+    /// 按屏幕可见高度取固定弹层高度。
+    static func panelHeight(visibleScreenHeight: CGFloat = NSScreen.main?.visibleFrame.height ?? 900) -> CGFloat {
+        let maxAllowed = max(visibleScreenHeight - 80, minPanelHeight)
+        return min(preferredPanelHeight, maxAllowed)
+    }
 
     static func statusColor(_ status: BalanceStatus) -> Color {
         switch status {

@@ -47,7 +47,7 @@ struct HomeView: View {
 
             if !model.recentAlerts.isEmpty {
                 Text("最近报警")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(SBTheme.muted)
                     .padding(.top, 2)
                 ForEach(model.recentAlerts.prefix(2)) { alert in
@@ -73,7 +73,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(alert.title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(SBTheme.text)
                     .lineLimit(1)
                 Spacer()
@@ -89,7 +89,7 @@ struct HomeView: View {
                 }
             }
             Text(alert.message)
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
                 .lineLimit(2)
         }
@@ -106,22 +106,26 @@ struct HomeView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("还没有余额卡片")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+            Text("智余 · 监控 API 余额")
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
+            Text("和智额看「会员额度」不同：这里看各平台 API / Token 还剩多少钱。")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 4) {
-                Text("· 能 API 查的：设置 → 添加 API 账号")
-                Text("· 只能收邮件的：设置 → 平台邮件源 + IMAP")
-                Text("· ViralTok（吉米）已内置，直接选平台粘贴 Key")
+                Text("1. 设置 → API 账号 → 添加平台")
+                Text("2. 贴 Key 自动查，或选手录金额（MiMo / MiniMax）")
+                Text("3. 偏低时：Mac 通知 / 邮件报警")
             }
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: 11, weight: .medium))
             .foregroundStyle(SBTheme.muted)
             .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 model.selectedTab = .settings
             } label: {
-                Text("去设置")
+                Text("去添加账号")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14)

@@ -5,7 +5,7 @@ import Domain
 struct BackgroundSystemSection: View {
     @ObservedObject var model: AppModel
 
-    @State private var expandSync = true
+    @State private var expandSync = false
     @State private var expandThreshold = false
     @State private var expandAbout = false
 
@@ -164,7 +164,7 @@ struct BackgroundSystemSection: View {
             )
             VStack(alignment: .leading, spacing: 2) {
                 Text("登录时启动")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(SBTheme.text)
                 Text("开机后自动在菜单栏运行")
                     .font(.system(size: 10, weight: .medium))
@@ -193,7 +193,7 @@ struct BackgroundSystemSection: View {
             )
             VStack(alignment: .leading, spacing: 2) {
                 Text("日志")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(SBTheme.text)
                 Text("~/Library/Logs/SmartBalance")
                     .font(.system(size: 10, weight: .medium))
@@ -221,7 +221,7 @@ struct BackgroundSystemSection: View {
                 )
                 VStack(alignment: .leading, spacing: 2) {
                     Text("软件更新")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(SBTheme.text)
                     Text(model.updateMessage ?? "当前 \(model.appVersion)")
                         .font(.system(size: 10, weight: .medium))
@@ -284,12 +284,27 @@ struct BackgroundSystemSection: View {
                 Text("\(Brand.nameCN) · \(Brand.nameEN)")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(SBTheme.text)
-                Text("API 直查 · 平台邮件 · Mac 通知 · 邮件报警")
+                Text("API 直查 · 手录 · Mac 通知 · 邮件报警")
                     .font(.system(size: 11))
                     .foregroundStyle(SBTheme.muted)
-                Text("v\(model.appVersion) · 仅 Mac · 密钥本机 Keychain")
-                    .font(.system(size: 10))
+                Text("v\(model.appVersion) · 本机文件 secrets.vault · 刷新时指纹解锁一次")
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
+                Text("路径：~/Library/Application Support/SmartBalance/secrets.vault")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(SBTheme.muted)
+                    .textSelection(.enabled)
+                Button {
+                    model.unlockSecrets()
+                } label: {
+                    Label(
+                        model.secretsSessionUnlocked ? "密钥已解锁" : "用指纹解锁密钥",
+                        systemImage: "touchid"
+                    )
+                    .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(SBButtonStyle(kind: .accent))
+                .disabled(model.secretsSessionUnlocked)
                 Text("配置：~/Library/Application Support/SmartBalance/")
                     .font(.system(size: 10))
                     .foregroundStyle(SBTheme.muted)

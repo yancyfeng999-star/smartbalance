@@ -1,13 +1,16 @@
 import Foundation
 
-/// Provider 查询所需凭据（由 Infrastructure 从 Keychain 组装）。
+/// Provider 查询所需凭据（由 Infrastructure 从本机密钥库组装）。
 public struct ProviderCredentials: Sendable {
     public var apiKey: String
     public var baseURL: String?
+    /// 非密钥型附属标识（如 DMXAPI 用户 ID）。
+    public var userId: String?
 
-    public init(apiKey: String, baseURL: String? = nil) {
+    public init(apiKey: String, baseURL: String? = nil, userId: String? = nil) {
         self.apiKey = apiKey
         self.baseURL = baseURL
+        self.userId = userId
     }
 }
 
@@ -19,6 +22,7 @@ public protocol BalanceProvider: Sendable {
 
 public enum BalanceProviderError: Error, LocalizedError, Sendable {
     case missingCredential
+    case missingUserId
     case invalidURL
     case httpStatus(Int, String)
     case decodeFailed(String)
@@ -27,6 +31,7 @@ public enum BalanceProviderError: Error, LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingCredential: "缺少 API 密钥"
+        case .missingUserId: "缺少用户 ID"
         case .invalidURL: "Base URL 无效"
         case .httpStatus(let code, let body): "HTTP \(code): \(body.prefix(200))"
         case .decodeFailed(let msg): "解析失败: \(msg)"

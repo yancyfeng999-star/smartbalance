@@ -2,22 +2,22 @@ import Foundation
 
 /// 余额从哪里来。
 public enum DataSourceKind: String, Codable, Sendable, CaseIterable {
-    /// 大多数平台：API 直接查询。
+    /// API 直查 / 手录账号。
     case api
-    /// 不支持实时查询的平台：解析其固定发来的余额/报警邮件。
+    /// 历史：平台邮件（已移除，仅兼容旧快照）。
     case platformEmail
 
     public var titleCN: String {
         switch self {
         case .api: "API 查询"
-        case .platformEmail: "平台邮件"
+        case .platformEmail: "平台邮件（已停用）"
         }
     }
 
     public var subtitleCN: String {
         switch self {
-        case .api: "用 API Key 直接拉余额（多数平台）"
-        case .platformEmail: "读平台固定发件邮箱发来的余额/报警信"
+        case .api: "用 API Key 拉余额，或手录金额"
+        case .platformEmail: "已停用"
         }
     }
 }

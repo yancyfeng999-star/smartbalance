@@ -1,20 +1,13 @@
-# References (cloned OSS, do not track)
-references/
-
-# Xcode / Tuist
-Apps/Mac/**/*.xcworkspace/xcuserdata/
-Apps/Mac/**/*.xcodeproj/xcuserdata/
-Apps/Mac/**/DerivedData/
+# 构建产物
 Apps/Mac/build/
 Apps/Mac/dist/
 Apps/Mac/.build/
 Apps/Mac/Tuist/.build/
+Apps/Mac/**/DerivedData/
 **/xcuserdata/
 **/.DS_Store
 
-# SDD scratch
-.superpowers/
-
-# Secrets
+# 密钥
 **/.env
 **/secrets/
+**/secrets.vault

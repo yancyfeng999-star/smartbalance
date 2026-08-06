@@ -8,6 +8,12 @@ public enum ProviderRegistry {
         case .newapi: NewAPIBalanceProvider()
         case .openrouter: OpenRouterBalanceProvider()
         case .viraltok: ViralTokBalanceProvider()
+        case .laozhang: LaoZhangBalanceProvider()
+        case .dmxapi: DMXAPIBalanceProvider()
+        case .kimi: KimiBalanceProvider()
+        case .volcengine: VolcengineBalanceProvider()
+        case .mimo: ManualBalanceProvider(kind: .mimo)
+        case .minimax: ManualBalanceProvider(kind: .minimax)
         }
     }
 }

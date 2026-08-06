@@ -32,9 +32,19 @@ struct MockHTTPClient: HTTPClient, Sendable {
     /// Authorization header values in call order (for Bearer → bare-token assertions).
     var authorizationHeaders: [String] { state.authorizationHeaders }
 
+    /// Other request headers (e.g. `Dmx-Api-User`) in call order.
+    var customHeaders: [String: [String]] { state.customHeaders }
+
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let auth = request.value(forHTTPHeaderField: "Authorization")
-        let index = state.recordCall(authorization: auth) - 1
+        var extras: [String: String] = [:]
+        if let dmxUser = request.value(forHTTPHeaderField: "Dmx-Api-User") {
+            extras["Dmx-Api-User"] = dmxUser
+        }
+        if let newAPIUser = request.value(forHTTPHeaderField: "New-API-User") {
+            extras["New-API-User"] = newAPIUser
+        }
+        let index = state.recordCall(authorization: auth, customHeaders: extras) - 1
         let code: Int
         let data: Data
         if let responses {
@@ -61,6 +71,7 @@ private final class MockHTTPClientState: @unchecked Sendable {
     private let lock = NSLock()
     private var _callCount = 0
     private var _authorizationHeaders: [String] = []
+    private var _customHeaders: [String: [String]] = [:]
 
     var callCount: Int {
         lock.lock()
@@ -74,13 +85,22 @@ private final class MockHTTPClientState: @unchecked Sendable {
         return _authorizationHeaders
     }
 
+    var customHeaders: [String: [String]] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _customHeaders
+    }
+
     @discardableResult
-    func recordCall(authorization: String?) -> Int {
+    func recordCall(authorization: String?, customHeaders: [String: String] = [:]) -> Int {
         lock.lock()
         defer { lock.unlock() }
         _callCount += 1
         if let authorization {
             _authorizationHeaders.append(authorization)
+        }
+        for (key, value) in customHeaders {
+            _customHeaders[key, default: []].append(value)
         }
         return _callCount
     }

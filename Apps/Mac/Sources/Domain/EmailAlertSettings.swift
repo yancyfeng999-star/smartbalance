@@ -1,6 +1,6 @@
 import Foundation
 
-/// 出站邮件报警 SMTP 配置（密码经 Keychain）。
+/// 出站邮件报警 SMTP 配置（仅发出报警信；密码存本机 secrets.vault）。
 public struct EmailAlertSettings: Codable, Equatable, Sendable {
     public var enabled: Bool
     public var smtpHost: String

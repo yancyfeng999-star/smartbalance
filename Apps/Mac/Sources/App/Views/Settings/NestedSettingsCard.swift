@@ -1,21 +1,22 @@
 import SwiftUI
 
-/// 智额同款可折叠设置卡：点标题展开，内容从标题下方软模糊落下。
-struct SettingsExpandableCard<Content: View>: View {
+/// 嵌在一级设置卡内部的二级折叠卡（对齐智额：外层大卡 → 内层小卡）。
+struct NestedSettingsCard<Content: View>: View {
     let icon: String
     let iconColors: [Color]
     let title: String
     let subtitle: String
+    var badge: String? = nil
+    var badgeColor: Color = SBTheme.accent
     @Binding var isExpanded: Bool
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 固定标题行 —— 内容只在其下方展开
             Button {
                 AppMotion.toggleExpand($isExpanded)
             } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     ZStack {
                         Circle()
                             .fill(
@@ -25,16 +26,15 @@ struct SettingsExpandableCard<Content: View>: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .frame(width: 28, height: 28)
+                            .frame(width: 22, height: 22)
                         Image(systemName: icon)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.white)
                     }
 
                     VStack(alignment: .leading, spacing: 1) {
-                        // 智额设置折叠卡：标题 14 bold / 副文 10 medium
                         Text(title)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(SBTheme.text)
                             .lineLimit(1)
                         Text(subtitle)
@@ -43,10 +43,22 @@ struct SettingsExpandableCard<Content: View>: View {
                             .lineLimit(1)
                     }
 
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 6)
+
+                    if let badge {
+                        Text(badge)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(badgeColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(badgeColor.opacity(0.14))
+                            )
+                    }
 
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(SBTheme.muted)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                         .animation(AppMotion.chevron, value: isExpanded)
@@ -54,36 +66,31 @@ struct SettingsExpandableCard<Content: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .zIndex(1)
 
-            // 从标题底边展开
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
                     Divider()
                         .overlay(SBTheme.stroke)
-                        .padding(.top, 12)
-                        .padding(.bottom, 12)
+                        .padding(.top, 10)
+                        .padding(.bottom, 10)
 
                     content()
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .transition(AppMotion.expandContent)
             }
         }
-        .padding(14)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                .fill(SBTheme.panel)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(SBTheme.bg.opacity(0.55))
                 .overlay(
-                    RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                        .stroke(SBTheme.cardStroke, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(SBTheme.stroke, lineWidth: 1)
                 )
-                .shadow(color: Color.black.opacity(0.04), radius: 5, y: 1)
         )
-        // 裁剪，避免展开内容画到标题上方
-        .clipShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .animation(AppMotion.expand, value: isExpanded)
     }
 }

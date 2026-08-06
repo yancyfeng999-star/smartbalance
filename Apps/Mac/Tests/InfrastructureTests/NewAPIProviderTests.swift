@@ -18,12 +18,18 @@ final class NewAPIProviderTests: XCTestCase {
     {"quota":500000,"used_quota":100000,"display_name":"u-top"}
     """
 
-    private func account(baseURL: String = "https://relay.example.com") -> BalanceAccount {
-        BalanceAccount(kind: .newapi, displayName: "Relay", baseURL: baseURL)
+    private func account(
+        baseURL: String = "https://relay.example.com",
+        userId: String? = "42"
+    ) -> BalanceAccount {
+        BalanceAccount(kind: .newapi, displayName: "Relay", baseURL: baseURL, userId: userId)
     }
 
-    private func credentials(token: String = "tok-test") -> ProviderCredentials {
-        ProviderCredentials(apiKey: token, baseURL: "https://relay.example.com")
+    private func credentials(
+        token: String = "tok-test",
+        userId: String? = "42"
+    ) -> ProviderCredentials {
+        ProviderCredentials(apiKey: token, baseURL: "https://relay.example.com", userId: userId)
     }
 
     // MARK: - Fixture matrix
@@ -41,7 +47,10 @@ final class NewAPIProviderTests: XCTestCase {
         XCTAssertEqual(snapshot.providerKind, .newapi)
         XCTAssertEqual(snapshot.status, .healthy)
         XCTAssertTrue(snapshot.detail.contains("u1"))
+        XCTAssertTrue(snapshot.detail.contains("UID 42"))
         XCTAssertTrue(snapshot.detail.contains("500000") || snapshot.detail.contains("剩余点数"))
+        XCTAssertEqual(http.customHeaders["New-API-User"]?.first, "42")
+        XCTAssertEqual(http.authorizationHeaders.first, "Bearer tok-test")
     }
 
     func testUnlimitedQuotaHealthyAndDetailContains无限() async throws {
@@ -96,7 +105,7 @@ final class NewAPIProviderTests: XCTestCase {
         XCTAssertEqual(snapshot.providerKind, .newapi)
     }
 
-    // MARK: - Auth retry
+    // MARK: - Auth + user id
 
     func testBearerThenBareTokenOn401() async throws {
         let body = Data(standardJSON.utf8)
@@ -116,6 +125,8 @@ final class NewAPIProviderTests: XCTestCase {
         XCTAssertEqual(auths.count, 2)
         XCTAssertEqual(auths[0], "Bearer secret-token")
         XCTAssertEqual(auths[1], "secret-token")
+        // Both attempts must keep the real user id header
+        XCTAssertEqual(http.customHeaders["New-API-User"], ["42", "42"])
     }
 
     func testBareTokenRetryOn403() async throws {
@@ -159,7 +170,7 @@ final class NewAPIProviderTests: XCTestCase {
         do {
             _ = try await provider.fetchBalance(
                 account: account(),
-                credentials: ProviderCredentials(apiKey: "", baseURL: "https://relay.example.com")
+                credentials: ProviderCredentials(apiKey: "", baseURL: "https://relay.example.com", userId: "1")
             )
             XCTFail("expected missingCredential")
         } catch let error as BalanceProviderError {
@@ -171,15 +182,32 @@ final class NewAPIProviderTests: XCTestCase {
         }
     }
 
+    func testMissingUserIdThrows() async {
+        let http = MockHTTPClient(statusCode: 200, json: standardJSON)
+        let provider = NewAPIBalanceProvider(http: http)
+
+        do {
+            _ = try await provider.fetchBalance(
+                account: account(userId: nil),
+                credentials: credentials(userId: nil)
+            )
+            XCTFail("expected missingUserId")
+        } catch BalanceProviderError.missingUserId {
+            // ok
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
     func testMissingBaseURLThrowsInvalidURL() async {
         let http = MockHTTPClient(statusCode: 200, json: standardJSON)
         let provider = NewAPIBalanceProvider(http: http)
-        let bare = BalanceAccount(kind: .newapi, displayName: "NoBase", baseURL: nil)
+        let bare = BalanceAccount(kind: .newapi, displayName: "NoBase", baseURL: nil, userId: "9")
 
         do {
             _ = try await provider.fetchBalance(
                 account: bare,
-                credentials: ProviderCredentials(apiKey: "tok")
+                credentials: ProviderCredentials(apiKey: "tok", userId: "9")
             )
             XCTFail("expected invalidURL")
         } catch let error as BalanceProviderError {
@@ -189,5 +217,10 @@ final class NewAPIProviderTests: XCTestCase {
         } catch {
             XCTFail("unexpected error: \(error)")
         }
+    }
+
+    func testProviderKindNeedsUserId() {
+        XCTAssertTrue(ProviderKind.newapi.needsUserId)
+        XCTAssertTrue(ProviderKind.newapi.needsBaseURL)
     }
 }

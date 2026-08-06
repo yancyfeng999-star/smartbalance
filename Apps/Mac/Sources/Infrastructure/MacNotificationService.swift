@@ -99,6 +99,54 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
         }
     }
 
+    /// 每日固定时刻提醒手录余额（MiMo / MiniMax 等）。
+    /// - Parameters:
+    ///   - hour/minute: 本地时区
+    ///   - names: 需要提醒的账号名；空则取消定时
+    public func scheduleDailyManualBalanceReminder(
+        hour: Int = 10,
+        minute: Int = 0,
+        names: [String]
+    ) async {
+        await MainActor.run { installDelegateIfNeeded() }
+        let id = "smartbalance.daily-manual-balance"
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+
+        guard !names.isEmpty else {
+            AppLog.info("Daily manual reminder cleared")
+            return
+        }
+
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
+        else {
+            AppLog.error("Cannot schedule daily reminder: notifications not authorized")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "智余 · 录入余额"
+        let list = names.joined(separator: "、")
+        content.body = "请打开 \(list) 后台核对余额，并在智余设置中更新手录金额。"
+        content.sound = .default
+        if #available(macOS 12.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
+
+        var dc = DateComponents()
+        dc.hour = hour
+        dc.minute = minute
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dc, repeats: true)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        do {
+            try await center.add(request)
+            AppLog.info("Daily manual reminder at \(hour):\(String(format: "%02d", minute)) · \(list)")
+        } catch {
+            AppLog.error("Daily reminder schedule failed: \(error.localizedDescription)")
+        }
+    }
+
     // 前台也弹横幅（对齐用户「测试有反应」预期）
     public func userNotificationCenter(
         _ center: UNUserNotificationCenter,

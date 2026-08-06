@@ -5,7 +5,7 @@ enum SettingsChrome {
     static func card<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(SBTheme.muted)
             content()
         }
@@ -24,9 +24,11 @@ enum SettingsChrome {
 
     static func labelStack(_ title: String, _ sub: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).foregroundStyle(SBTheme.text)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(SBTheme.text)
             Text(sub)
-                .font(.system(size: 11))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
         }
     }
@@ -34,7 +36,7 @@ enum SettingsChrome {
     static func labeledField(_ title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
             TextField(title, text: text)
                 .textFieldStyle(.roundedBorder)
