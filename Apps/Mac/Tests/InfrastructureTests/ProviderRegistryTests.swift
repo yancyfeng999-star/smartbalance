@@ -6,6 +6,7 @@ final class ProviderRegistryTests: XCTestCase {
     func testRegistryReturnsProviders() {
         XCTAssertEqual(ProviderRegistry.provider(for: .deepseek).kind, .deepseek)
         XCTAssertEqual(ProviderRegistry.provider(for: .newapi).kind, .newapi)
+        XCTAssertEqual(ProviderRegistry.provider(for: .openrouter).kind, .openrouter)
     }
 
     func testDeepSeekMissingKey() async {

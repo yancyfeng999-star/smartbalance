@@ -96,6 +96,7 @@ struct BalanceCardView: View {
         switch snapshot.providerKind {
         case .deepseek: return "D"
         case .newapi: return "N"
+        case .openrouter: return "O"
         case .none: return "?"
         }
     }

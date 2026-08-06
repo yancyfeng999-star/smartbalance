@@ -109,7 +109,8 @@ struct SettingsView: View {
                 }
             }
             .labelsHidden()
-            .pickerStyle(.segmented)
+            // 3+ providers: menu is clearer than a cramped segmented control.
+            .pickerStyle(.menu)
 
             TextField("显示名称（可选）", text: $newName)
                 .textFieldStyle(.roundedBorder)

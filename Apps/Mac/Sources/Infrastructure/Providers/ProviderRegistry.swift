@@ -6,6 +6,7 @@ public enum ProviderRegistry {
         switch kind {
         case .deepseek: DeepSeekBalanceProvider()
         case .newapi: NewAPIBalanceProvider()
+        case .openrouter: OpenRouterBalanceProvider()
         }
     }
 }
