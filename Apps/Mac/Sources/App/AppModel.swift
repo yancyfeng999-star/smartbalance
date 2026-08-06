@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
     @Published var lastRefreshAt: Date?
     @Published var banner: String?
     @Published var selectedTab: Tab = .home
+    /// Mac 通知授权状态文案（设置页展示）。
+    @Published var notificationStatusCaption: String = "系统未授权通知 · 点测试可再次请求"
 
     enum Tab: String {
         case home
@@ -27,9 +29,15 @@ final class AppModel: ObservableObject {
     init() {
         self.settings = SettingsStore.shared.load()
         Task {
-            await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            await refreshNotificationStatus()
         }
         startAutoRefreshIfNeeded()
+    }
+
+    func refreshNotificationStatus() async {
+        let status = await MacNotificationService.shared.authorizationStatus()
+        notificationStatusCaption = MacNotificationService.statusCaption(for: status)
     }
 
     var statusLine: String {
@@ -223,7 +231,10 @@ final class AppModel: ObservableObject {
         settings.alertChannels.macNotificationEnabled = on
         persist()
         if on {
-            Task { await MacNotificationService.shared.requestAuthorizationIfNeeded() }
+            Task {
+                _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+                await refreshNotificationStatus()
+            }
         }
     }
 
@@ -285,11 +296,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// 测试按钮必达：不依赖余额状态，始终请求权限并投递测试通知。
     func sendTestMacNotification() {
         Task {
-            await MacNotificationService.shared.requestAuthorizationIfNeeded()
-            await service.sendTestMacNotification()
-            banner = "已请求发送测试 Mac 通知"
+            let granted = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            await refreshNotificationStatus()
+            if granted {
+                await service.sendTestMacNotification()
+                banner = "已发送测试 Mac 通知"
+            } else {
+                banner = notificationStatusCaption
+            }
         }
     }
 

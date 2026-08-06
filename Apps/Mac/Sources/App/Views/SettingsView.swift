@@ -54,7 +54,10 @@ struct SettingsView: View {
             refreshBlock
             aboutBlock
         }
-        .onAppear(perform: loadFields)
+        .onAppear {
+            loadFields()
+            Task { await model.refreshNotificationStatus() }
+        }
         .sheet(item: $parseTarget) { src in
             PasteMailParseSheet(source: src, model: model)
         }
@@ -283,6 +286,14 @@ struct SettingsView: View {
                 labelStack(AlertChannel.outboundEmail.titleCN, AlertChannel.outboundEmail.subtitleCN)
             }
             .toggleStyle(.switch)
+
+            Text(model.notificationStatusCaption)
+                .font(.system(size: 11))
+                .foregroundStyle(
+                    model.notificationStatusCaption == "通知已开启"
+                        ? SBTheme.ok
+                        : SBTheme.warn
+                )
 
             HStack {
                 Button("测试 Mac 通知") { model.sendTestMacNotification() }

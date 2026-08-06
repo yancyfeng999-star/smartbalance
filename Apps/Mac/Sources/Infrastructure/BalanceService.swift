@@ -30,7 +30,11 @@ public actor BalanceService {
             for account in settings.enabledAccounts {
                 let snap = await refreshAPI(account: account, settings: settings)
                 snapshots.append(snap)
-                if let event = await dispatchAlerts(snapshot: snap, key: account.id.uuidString, settings: &updated) {
+                if let event = await dispatchAlerts(
+                    snapshot: snap,
+                    key: "api-\(account.id.uuidString)",
+                    settings: &updated
+                ) {
                     alerts.append(event)
                 }
             }
@@ -257,8 +261,11 @@ public actor BalanceService {
         var notified = false
 
         if channels.macNotificationEnabled {
-            await notifications.post(title: title, body: "\(snapshot.primaryText) · \(snapshot.status.titleCN)", id: key)
-            notified = true
+            notified = await notifications.post(
+                title: title,
+                body: "\(snapshot.primaryText) · \(snapshot.status.titleCN)",
+                id: key
+            )
         }
 
         if channels.outboundEmailEnabled && settings.email.enabled && settings.email.isConfigured {
