@@ -12,10 +12,12 @@
 		0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F342A2116AC420D4A006039D /* BalanceCardView.swift */; };
 		0F9C5C27CE4AF3EC4E9142DF /* OpenRouterBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EACBEF49880E359E6C73B4 /* OpenRouterBalanceProvider.swift */; };
 		10AB940428A80FC7E6D8AEA7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFE355963892C82786059F4 /* Theme.swift */; };
+		11CCC903795D2496F07CB28A /* IMAPFetchParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 156DADECDC3F39D60715696B /* IMAPFetchParser.swift */; };
 		13B3AEE24A30E624FA8815F3 /* BalanceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */; };
 		15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0936C127D1AF75D376EEE61B /* BalanceService.swift */; };
 		1BF6C674F693423CE0EE54FE /* NewAPIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */; };
 		2DF3BF0A55F38A3AE02060F2 /* EmailAlertSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */; };
+		3096566D56B9CD6F527B8B0F /* IMAPFetchParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BD1782E833FEFAABCCD035 /* IMAPFetchParserTests.swift */; };
 		30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */; };
 		31B6677798723C88070A22A4 /* AlertChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */; };
 		331811AC02FB4901970E00FE /* BalanceAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */; };
@@ -173,6 +175,7 @@
 		0936C127D1AF75D376EEE61B /* BalanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceService.swift; sourceTree = "<group>"; };
 		098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistryTests.swift; sourceTree = "<group>"; };
 		152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIProviderTests.swift; sourceTree = "<group>"; };
+		156DADECDC3F39D60715696B /* IMAPFetchParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPFetchParser.swift; sourceTree = "<group>"; };
 		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
 		1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRootView.swift; sourceTree = "<group>"; };
 		2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -181,6 +184,7 @@
 		35EACBEF49880E359E6C73B4 /* OpenRouterBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterBalanceProvider.swift; sourceTree = "<group>"; };
 		3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannel.swift; sourceTree = "<group>"; };
 		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
+		44BD1782E833FEFAABCCD035 /* IMAPFetchParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPFetchParserTests.swift; sourceTree = "<group>"; };
 		456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
 		4C299590DA907A1C409B8818 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
@@ -345,6 +349,7 @@
 			children = (
 				02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */,
 				5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */,
+				44BD1782E833FEFAABCCD035 /* IMAPFetchParserTests.swift */,
 				152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */,
 				F14B6A6413BB5EA3C5A52AA7 /* OpenRouterProviderTests.swift */,
 				098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */,
@@ -431,6 +436,7 @@
 				0936C127D1AF75D376EEE61B /* BalanceService.swift */,
 				4C299590DA907A1C409B8818 /* HTTPClient.swift */,
 				67B323F3AA6CB95224B72917 /* IMAPClient.swift */,
+				156DADECDC3F39D60715696B /* IMAPFetchParser.swift */,
 				456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */,
 				9CF301DDD63AC22702F76913 /* MacNotificationService.swift */,
 				2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */,
@@ -635,6 +641,7 @@
 			files = (
 				DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */,
 				B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */,
+				3096566D56B9CD6F527B8B0F /* IMAPFetchParserTests.swift in Sources */,
 				1BF6C674F693423CE0EE54FE /* NewAPIProviderTests.swift in Sources */,
 				EA65F5255DE4A15AD0445367 /* OpenRouterProviderTests.swift in Sources */,
 				3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */,
@@ -664,6 +671,7 @@
 				15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */,
 				8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */,
 				53CF3045B27EC2C497E41834 /* IMAPClient.swift in Sources */,
+				11CCC903795D2496F07CB28A /* IMAPFetchParser.swift in Sources */,
 				5F3B5C51CFB928F18BF657A2 /* KeychainStore.swift in Sources */,
 				78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */,
 				30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */,
