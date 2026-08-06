@@ -97,6 +97,7 @@ struct BalanceCardView: View {
         case .deepseek: return "D"
         case .newapi: return "N"
         case .openrouter: return "O"
+        case .viraltok: return "V"
         case .none: return "?"
         }
     }

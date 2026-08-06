@@ -7,6 +7,7 @@ public enum ProviderRegistry {
         case .deepseek: DeepSeekBalanceProvider()
         case .newapi: NewAPIBalanceProvider()
         case .openrouter: OpenRouterBalanceProvider()
+        case .viraltok: ViralTokBalanceProvider()
         }
     }
 }

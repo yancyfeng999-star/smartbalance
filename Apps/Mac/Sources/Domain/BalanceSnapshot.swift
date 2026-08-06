@@ -61,6 +61,9 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
             if unit == "USD" || unit == "$" {
                 return String(format: "$%.2f", amount)
             }
+            if unit == "吉米币" {
+                return String(format: "%.2f 吉米币", amount)
+            }
             return String(format: "%.2f %@", amount, unit)
         }
         if let remainingPercent {
