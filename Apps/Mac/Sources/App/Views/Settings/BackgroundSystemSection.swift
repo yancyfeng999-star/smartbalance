@@ -280,39 +280,17 @@ struct BackgroundSystemSection: View {
             subtitle: "\(Brand.nameCN) · v\(model.appVersion)",
             isExpanded: $expandAbout
         ) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("\(Brand.nameCN) · \(Brand.nameEN)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(SBTheme.text)
-                Text("API 直查 · 手录 · Mac 通知 · 邮件报警")
-                    .font(.system(size: 11))
+                Text("菜单栏查询各平台 API / Token 余额，偏低时 Mac 通知或邮件提醒。")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
-                Text("v\(model.appVersion) · 本机文件 secrets.vault · 刷新时指纹解锁一次")
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("版本 \(model.appVersion)")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
-                Text("路径：~/Library/Application Support/SmartBalance/secrets.vault")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.muted)
-                    .textSelection(.enabled)
-                Button {
-                    model.unlockSecrets()
-                } label: {
-                    Label(
-                        model.secretsSessionUnlocked ? "密钥已解锁" : "用指纹解锁密钥",
-                        systemImage: "touchid"
-                    )
-                    .font(.system(size: 11, weight: .semibold))
-                }
-                .buttonStyle(SBButtonStyle(kind: .accent))
-                .disabled(model.secretsSessionUnlocked)
-                Text("配置：~/Library/Application Support/SmartBalance/")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SBTheme.muted)
-                    .textSelection(.enabled)
-                Text("日志：~/Library/Logs/SmartBalance/")
-                    .font(.system(size: 10))
-                    .foregroundStyle(SBTheme.muted)
-                    .textSelection(.enabled)
             }
         }
     }
