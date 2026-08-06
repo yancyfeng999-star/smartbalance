@@ -7,13 +7,13 @@ struct MockHTTPClient: HTTPClient, Sendable {
     let body: Data
     /// Optional sequence for multi-call flows (e.g. New-API Bearer then bare token).
     let responses: [(statusCode: Int, body: Data)]?
-    private let callCountBox: CallCountBox
+    private let state: MockHTTPClientState
 
     init(statusCode: Int = 200, body: Data) {
         self.statusCode = statusCode
         self.body = body
         self.responses = nil
-        self.callCountBox = CallCountBox()
+        self.state = MockHTTPClientState()
     }
 
     init(statusCode: Int = 200, json: String) {
@@ -24,13 +24,17 @@ struct MockHTTPClient: HTTPClient, Sendable {
         self.statusCode = responses.first?.statusCode ?? 500
         self.body = responses.first?.body ?? Data()
         self.responses = responses
-        self.callCountBox = CallCountBox()
+        self.state = MockHTTPClientState()
     }
 
-    var callCount: Int { callCountBox.value }
+    var callCount: Int { state.callCount }
+
+    /// Authorization header values in call order (for Bearer → bare-token assertions).
+    var authorizationHeaders: [String] { state.authorizationHeaders }
 
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let index = callCountBox.increment() - 1
+        let auth = request.value(forHTTPHeaderField: "Authorization")
+        let index = state.recordCall(authorization: auth) - 1
         let code: Int
         let data: Data
         if let responses {
@@ -53,21 +57,31 @@ struct MockHTTPClient: HTTPClient, Sendable {
 }
 
 /// Tiny mutex box so `MockHTTPClient` stays a Sendable value type.
-private final class CallCountBox: @unchecked Sendable {
+private final class MockHTTPClientState: @unchecked Sendable {
     private let lock = NSLock()
-    private var _value = 0
+    private var _callCount = 0
+    private var _authorizationHeaders: [String] = []
 
-    var value: Int {
+    var callCount: Int {
         lock.lock()
         defer { lock.unlock() }
-        return _value
+        return _callCount
+    }
+
+    var authorizationHeaders: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _authorizationHeaders
     }
 
     @discardableResult
-    func increment() -> Int {
+    func recordCall(authorization: String?) -> Int {
         lock.lock()
         defer { lock.unlock() }
-        _value += 1
-        return _value
+        _callCount += 1
+        if let authorization {
+            _authorizationHeaders.append(authorization)
+        }
+        return _callCount
     }
 }
