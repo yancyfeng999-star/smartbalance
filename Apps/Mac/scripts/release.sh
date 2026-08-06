@@ -69,7 +69,8 @@ fi
 
 echo "======== 3) Git 提交 ========"
 cd "${REPO}"
-git add Apps/Mac/Sources/App/Info.plist README.md CHANGELOG.md 2>/dev/null || true
+# 一并提交尚未入库的源码/脚本，避免出现「包已更新、仓库无代码」
+git add Apps/Mac/Sources Apps/Mac/scripts README.md CHANGELOG.md 2>/dev/null || true
 git add "releases/Mac/${TAG}/RELEASE_NOTES.md" "releases/Mac/${TAG}/SHA256SUMS.txt" 2>/dev/null || true
 if git diff --cached --quiet 2>/dev/null && git diff --quiet 2>/dev/null; then
   echo "(无文本变更可提交，继续)"
