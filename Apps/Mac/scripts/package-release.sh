@@ -209,12 +209,25 @@ tell application "Finder"
 end tell
 APPLESCRIPT
   sync
-  hdiutil detach "$VOL_PATH" -quiet 2>/dev/null || hdiutil detach "$DEVICE" -quiet 2>/dev/null || true
+  hdiutil detach "$VOL_PATH" -force 2>/dev/null || hdiutil detach "$DEVICE" -force 2>/dev/null || true
 else
-  hdiutil detach "$DEVICE" -quiet 2>/dev/null || true
+  hdiutil detach "$DEVICE" -force 2>/dev/null || true
 fi
-
-hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_CN" >/dev/null
+# 确保卷已卸下再 convert，避免「资源暂时不可用」
+sleep 0.8
+for _try in 1 2 3; do
+  if hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_CN" 2>/dev/null; then
+    break
+  fi
+  # 残留挂载时强制卸下后重试
+  hdiutil detach "$VOL_PATH" -force 2>/dev/null || true
+  hdiutil detach "$DEVICE" -force 2>/dev/null || true
+  sleep 1
+  if [[ "$_try" -eq 3 ]]; then
+    echo "ERROR: hdiutil convert failed after retries" >&2
+    exit 1
+  fi
+done
 rm -f "$RW_DMG"
 cp -f "$DMG_CN" "$DMG_EN"
 
