@@ -1,0 +1,1207 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 55;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0022C8639E3E6113BF7F474C /* BalanceMailParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF511AA84219FC125F3D197 /* BalanceMailParser.swift */; };
+		062469C0F777D8C8034128AE /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */; };
+		0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F342A2116AC420D4A006039D /* BalanceCardView.swift */; };
+		10AB940428A80FC7E6D8AEA7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFE355963892C82786059F4 /* Theme.swift */; };
+		13B3AEE24A30E624FA8815F3 /* BalanceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */; };
+		15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0936C127D1AF75D376EEE61B /* BalanceService.swift */; };
+		2DF3BF0A55F38A3AE02060F2 /* EmailAlertSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */; };
+		30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */; };
+		31B6677798723C88070A22A4 /* AlertChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */; };
+		331811AC02FB4901970E00FE /* BalanceAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */; };
+		35F64C8CF38DEE2627D76D01 /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		38FD910AB0D1FE33446A6B66 /* BalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9627086E9C867E333AA891AA /* BalanceProvider.swift */; };
+		3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */; };
+		43FC64308A880785228BDB3F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9018B2789077E11374A1DB3 /* SettingsView.swift */; };
+		48083B0B448C8941D61125DD /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3597F046B4FAC85DF2C83703 /* HomeView.swift */; };
+		4BAA0A8715D803A4967FA7CB /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
+		53CF3045B27EC2C497E41834 /* IMAPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B323F3AA6CB95224B72917 /* IMAPClient.swift */; };
+		5E40934CEE7455A0BCDF47D3 /* TuistAssets+SmartBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E74407DA5E51665BE993E53C /* TuistAssets+SmartBalance.swift */; };
+		5EA0691D6B1E3C6F2560DE04 /* TuistBundle+SmartBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */; };
+		5F3B5C51CFB928F18BF657A2 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */; };
+		65400FAC4FBCD13B396D562B /* AlertEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E8782D402683CD9D05DCD3 /* AlertEvent.swift */; };
+		72D529F018D6AB152FCBFD25 /* DataSourceKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60576DDC7BB0B4190A050369 /* DataSourceKind.swift */; };
+		74B4CBF8F02D3B3B5852876F /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D54145CDACB1B1247DD86DB /* AppModel.swift */; };
+		77335B024B0CF649A57E5FB7 /* BalanceSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */; };
+		78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF301DDD63AC22702F76913 /* MacNotificationService.swift */; };
+		7ABA0134C47F810E8078122C /* BalanceMailParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D14E5DC68EFAA0F09497A /* BalanceMailParserTests.swift */; };
+		7D14D3AB8FBC04D2879F7EA9 /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
+		8B55AF3AD4CB1E79208DED0B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF532DFB5BBC8067BB5820E3 /* AppSettings.swift */; };
+		93D38310245857DB4DA1633B /* Domain.framework in Dependencies */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */; };
+		99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */; };
+		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
+		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD25801FF4237FC1E955A84 /* Brand.swift */; };
+		C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */; };
+		CD1406BB8CB3E7BAD20F67D2 /* ProviderKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = D87A480F96777DF6FE34FB61 /* ProviderKind.swift */; };
+		D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
+		DC2DE4F60F8DD9822039DFDD /* PlatformMailSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E583FF50A2527CDD50D48AE5 /* PlatformMailSource.swift */; };
+		DEF16A51F1A5E627A3D74897 /* AppMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4D0D2EB67A4D44D72A6529 /* AppMode.swift */; };
+		F408E4378A848785F458910E /* BalanceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */; };
+		FDB9A9FC7B7CE252891F0300 /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		FE13F8A8238A78BF04941E6E /* SMTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964480BD23406FE27B496D1A /* SMTPClient.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		04D287EB1DBD26912C37223C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E57F25F94BD425DCC8066FB6;
+			remoteInfo = Domain;
+		};
+		4257946252AB4B8C7CE46C4A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E57F25F94BD425DCC8066FB6;
+			remoteInfo = Domain;
+		};
+		53DB45B425C785C7631B3943 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7E593677A38220BD5DC453AD;
+			remoteInfo = Infrastructure;
+		};
+		5781C882F8960DF837EF576A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7E593677A38220BD5DC453AD;
+			remoteInfo = Infrastructure;
+		};
+		961D27C9C226582103399534 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E57F25F94BD425DCC8066FB6;
+			remoteInfo = Domain;
+		};
+		E9EAE3372859886BB5611C01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AFCC80BD97D1B75DA888207 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E57F25F94BD425DCC8066FB6;
+			remoteInfo = Domain;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1E10B6CAE0A5BC965BC7A1F6 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3108B056E4CF65E7AC3DA6D0 /* Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 8;
+			dstSubfolderSpec = 16;
+			files = (
+				93D38310245857DB4DA1633B /* Domain.framework in Dependencies */,
+			);
+			name = Dependencies;
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		68AE34E29ECF44BDE449B83F /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A648D2BDBC23DF958D52B98 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		87D73574F8F3D87695571220 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E8A665470EFEEC4F43F34F5E /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		06998D7944A06D8515432118 /* DomainTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "DomainTests-Info.plist"; sourceTree = "<group>"; };
+		0936C127D1AF75D376EEE61B /* BalanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceService.swift; sourceTree = "<group>"; };
+		098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistryTests.swift; sourceTree = "<group>"; };
+		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
+		1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRootView.swift; sourceTree = "<group>"; };
+		2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		3590E1788835BA90EC6C6A87 /* Domain-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Domain-Info.plist"; sourceTree = "<group>"; };
+		3597F046B4FAC85DF2C83703 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannel.swift; sourceTree = "<group>"; };
+		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
+		456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
+		51E8782D402683CD9D05DCD3 /* AlertEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEvent.swift; sourceTree = "<group>"; };
+		5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistBundle+SmartBalance.swift"; sourceTree = "<group>"; };
+		60576DDC7BB0B4190A050369 /* DataSourceKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceKind.swift; sourceTree = "<group>"; };
+		637D14E5DC68EFAA0F09497A /* BalanceMailParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceMailParserTests.swift; sourceTree = "<group>"; };
+		67B323F3AA6CB95224B72917 /* IMAPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPClient.swift; sourceTree = "<group>"; };
+		6D54145CDACB1B1247DD86DB /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		7028B7D5A95EEC935637E12A /* InfrastructureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InfrastructureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		714250D3631EFC7BA8A4D3D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7B4EC80094F1E74FEC790C5C /* DomainTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DomainTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshotTests.swift; sourceTree = "<group>"; };
+		8857AA516D28174E31AC2F95 /* 智余.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "智余.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BF19645DB4D57FA6949B718 /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = entitlements.plist; sourceTree = "<group>"; };
+		8F4D0D2EB67A4D44D72A6529 /* AppMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMode.swift; sourceTree = "<group>"; };
+		92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistry.swift; sourceTree = "<group>"; };
+		9335C8DFE67FB1CBAF966549 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9627086E9C867E333AA891AA /* BalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceProvider.swift; sourceTree = "<group>"; };
+		964480BD23406FE27B496D1A /* SMTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPClient.swift; sourceTree = "<group>"; };
+		9CF301DDD63AC22702F76913 /* MacNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNotificationService.swift; sourceTree = "<group>"; };
+		BA9EE2F71455A98947D22665 /* InfrastructureTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "InfrastructureTests-Info.plist"; sourceTree = "<group>"; };
+		BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceAccount.swift; sourceTree = "<group>"; };
+		BFF511AA84219FC125F3D197 /* BalanceMailParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceMailParser.swift; sourceTree = "<group>"; };
+		C9018B2789077E11374A1DB3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartBalanceApp.swift; sourceTree = "<group>"; };
+		D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceStatus.swift; sourceTree = "<group>"; };
+		D0BBDEA08A6FD9F2ABD5703F /* Infrastructure-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Infrastructure-Info.plist"; sourceTree = "<group>"; };
+		D87A480F96777DF6FE34FB61 /* ProviderKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderKind.swift; sourceTree = "<group>"; };
+		DA1C4B11EB28B7088638D9A2 /* Domain.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Domain.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Infrastructure.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF532DFB5BBC8067BB5820E3 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAlertSettings.swift; sourceTree = "<group>"; };
+		E583FF50A2527CDD50D48AE5 /* PlatformMailSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformMailSource.swift; sourceTree = "<group>"; };
+		E74407DA5E51665BE993E53C /* TuistAssets+SmartBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistAssets+SmartBalance.swift"; sourceTree = "<group>"; };
+		EAFE355963892C82786059F4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		EBD25801FF4237FC1E955A84 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		F342A2116AC420D4A006039D /* BalanceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceCardView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		134CA804003D72913B9C7E87 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FDB9A9FC7B7CE252891F0300 /* Domain.framework in Frameworks */,
+				7D14D3AB8FBC04D2879F7EA9 /* Infrastructure.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		42E64490FCAFD305FEB8D25D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				35F64C8CF38DEE2627D76D01 /* Domain.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76619B01730CE343E53238E7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		77DA0F1CDA5A0359330C326A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B173EF04F4D7791B7BF62C3E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */,
+				4BAA0A8715D803A4967FA7CB /* Infrastructure.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0723A1F9E5CEF28344BAE766 /* Providers */ = {
+			isa = PBXGroup;
+			children = (
+				1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */,
+				4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */,
+				92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */,
+			);
+			path = Providers;
+			sourceTree = "<group>";
+		};
+		07D173C6146430D3F849D656 = {
+			isa = PBXGroup;
+			children = (
+				F2E860CF67A827E68AD31970 /* Products */,
+				20503955EBE893E80AE7EBAA /* Project */,
+			);
+			sourceTree = "<group>";
+		};
+		0D8A59CF1B51BC87A3FDE920 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1DA36707E19FDC88F48BE200 /* App */,
+				577DCD8E185A18B30D2A5E12 /* Domain */,
+				F6407CAEB3B3322F28F5FF5B /* Infrastructure */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		0F999E20AA31141E6359410D /* InfoPlists */ = {
+			isa = PBXGroup;
+			children = (
+				3590E1788835BA90EC6C6A87 /* Domain-Info.plist */,
+				06998D7944A06D8515432118 /* DomainTests-Info.plist */,
+				D0BBDEA08A6FD9F2ABD5703F /* Infrastructure-Info.plist */,
+				BA9EE2F71455A98947D22665 /* InfrastructureTests-Info.plist */,
+			);
+			path = InfoPlists;
+			sourceTree = "<group>";
+		};
+		12BEBCDB540392337FF16C13 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				E74407DA5E51665BE993E53C /* TuistAssets+SmartBalance.swift */,
+				5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		1DA36707E19FDC88F48BE200 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				FD135B868DABD903E7C816CE /* Resources */,
+				35A3F0218FB863E5DFB5AAD2 /* Views */,
+				6D54145CDACB1B1247DD86DB /* AppModel.swift */,
+				8BF19645DB4D57FA6949B718 /* entitlements.plist */,
+				714250D3631EFC7BA8A4D3D8 /* Info.plist */,
+				C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */,
+				EAFE355963892C82786059F4 /* Theme.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		20503955EBE893E80AE7EBAA /* Project */ = {
+			isa = PBXGroup;
+			children = (
+				43D09CB014D1B7C4FF3DA0EC /* Derived */,
+				0D8A59CF1B51BC87A3FDE920 /* Sources */,
+				49F06EC93D86EC4EC0F89839 /* Tests */,
+			);
+			name = Project;
+			sourceTree = "<group>";
+		};
+		3407E0B92C0B2FA36C306506 /* InfrastructureTests */ = {
+			isa = PBXGroup;
+			children = (
+				098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */,
+			);
+			path = InfrastructureTests;
+			sourceTree = "<group>";
+		};
+		35A3F0218FB863E5DFB5AAD2 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F342A2116AC420D4A006039D /* BalanceCardView.swift */,
+				3597F046B4FAC85DF2C83703 /* HomeView.swift */,
+				1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */,
+				C9018B2789077E11374A1DB3 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		43D09CB014D1B7C4FF3DA0EC /* Derived */ = {
+			isa = PBXGroup;
+			children = (
+				0F999E20AA31141E6359410D /* InfoPlists */,
+				12BEBCDB540392337FF16C13 /* Sources */,
+			);
+			path = Derived;
+			sourceTree = "<group>";
+		};
+		49F06EC93D86EC4EC0F89839 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				7CA78A152D71EBCC17E30E5F /* DomainTests */,
+				3407E0B92C0B2FA36C306506 /* InfrastructureTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		577DCD8E185A18B30D2A5E12 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */,
+				51E8782D402683CD9D05DCD3 /* AlertEvent.swift */,
+				8F4D0D2EB67A4D44D72A6529 /* AppMode.swift */,
+				DF532DFB5BBC8067BB5820E3 /* AppSettings.swift */,
+				BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */,
+				BFF511AA84219FC125F3D197 /* BalanceMailParser.swift */,
+				9627086E9C867E333AA891AA /* BalanceProvider.swift */,
+				42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */,
+				D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */,
+				EBD25801FF4237FC1E955A84 /* Brand.swift */,
+				60576DDC7BB0B4190A050369 /* DataSourceKind.swift */,
+				E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */,
+				E583FF50A2527CDD50D48AE5 /* PlatformMailSource.swift */,
+				D87A480F96777DF6FE34FB61 /* ProviderKind.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		7CA78A152D71EBCC17E30E5F /* DomainTests */ = {
+			isa = PBXGroup;
+			children = (
+				637D14E5DC68EFAA0F09497A /* BalanceMailParserTests.swift */,
+				7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */,
+			);
+			path = DomainTests;
+			sourceTree = "<group>";
+		};
+		F2E860CF67A827E68AD31970 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8857AA516D28174E31AC2F95 /* 智余.app */,
+				DA1C4B11EB28B7088638D9A2 /* Domain.framework */,
+				7B4EC80094F1E74FEC790C5C /* DomainTests.xctest */,
+				DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */,
+				7028B7D5A95EEC935637E12A /* InfrastructureTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F6407CAEB3B3322F28F5FF5B /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				0723A1F9E5CEF28344BAE766 /* Providers */,
+				0936C127D1AF75D376EEE61B /* BalanceService.swift */,
+				67B323F3AA6CB95224B72917 /* IMAPClient.swift */,
+				456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */,
+				9CF301DDD63AC22702F76913 /* MacNotificationService.swift */,
+				2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */,
+				964480BD23406FE27B496D1A /* SMTPClient.swift */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		FD135B868DABD903E7C816CE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9335C8DFE67FB1CBAF966549 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3750E8F1CDB65C0D71939BC7 /* SmartBalance */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2E4C01040121575956664B7D /* Build configuration list for PBXNativeTarget "SmartBalance" */;
+			buildPhases = (
+				3A3AAE32CEFB95656C737955 /* Sources */,
+				2A0001FD18B0B38AEBFD90EB /* Resources */,
+				B173EF04F4D7791B7BF62C3E /* Frameworks */,
+				87D73574F8F3D87695571220 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B55716739804305E7DA347F9 /* PBXTargetDependency */,
+				85902D420629E12E6704875F /* PBXTargetDependency */,
+			);
+			name = SmartBalance;
+			packageProductDependencies = (
+			);
+			productName = SmartBalance;
+			productReference = 8857AA516D28174E31AC2F95 /* 智余.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4EB69F8F25660DAB731D40EC /* InfrastructureTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 17786902F381AB0A7D64F247 /* Build configuration list for PBXNativeTarget "InfrastructureTests" */;
+			buildPhases = (
+				385BABAAD1431FBF95DDED9A /* Sources */,
+				8A4CFF8F883E3F652C328600 /* Resources */,
+				134CA804003D72913B9C7E87 /* Frameworks */,
+				68AE34E29ECF44BDE449B83F /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8ADED6FE5D5CFFB1A84A07A4 /* PBXTargetDependency */,
+				4C8B11B0613D03DBDA8C7D34 /* PBXTargetDependency */,
+			);
+			name = InfrastructureTests;
+			packageProductDependencies = (
+			);
+			productName = InfrastructureTests;
+			productReference = 7028B7D5A95EEC935637E12A /* InfrastructureTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7E593677A38220BD5DC453AD /* Infrastructure */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C80B956D3941DFD8F47D957F /* Build configuration list for PBXNativeTarget "Infrastructure" */;
+			buildPhases = (
+				4BF34A53D0B892CFE3A51B55 /* Sources */,
+				C6DE3E1CA44C04BA6587AE79 /* Resources */,
+				76619B01730CE343E53238E7 /* Frameworks */,
+				E8A665470EFEEC4F43F34F5E /* Embed Frameworks */,
+				3108B056E4CF65E7AC3DA6D0 /* Dependencies */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C1DD68FC48258E004BD0E073 /* PBXTargetDependency */,
+			);
+			name = Infrastructure;
+			packageProductDependencies = (
+			);
+			productName = Infrastructure;
+			productReference = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		B348163E19B0F8B137F05945 /* DomainTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C9AC85AD4A56BD14FB0BB489 /* Build configuration list for PBXNativeTarget "DomainTests" */;
+			buildPhases = (
+				D853BBA3E5A242EF2367596A /* Sources */,
+				02F00CD6D0D84698C2E08350 /* Resources */,
+				42E64490FCAFD305FEB8D25D /* Frameworks */,
+				1E10B6CAE0A5BC965BC7A1F6 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B05F53BEE233D8EBDC2D9551 /* PBXTargetDependency */,
+			);
+			name = DomainTests;
+			packageProductDependencies = (
+			);
+			productName = DomainTests;
+			productReference = 7B4EC80094F1E74FEC790C5C /* DomainTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E57F25F94BD425DCC8066FB6 /* Domain */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4444E0AE4BE995B1191E4454 /* Build configuration list for PBXNativeTarget "Domain" */;
+			buildPhases = (
+				6AC532D45AB8785B9CEA9D2C /* Sources */,
+				3C750D0C86EDA01E3FBC3984 /* Resources */,
+				77DA0F1CDA5A0359330C326A /* Frameworks */,
+				7A648D2BDBC23DF958D52B98 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Domain;
+			packageProductDependencies = (
+			);
+			productName = Domain;
+			productReference = DA1C4B11EB28B7088638D9A2 /* Domain.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5AFCC80BD97D1B75DA888207 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 79A1BACC0D8764B483AB811A /* Build configuration list for PBXProject "SmartBalance" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+			);
+			mainGroup = 07D173C6146430D3F849D656;
+			productRefGroup = F2E860CF67A827E68AD31970 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E57F25F94BD425DCC8066FB6 /* Domain */,
+				B348163E19B0F8B137F05945 /* DomainTests */,
+				7E593677A38220BD5DC453AD /* Infrastructure */,
+				4EB69F8F25660DAB731D40EC /* InfrastructureTests */,
+				3750E8F1CDB65C0D71939BC7 /* SmartBalance */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		02F00CD6D0D84698C2E08350 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A0001FD18B0B38AEBFD90EB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C750D0C86EDA01E3FBC3984 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A4CFF8F883E3F652C328600 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6DE3E1CA44C04BA6587AE79 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		385BABAAD1431FBF95DDED9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3A3AAE32CEFB95656C737955 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E40934CEE7455A0BCDF47D3 /* TuistAssets+SmartBalance.swift in Sources */,
+				5EA0691D6B1E3C6F2560DE04 /* TuistBundle+SmartBalance.swift in Sources */,
+				74B4CBF8F02D3B3B5852876F /* AppModel.swift in Sources */,
+				98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */,
+				10AB940428A80FC7E6D8AEA7 /* Theme.swift in Sources */,
+				0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */,
+				48083B0B448C8941D61125DD /* HomeView.swift in Sources */,
+				C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */,
+				43FC64308A880785228BDB3F /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4BF34A53D0B892CFE3A51B55 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */,
+				53CF3045B27EC2C497E41834 /* IMAPClient.swift in Sources */,
+				5F3B5C51CFB928F18BF657A2 /* KeychainStore.swift in Sources */,
+				78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */,
+				30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */,
+				99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */,
+				B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */,
+				FE13F8A8238A78BF04941E6E /* SMTPClient.swift in Sources */,
+				062469C0F777D8C8034128AE /* SettingsStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6AC532D45AB8785B9CEA9D2C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31B6677798723C88070A22A4 /* AlertChannel.swift in Sources */,
+				65400FAC4FBCD13B396D562B /* AlertEvent.swift in Sources */,
+				DEF16A51F1A5E627A3D74897 /* AppMode.swift in Sources */,
+				8B55AF3AD4CB1E79208DED0B /* AppSettings.swift in Sources */,
+				331811AC02FB4901970E00FE /* BalanceAccount.swift in Sources */,
+				0022C8639E3E6113BF7F474C /* BalanceMailParser.swift in Sources */,
+				38FD910AB0D1FE33446A6B66 /* BalanceProvider.swift in Sources */,
+				F408E4378A848785F458910E /* BalanceSnapshot.swift in Sources */,
+				13B3AEE24A30E624FA8815F3 /* BalanceStatus.swift in Sources */,
+				C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */,
+				72D529F018D6AB152FCBFD25 /* DataSourceKind.swift in Sources */,
+				2DF3BF0A55F38A3AE02060F2 /* EmailAlertSettings.swift in Sources */,
+				DC2DE4F60F8DD9822039DFDD /* PlatformMailSource.swift in Sources */,
+				CD1406BB8CB3E7BAD20F67D2 /* ProviderKind.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D853BBA3E5A242EF2367596A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7ABA0134C47F810E8078122C /* BalanceMailParserTests.swift in Sources */,
+				77335B024B0CF649A57E5FB7 /* BalanceSnapshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4C8B11B0613D03DBDA8C7D34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Infrastructure;
+			target = 7E593677A38220BD5DC453AD /* Infrastructure */;
+			targetProxy = 5781C882F8960DF837EF576A /* PBXContainerItemProxy */;
+		};
+		85902D420629E12E6704875F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Infrastructure;
+			target = 7E593677A38220BD5DC453AD /* Infrastructure */;
+			targetProxy = 53DB45B425C785C7631B3943 /* PBXContainerItemProxy */;
+		};
+		8ADED6FE5D5CFFB1A84A07A4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Domain;
+			target = E57F25F94BD425DCC8066FB6 /* Domain */;
+			targetProxy = 04D287EB1DBD26912C37223C /* PBXContainerItemProxy */;
+		};
+		B05F53BEE233D8EBDC2D9551 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Domain;
+			target = E57F25F94BD425DCC8066FB6 /* Domain */;
+			targetProxy = 961D27C9C226582103399534 /* PBXContainerItemProxy */;
+		};
+		B55716739804305E7DA347F9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Domain;
+			target = E57F25F94BD425DCC8066FB6 /* Domain */;
+			targetProxy = 4257946252AB4B8C7CE46C4A /* PBXContainerItemProxy */;
+		};
+		C1DD68FC48258E004BD0E073 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Domain;
+			target = E57F25F94BD425DCC8066FB6 /* Domain */;
+			targetProxy = E9EAE3372859886BB5611C01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02202B26991BF50DC7160FAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_VERSION = A;
+				INFOPLIST_FILE = "Derived/InfoPlists/Domain-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.domain;
+				PRODUCT_NAME = Domain;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		042888FD4A1981573774788C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_VERSION = A;
+				INFOPLIST_FILE = "Derived/InfoPlists/Infrastructure-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.infrastructure;
+				PRODUCT_NAME = Infrastructure;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		19F6C457C4DE4748825A9F74 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_DEBUG_DYLIB = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		2927BB97B467D016194AE5C9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Sources/App/entitlements.plist;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.app;
+				PRODUCT_NAME = "智余";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+		49F12CABA49619C43CC2E015 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_VERSION = A;
+				INFOPLIST_FILE = "Derived/InfoPlists/Domain-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.domain;
+				PRODUCT_NAME = Domain;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		7DF79B2577191B45A351B133 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/DomainTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.domain-tests";
+				PRODUCT_NAME = DomainTests;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		9117BC4B8E6EDE62C8069531 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				FRAMEWORK_VERSION = A;
+				INFOPLIST_FILE = "Derived/InfoPlists/Infrastructure-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.infrastructure;
+				PRODUCT_NAME = Infrastructure;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		A660A41B47BDD2E7859F9160 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A79103FECA6F5C5894ADB398 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Sources/App/entitlements.plist;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_PREVIEWS = NO;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.app;
+				PRODUCT_NAME = "智余";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+		ADF73872DAAAD7A82209DC6F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/DomainTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.domain-tests";
+				PRODUCT_NAME = DomainTests;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CB780967C41EFFFA10DFCCD4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/InfrastructureTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.infrastructure-tests";
+				PRODUCT_NAME = InfrastructureTests;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		EBE27533B972551CBCE4B336 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/InfrastructureTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.infrastructure-tests";
+				PRODUCT_NAME = InfrastructureTests;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		17786902F381AB0A7D64F247 /* Build configuration list for PBXNativeTarget "InfrastructureTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB780967C41EFFFA10DFCCD4 /* Debug */,
+				EBE27533B972551CBCE4B336 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2E4C01040121575956664B7D /* Build configuration list for PBXNativeTarget "SmartBalance" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A79103FECA6F5C5894ADB398 /* Debug */,
+				2927BB97B467D016194AE5C9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4444E0AE4BE995B1191E4454 /* Build configuration list for PBXNativeTarget "Domain" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				49F12CABA49619C43CC2E015 /* Debug */,
+				02202B26991BF50DC7160FAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		79A1BACC0D8764B483AB811A /* Build configuration list for PBXProject "SmartBalance" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				19F6C457C4DE4748825A9F74 /* Debug */,
+				A660A41B47BDD2E7859F9160 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C80B956D3941DFD8F47D957F /* Build configuration list for PBXNativeTarget "Infrastructure" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				042888FD4A1981573774788C /* Debug */,
+				9117BC4B8E6EDE62C8069531 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C9AC85AD4A56BD14FB0BB489 /* Build configuration list for PBXNativeTarget "DomainTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ADF73872DAAAD7A82209DC6F /* Debug */,
+				7DF79B2577191B45A351B133 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5AFCC80BD97D1B75DA888207 /* Project object */;
+}

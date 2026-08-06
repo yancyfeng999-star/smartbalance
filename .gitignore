@@ -1,0 +1,19 @@
+# References (cloned OSS, do not track)
+references/
+
+# Xcode / Tuist
+Apps/Mac/**/*.xcworkspace/xcuserdata/
+Apps/Mac/**/*.xcodeproj/xcuserdata/
+Apps/Mac/**/DerivedData/
+Apps/Mac/build/
+Apps/Mac/.build/
+Apps/Mac/Tuist/.build/
+**/xcuserdata/
+**/.DS_Store
+
+# SDD scratch
+.superpowers/
+
+# Secrets
+**/.env
+**/secrets/
