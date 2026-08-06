@@ -161,10 +161,12 @@ public actor BalanceService {
                 messages: messages,
                 thresholds: (amount: amountTh, percent: percentTh)
             )
+            // 写入金额缓存等；lastMessageId 在无需报警时已由 ingest 提交
             settings.mailSources[idx] = result.updatedSource
             snapshots.append(result.snapshot)
 
             // 新 Message-ID +（偏低/危急/耗尽 或 平台报警信）→ 双通道报警（去重由 ingest 判定）
+            // lastMessageId 仅在至少一条通道成功后再提交，双失败则保留旧 ID 以便下次重试
             if result.shouldAlert {
                 if let event = await dispatchAlerts(
                     snapshot: result.snapshot,
@@ -174,6 +176,13 @@ public actor BalanceService {
                     extraNote: result.alertNote
                 ) {
                     alerts.append(event)
+                    if MailIngestResult.shouldCommitLastMessageId(
+                        shouldAlert: true,
+                        notified: event.notified,
+                        emailed: event.emailed
+                    ), let mid = result.pendingMessageId {
+                        settings.mailSources[idx].lastMessageId = mid
+                    }
                 }
             }
         }

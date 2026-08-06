@@ -53,12 +53,17 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         let usedQuota = number(dataNode["used_quota"]) ?? number(dataNode["UsedQuota"])
         let unlimited = bool(dataNode["unlimited_quota"])
 
+        // Unlimited: amount nil + remainingPercent 100 so BalanceService.refreshAPI
+        // re-resolveStatus stays healthy even when raw quota is 0.
+        let isUnlimited = unlimited == true
         let amountUSD: Double? = {
+            if isUnlimited { return nil }
             guard let quota else { return nil }
             return quota / 500_000.0
         }()
 
         let remainingPercent: Double? = {
+            if isUnlimited { return 100 }
             guard let quota, let used = usedQuota, quota + used > 0 else { return nil }
             let total = quota + used
             return max(0, min(100, (quota / total) * 100))
@@ -67,7 +72,7 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         let amountThreshold = account.alertThreshold ?? 1
         let percentThreshold = account.alertPercentThreshold ?? 20
         let status: BalanceStatus = {
-            if unlimited == true { return .healthy }
+            if isUnlimited { return .healthy }
             return BalanceSnapshot.resolveStatus(
                 amount: amountUSD,
                 remainingPercent: remainingPercent,
@@ -79,9 +84,9 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         let username = (dataNode["username"] as? String) ?? (dataNode["display_name"] as? String)
         var detailParts: [String] = []
         if let username { detailParts.append(username) }
-        if let quota { detailParts.append(String(format: "剩余点数 %.0f", quota)) }
-        if let usedQuota { detailParts.append(String(format: "已用 %.0f", usedQuota)) }
-        if unlimited == true { detailParts.append("无限额度") }
+        if let quota, !isUnlimited { detailParts.append(String(format: "剩余点数 %.0f", quota)) }
+        if let usedQuota, !isUnlimited { detailParts.append(String(format: "已用 %.0f", usedQuota)) }
+        if isUnlimited { detailParts.append("无限额度") }
 
         return BalanceSnapshot(
             accountId: account.id,
@@ -90,8 +95,8 @@ public struct NewAPIBalanceProvider: BalanceProvider {
             source: .api,
             amount: amountUSD,
             unit: "USD",
-            used: usedQuota,
-            total: (quota != nil && usedQuota != nil) ? (quota! + usedQuota!) : nil,
+            used: isUnlimited ? nil : usedQuota,
+            total: (!isUnlimited && quota != nil && usedQuota != nil) ? (quota! + usedQuota!) : nil,
             remainingPercent: remainingPercent,
             status: status,
             detail: detailParts.joined(separator: " · ")

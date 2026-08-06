@@ -56,6 +56,32 @@ final class NewAPIProviderTests: XCTestCase {
         )
         XCTAssertEqual(snapshot.unit, "USD")
         XCTAssertEqual(snapshot.source, .api)
+        // amount nil + remainingPercent 100 so refreshAPI re-resolve cannot mark depleted
+        XCTAssertNil(snapshot.amount)
+        XCTAssertEqual(snapshot.remainingPercent, 100)
+    }
+
+    /// I1 regression: BalanceService.refreshAPI always re-runs resolveStatus;
+    /// unlimited fixture (quota 0) must stay healthy after that path.
+    func testUnlimitedSurvivesRefreshAPIStyleReResolve() async throws {
+        let http = MockHTTPClient(statusCode: 200, json: unlimitedJSON)
+        let provider = NewAPIBalanceProvider(http: http)
+        var snap = try await provider.fetchBalance(account: account(), credentials: credentials())
+
+        // Same assignment as BalanceService.refreshAPI
+        let amountTh = account().alertThreshold ?? 1
+        let percentTh = account().alertPercentThreshold ?? 20
+        snap.status = BalanceSnapshot.resolveStatus(
+            amount: snap.amount,
+            remainingPercent: snap.remainingPercent,
+            amountThreshold: amountTh,
+            percentThreshold: percentTh
+        )
+
+        XCTAssertEqual(snap.status, .healthy, "unlimited must not become depleted after re-resolve")
+        XCTAssertEqual(snap.remainingPercent, 100)
+        XCTAssertNil(snap.amount)
+        XCTAssertTrue(snap.detail.contains("无限"))
     }
 
     func testTopLevelWithoutDataWrapper() async throws {

@@ -94,7 +94,10 @@ final class PlatformMailRefreshTests: XCTestCase {
             thresholds: thresholds,
             now: fixedNow
         )
-        XCTAssertEqual(result.updatedSource.lastMessageId, "new")
+        // amount 3 → critical → shouldAlert; lastMessageId deferred (pending)
+        XCTAssertTrue(result.shouldAlert)
+        XCTAssertNil(result.updatedSource.lastMessageId)
+        XCTAssertEqual(result.pendingMessageId, "new")
         XCTAssertEqual(result.snapshot.amount, 3)
         XCTAssertEqual(result.snapshot.mailSubject, "余额通知")
     }
@@ -109,7 +112,10 @@ final class PlatformMailRefreshTests: XCTestCase {
             thresholds: thresholds,
             now: fixedNow
         )
-        XCTAssertEqual(result.updatedSource.lastMessageId, "b")
+        // amount 7 → warning → shouldAlert; lastMessageId deferred
+        XCTAssertTrue(result.shouldAlert)
+        XCTAssertNil(result.updatedSource.lastMessageId)
+        XCTAssertEqual(result.pendingMessageId, "b")
         XCTAssertEqual(result.snapshot.amount, 7)
     }
 
@@ -195,7 +201,9 @@ final class PlatformMailRefreshTests: XCTestCase {
         XCTAssertTrue(result.shouldAlert)
         XCTAssertEqual(result.snapshot.status, .warning)
         XCTAssertEqual(result.alertNote, "平台邮件含报警关键词")
-        XCTAssertEqual(result.updatedSource.lastMessageId, "a1")
+        // I2: shouldAlert → do not advance lastMessageId until channel success
+        XCTAssertNil(result.updatedSource.lastMessageId)
+        XCTAssertEqual(result.pendingMessageId, "a1")
     }
 
     func testRule5_newIdHealthyWithoutAlertKeywordsNoAlert() {
@@ -209,6 +217,45 @@ final class PlatformMailRefreshTests: XCTestCase {
         XCTAssertEqual(result.snapshot.status, .healthy)
         XCTAssertFalse(result.shouldAlert)
         XCTAssertNil(result.alertNote)
+        // no alert → commit lastMessageId immediately
+        XCTAssertEqual(result.updatedSource.lastMessageId, "h1")
+        XCTAssertNil(result.pendingMessageId)
+    }
+
+    // MARK: - I2: lastMessageId commit policy
+
+    func testI2_shouldAlertKeepsPreviousLastMessageIdAndExposesPending() {
+        let src = source(lastMessageId: "old-id")
+        let result = PlatformMailIngest.ingest(
+            source: src,
+            messages: [msg(id: "new-low", body: "余额 2")],
+            thresholds: thresholds,
+            now: fixedNow
+        )
+        XCTAssertTrue(result.shouldAlert)
+        XCTAssertEqual(result.updatedSource.lastMessageId, "old-id")
+        XCTAssertEqual(result.pendingMessageId, "new-low")
+        // amount cache still updates
+        XCTAssertEqual(result.updatedSource.lastParsedAmount, 2)
+    }
+
+    func testI2_shouldCommitLastMessageIdPolicy() {
+        XCTAssertTrue(MailIngestResult.shouldCommitLastMessageId(
+            shouldAlert: false, notified: false, emailed: false
+        ))
+        XCTAssertTrue(MailIngestResult.shouldCommitLastMessageId(
+            shouldAlert: true, notified: true, emailed: false
+        ))
+        XCTAssertTrue(MailIngestResult.shouldCommitLastMessageId(
+            shouldAlert: true, notified: false, emailed: true
+        ))
+        XCTAssertTrue(MailIngestResult.shouldCommitLastMessageId(
+            shouldAlert: true, notified: true, emailed: true
+        ))
+        // both channels failed → do not mark seen
+        XCTAssertFalse(MailIngestResult.shouldCommitLastMessageId(
+            shouldAlert: true, notified: false, emailed: false
+        ))
     }
 
     // MARK: - Rule 6: IMAP failure keeps cache + errorMessage

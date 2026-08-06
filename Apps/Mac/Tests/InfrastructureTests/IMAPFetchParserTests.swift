@@ -77,6 +77,75 @@ final class IMAPFetchParserTests: XCTestCase {
         XCTAssertEqual(messages[0].id, "abc@x")
     }
 
+    // MARK: - I3: Date header
+
+    func testParseDateHeader() throws {
+        let messages = IMAPFetchParser.parseFetchResponse(singleFetchBlob)
+        XCTAssertEqual(messages.count, 1)
+        let date = try XCTUnwrap(messages[0].date)
+        // Mon, 6 Aug 2026 10:00:00 +0800 → UTC 02:00
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        XCTAssertEqual(comps.year, 2026)
+        XCTAssertEqual(comps.month, 8)
+        XCTAssertEqual(comps.day, 6)
+        XCTAssertEqual(comps.hour, 2)
+        XCTAssertEqual(comps.minute, 0)
+    }
+
+    func testParseRFC2822DateHelper() {
+        let d = IMAPFetchParser.parseRFC2822Date("Mon, 6 Aug 2026 10:00:00 +0800")
+        XCTAssertNotNil(d)
+        let d2 = IMAPFetchParser.parseRFC2822Date("6 Aug 2026 10:00:00 +0000")
+        XCTAssertNotNil(d2)
+        XCTAssertNil(IMAPFetchParser.parseRFC2822Date("not-a-date"))
+    }
+
+    // MARK: - I4: stable fallback Message-ID
+
+    func testStableFallbackMessageIdIsDeterministic() {
+        let a = IMAPFetchParser.stableFallbackMessageId(
+            from: "a@b.com",
+            subject: "Hi",
+            dateHeader: "Mon, 1 Jan 2024 00:00:00 +0000",
+            body: "hello world",
+            index: 0
+        )
+        let b = IMAPFetchParser.stableFallbackMessageId(
+            from: "a@b.com",
+            subject: "Hi",
+            dateHeader: "Mon, 1 Jan 2024 00:00:00 +0000",
+            body: "hello world",
+            index: 0
+        )
+        XCTAssertEqual(a, b)
+        XCTAssertTrue(a.hasPrefix("stable-"))
+        XCTAssertFalse(a.contains("hashValue"))
+    }
+
+    func testMissingMessageIdUsesStableFallback() {
+        let blob = """
+        * 1 FETCH (BODY[HEADER.FIELDS (FROM SUBJECT DATE)] {70}\r
+        From: no-id@vendor.com\r
+        Subject: No Message Id\r
+        Date: Mon, 6 Aug 2026 10:00:00 +0800\r
+        \r
+         BODY[TEXT] {10}\r
+        balance 1
+        )\r
+        A002 OK FETCH completed\n
+        """
+        let messages = IMAPFetchParser.parseFetchResponse(blob)
+        XCTAssertEqual(messages.count, 1)
+        XCTAssertTrue(messages[0].id.hasPrefix("stable-"), "got id: \(messages[0].id)")
+        XCTAssertNotNil(messages[0].date)
+
+        // Same content again → same id
+        let again = IMAPFetchParser.parseFetchResponse(blob)
+        XCTAssertEqual(messages[0].id, again[0].id)
+    }
+
     // MARK: - Multi FETCH
 
     func testParseMultipleFetchBlocks() {

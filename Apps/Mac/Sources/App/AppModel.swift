@@ -117,10 +117,16 @@ final class AppModel: ObservableObject {
     func addAccount(kind: ProviderKind, displayName: String, baseURL: String?, secret: String) {
         let account = BalanceAccount(kind: kind, displayName: displayName, baseURL: baseURL)
         if !secret.isEmpty {
-            try? keychain.set(secret, account: account.secretRef)
+            do {
+                try keychain.set(secret, account: account.secretRef)
+            } catch {
+                banner = "密钥写入 Keychain 失败：\(error.localizedDescription)"
+                return
+            }
         }
         settings.accounts.append(account)
         persist()
+        banner = "账号已保存"
         refresh()
     }
 
@@ -226,7 +232,12 @@ final class AppModel: ObservableObject {
         settings.inboundMailbox.username = username
         settings.inboundMailbox.folder = folder.isEmpty ? "INBOX" : folder
         if !password.isEmpty {
-            try? keychain.set(password, account: settings.inboundMailbox.passwordRef)
+            do {
+                try keychain.set(password, account: settings.inboundMailbox.passwordRef)
+            } catch {
+                banner = "IMAP 密码写入 Keychain 失败：\(error.localizedDescription)"
+                return
+            }
         }
         persist()
         banner = "IMAP 收件箱已保存"
@@ -286,7 +297,12 @@ final class AppModel: ObservableObject {
         settings.alertChannels.cooldownSeconds = cooldownSeconds
         settings.email.enabled = settings.alertChannels.outboundEmailEnabled
         if !password.isEmpty {
-            try? keychain.set(password, account: settings.email.passwordRef)
+            do {
+                try keychain.set(password, account: settings.email.passwordRef)
+            } catch {
+                banner = "SMTP 密码写入 Keychain 失败：\(error.localizedDescription)"
+                return
+            }
         }
         persist()
         banner = "邮件报警设置已保存"

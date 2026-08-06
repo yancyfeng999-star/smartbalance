@@ -7,17 +7,30 @@ public struct MailIngestResult: Equatable, Sendable {
     public var shouldAlert: Bool
     /// 平台报警关键词命中时的补充说明（供报警文案）。
     public var alertNote: String?
+    /// 当 `shouldAlert` 时，成功投递报警后再写入 `lastMessageId` 用的 Message-ID。
+    public var pendingMessageId: String?
 
     public init(
         snapshot: BalanceSnapshot,
         updatedSource: PlatformMailSource,
         shouldAlert: Bool,
-        alertNote: String? = nil
+        alertNote: String? = nil,
+        pendingMessageId: String? = nil
     ) {
         self.snapshot = snapshot
         self.updatedSource = updatedSource
         self.shouldAlert = shouldAlert
         self.alertNote = alertNote
+        self.pendingMessageId = pendingMessageId
+    }
+
+    /// 是否应提交 `lastMessageId`：无需报警，或至少一条报警通道成功。
+    public static func shouldCommitLastMessageId(
+        shouldAlert: Bool,
+        notified: Bool,
+        emailed: Bool
+    ) -> Bool {
+        !shouldAlert || notified || emailed
     }
 }
 
@@ -81,11 +94,12 @@ public enum PlatformMailIngest: Sendable {
 
         var updated = source
         let isNewMail = source.lastMessageId != best.id
+        // 金额缓存始终可写；lastMessageId 仅在无需报警时立即提交。
+        // 需报警时由 BalanceService 在至少一条通道成功后再提交，失败则保留旧 ID 以便重试。
         if let amount {
             updated.lastParsedAmount = amount
             updated.lastParsedAt = now
         }
-        updated.lastMessageId = best.id
 
         let snap = BalanceSnapshot(
             accountId: source.id,
@@ -103,11 +117,16 @@ public enum PlatformMailIngest: Sendable {
         let should = isNewMail && (statusNeedsAlert(status) || platformAlert)
         let note: String? = platformAlert ? "平台邮件含报警关键词" : nil
 
+        if !should {
+            updated.lastMessageId = best.id
+        }
+
         return MailIngestResult(
             snapshot: snap,
             updatedSource: updated,
             shouldAlert: should,
-            alertNote: should ? note : nil
+            alertNote: should ? note : nil,
+            pendingMessageId: should ? best.id : nil
         )
     }
 

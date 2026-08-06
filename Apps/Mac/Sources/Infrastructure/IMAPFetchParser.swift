@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Domain
 
 /// 纯函数 IMAP FETCH / SELECT 文本解析（无网络依赖，便于单测）。
@@ -15,16 +16,19 @@ public enum IMAPFetchParser {
 
             let from = headerField("From", in: block) ?? ""
             let subject = decodeMIME(headerField("Subject", in: block) ?? "")
+            let dateRaw = headerField("Date", in: block)
+            let date = dateRaw.flatMap { parseRFC2822Date($0) }
+            let body = extractTextBody(from: block)
             let messageId = headerField("Message-ID", in: block)
                 ?? headerField("Message-Id", in: block)
-                ?? "seq-\(idx)-\(from.hashValue)"
-            let body = extractTextBody(from: block)
+                ?? stableFallbackMessageId(from: from, subject: subject, dateHeader: dateRaw, body: body, index: idx)
             if from.isEmpty && subject.isEmpty && body.isEmpty { continue }
 
             results.append(FetchedMailMessage(
                 id: messageId.trimmingCharacters(in: CharacterSet(charactersIn: "<> ")),
                 from: from,
                 subject: subject,
+                date: date,
                 body: body
             ))
         }
@@ -41,6 +45,52 @@ public enum IMAPFetchParser {
     }
 
     // MARK: - Internals
+
+    /// 稳定 Message-ID 回退：SHA256(from|subject|date|body.prefix) 十六进制前缀，跨进程稳定。
+    public static func stableFallbackMessageId(
+        from: String,
+        subject: String,
+        dateHeader: String?,
+        body: String,
+        index: Int
+    ) -> String {
+        let bodyPrefix = String(body.prefix(200))
+        let material = "\(from)|\(subject)|\(dateHeader ?? "")|\(bodyPrefix)"
+        let digest = SHA256.hash(data: Data(material.utf8))
+        let hex = digest.map { String(format: "%02x", $0) }.joined()
+        return "stable-\(String(hex.prefix(16)))-\(index)"
+    }
+
+    /// 简化 RFC 2822 Date 解析（常见 IMAP Date 头）。
+    public static func parseRFC2822Date(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 去掉可选的尾部注释 (UTC) 等
+        let cleaned: String = {
+            if let open = trimmed.firstIndex(of: "(") {
+                return String(trimmed[..<open]).trimmingCharacters(in: .whitespaces)
+            }
+            return trimmed
+        }()
+
+        let formats = [
+            "EEE, d MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "d MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, d MMM yyyy HH:mm:ss zzz",
+            "EEE, dd MMM yyyy HH:mm:ss zzz",
+        ]
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        for format in formats {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: cleaned) {
+                return date
+            }
+        }
+        return nil
+    }
 
     private static func headerField(_ name: String, in block: String) -> String? {
         let pattern = #"^\#(name):\s*(.*)$"#
