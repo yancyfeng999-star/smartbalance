@@ -30,7 +30,10 @@ final class AppModel: ObservableObject {
     @Published var updateChecking = false
     @Published var updateMessage: String?
     @Published var updateOpenURL: URL?
+    @Published var updateDownloadURL: URL?
     @Published var updateAvailable = false
+    /// 0…1 下载进度；nil 表示未在下载
+    @Published var updateDownloadProgress: Double?
 
     private let updateChecker = UpdateChecker()
 
@@ -380,30 +383,70 @@ final class AppModel: ObservableObject {
         updateChecking = true
         updateMessage = nil
         updateOpenURL = nil
+        updateDownloadURL = nil
         updateAvailable = false
+        updateDownloadProgress = nil
         Task {
             let result = await updateChecker.check()
             await MainActor.run {
-                self.updateChecking = false
                 self.updateMessage = result.message
                 self.updateOpenURL = result.openURL
+                self.updateDownloadURL = result.downloadURL
                 self.updateAvailable = result.status == .available
                 AppLog.info("Update check: \(result.message)")
-                if result.status == .available {
-                    self.banner = result.message
+            }
+            // 对齐智额：发现新版本 → 自动下载 → 打开 → 退出
+            if result.status == .available {
+                await downloadAndOpenUpdate(result: result)
+            } else {
+                await MainActor.run { self.updateChecking = false }
+            }
+        }
+    }
+
+    @MainActor
+    private func downloadAndOpenUpdate(result: UpdateCheckResult) async {
+        guard let remote = result.downloadURL else {
+            updateChecking = false
+            updateMessage = (result.message) + "（无 zip，打开发布页）"
+            if let page = result.openURL {
+                NSWorkspace.shared.open(page)
+            }
+            return
+        }
+        updateMessage = "正在下载 \(result.latestVersion ?? "")…"
+        updateDownloadProgress = 0
+        do {
+            let file = try await ReleaseDownloader().download(from: remote) { [weak self] fraction in
+                Task { @MainActor in
+                    self?.updateDownloadProgress = fraction
+                    self?.updateMessage = "下载中 \(Int((fraction * 100).rounded()))%"
                 }
+            }
+            updateDownloadProgress = 1
+            updateMessage = "已下载，正在打开…"
+            updateChecking = false
+            NSWorkspace.shared.open(file)
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            NSApp.terminate(nil)
+        } catch {
+            updateChecking = false
+            updateDownloadProgress = nil
+            updateMessage = "下载失败：\(error.localizedDescription)"
+            if let page = result.openURL {
+                NSWorkspace.shared.open(page)
             }
         }
     }
 
     func openUpdateURL() {
-        if let url = updateOpenURL {
+        if let url = updateDownloadURL ?? updateOpenURL {
             NSWorkspace.shared.open(url)
         }
     }
 
     var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
     }
 
     func saveOutboundEmail(

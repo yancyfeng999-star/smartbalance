@@ -12,26 +12,30 @@ public struct UpdateCheckResult: Sendable, Equatable {
     public var currentVersion: String
     public var latestVersion: String?
     public var message: String
-    /// 优先：Release 页；有资产时指向 zip 下载
+    /// Release 页
     public var openURL: URL?
+    /// 直接 zip 下载（有则自动下载）
+    public var downloadURL: URL?
 
     public init(
         status: Status,
         currentVersion: String,
         latestVersion: String? = nil,
         message: String,
-        openURL: URL? = nil
+        openURL: URL? = nil,
+        downloadURL: URL? = nil
     ) {
         self.status = status
         self.currentVersion = currentVersion
         self.latestVersion = latestVersion
         self.message = message
         self.openURL = openURL
+        self.downloadURL = downloadURL
     }
 }
 
-/// 检查更新（公开 GitHub Releases，与智额同思路：无 Sparkle 服务端）。
-/// 用户从 Release 下载 zip 安装；「检查更新」打开下载/发布页。
+/// 检查更新（公开 GitHub Releases，对齐智额：无 Sparkle）。
+/// 有新版本时由 App 层自动下载 zip → 打开 → 退出以便替换安装。
 public struct UpdateChecker: Sendable {
     public static let githubOwner = "yancyfeng999-star"
     public static let githubRepo = "smartbalance"
@@ -97,15 +101,16 @@ public struct UpdateChecker: Sendable {
             }
             let latest = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
             let html = (json["html_url"] as? String).flatMap(URL.init(string:))
-            let download = preferredZipURL(from: json) ?? html ?? Self.releasesPage
+            let zip = preferredZipURL(from: json)
 
             if compareVersion(latest, current) > 0 {
                 return UpdateCheckResult(
                     status: .available,
                     currentVersion: current,
                     latestVersion: latest,
-                    message: "发现新版本 \(latest) · 点「打开发布页」下载",
-                    openURL: download
+                    message: "发现新版本 \(latest)，正在下载…",
+                    openURL: html ?? Self.releasesPage,
+                    downloadURL: zip
                 )
             }
             return UpdateCheckResult(

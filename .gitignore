@@ -7,6 +7,12 @@ Apps/Mac/**/DerivedData/
 **/xcuserdata/
 **/.DS_Store
 
+# 本地打包输出（发布前再拷贝到 releases/）
+Apps/Mac/dist/
+releases/*.zip
+releases/*.dmg
+!releases/.gitkeep
+
 # 密钥
 **/.env
 **/secrets/

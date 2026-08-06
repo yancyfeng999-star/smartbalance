@@ -258,8 +258,20 @@ struct BackgroundSystemSection: View {
                 .disabled(model.updateChecking)
             }
 
-            if model.updateAvailable, model.updateOpenURL != nil {
-                Button("打开发布页") {
+            if let progress = model.updateDownloadProgress {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: progress, total: 1)
+                        .progressViewStyle(.linear)
+                        .tint(Color(red: 0.3, green: 0.7, blue: 0.4))
+                    Text("下载 \(Int((progress * 100).rounded()))%")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .monospacedDigit()
+                }
+            }
+
+            if model.updateAvailable, model.updateOpenURL != nil, model.updateDownloadProgress == nil {
+                Button("打开下载 / 发布页") {
                     model.openUpdateURL()
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))

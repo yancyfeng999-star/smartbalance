@@ -19,7 +19,7 @@
       disablePerformanceAntipatternChecker = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "/Users/yancyfeng/Desktop/Mac Dpxx项目/自研软件/API余额查询/Apps/Mac"
+      customWorkingDirectory = "/Users/yancyfeng/Desktop/Mac Dpxx项目/自研软件/智余/Apps/Mac"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"

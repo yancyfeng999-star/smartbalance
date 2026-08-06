@@ -6,24 +6,32 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
+| 版本 | 0.2.0 |
 
 ---
 
-## 仓库结构
+## 仓库结构（对齐智额）
 
 ```text
-.
-├── README.md                 # 本文件
-├── PRODUCT.md                # 产品说明
-├── PROJECT_STATUS.md         # 实现状态
-├── docs/USER_GUIDE.md        # 用户指南
-└── Apps/Mac/                 # 全部源码（Tuist + Swift 6）
+智余/
+├── README.md
+├── PRODUCT.md
+├── PROJECT_STATUS.md
+├── CHANGELOG.md
+├── LICENSE
+├── Branding/                 # 品牌图
+├── docs/USER_GUIDE.md
+├── releases/                 # 发布 zip（本地打包输出）
+└── Apps/Mac/                 # Tuist + Swift 6
     ├── Sources/
-    │   ├── Domain/           # 模型、阈值、ProviderKind
-    │   ├── Infrastructure/   # 网络、密钥库、SMTP、各平台 Provider
-    │   └── App/              # SwiftUI 主页 / 设置 / 置顶窗
+    │   ├── Domain/
+    │   ├── Infrastructure/   # Provider、密钥库、SMTP、GitHub 更新
+    │   └── App/
     ├── Tests/
     ├── scripts/
+    │   ├── package-release.sh
+    │   ├── build-test-app.sh
+    │   └── run-tests.sh
     └── Project.swift
 ```
 
@@ -34,30 +42,42 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 | 方式 | 平台 |
 |------|------|
 | API Key | DeepSeek · OpenRouter · Kimi · ViralTok · 老张 API |
-| 系统令牌 + 用户 ID | New-API 中转 · DMXAPI |
-| AK / SK 签名 | 火山引擎（费用中心 QueryBalanceAcct） |
-| 手录 + 每日提醒 | 小米 MiMo · MiniMax |
+| 令牌 + 用户 ID | New-API · DMXAPI |
+| AK/SK | 火山引擎 |
+| 手录 | 小米 MiMo · MiniMax |
+
+ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
 
 ---
 
-## 构建与运行
+## 构建 / 打包
 
 ```bash
 cd Apps/Mac
 tuist generate
 open SmartBalance.xcworkspace
-# Xcode 选择 SmartBalance → Run
 
-# 或一键打 Release 到桌面
-./scripts/build-test-app.sh
-open ~/Desktop/智余.app
+# Release 打包 → 桌面 智余.app + zip
+./scripts/package-release.sh 0.2.0
 ```
 
-测试：
+输出：
 
-```bash
-cd Apps/Mac && ./scripts/run-tests.sh
-```
+- `~/Desktop/智余.app`
+- `~/Desktop/SmartBalance-0.2.0-macOS.zip`
+- `releases/SmartBalance-0.2.0-macOS.zip`
+
+测试：`./scripts/run-tests.sh`
+
+---
+
+## 更新（GitHub Releases）
+
+与智额相同思路（**无 Sparkle 静默装**）：
+
+1. 推送代码到 `github.com/yancyfeng999-star/smartbalance`
+2. 创建 Release `v0.2.0`，上传 `SmartBalance-0.2.0-macOS.zip`
+3. 设置 → **检查更新** → 有新版本则**自动下载到「下载」文件夹 → 打开 → 退出应用**，便于替换安装
 
 ---
 
@@ -66,15 +86,14 @@ cd Apps/Mac && ./scripts/run-tests.sh
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `~/Library/Application Support/SmartBalance/secrets.vault`（0600） |
-
-密钥不写入设置文件、不上传。首次读密钥时可用指纹 / 本机密码解锁会话。
+| 密钥 | `…/secrets.vault`（0600，会话指纹解锁） |
 
 ---
 
 ## 文档
 
-- [PRODUCT.md](./PRODUCT.md) — 产品定位与范围  
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — 功能清单与验收  
-- [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) — 上手与 FAQ  
-- [Apps/Mac/README.md](./Apps/Mac/README.md) — 架构与扩展 Provider  
+- [PRODUCT.md](./PRODUCT.md)
+- [PROJECT_STATUS.md](./PROJECT_STATUS.md)
+- [CHANGELOG.md](./CHANGELOG.md)
+- [docs/USER_GUIDE.md](./docs/USER_GUIDE.md)
+- [Apps/Mac/README.md](./Apps/Mac/README.md)

@@ -70,6 +70,7 @@
 		CEAFD0F3A1559BF61519B0C3 /* DMXAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43CF5F4C7DC6B2FCC7BFB76 /* DMXAPIBalanceProvider.swift */; };
 		D7CC7D7BEB36002C15517110 /* AlertThresholdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */; };
 		D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
+		DAC24879E42C6658477B877C /* ReleaseDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */; };
 		DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */; };
 		DEB257278157844EE997587C /* SettingsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8870F539D14F573853FD8408 /* SettingsChrome.swift */; };
 		E30EFB57A9D82D64D408757F /* SecretMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF26DFD225E26801BD8B0EA /* SecretMask.swift */; };
@@ -250,6 +251,7 @@
 		CFF26DFD225E26801BD8B0EA /* SecretMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretMask.swift; sourceTree = "<group>"; };
 		D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceStatus.swift; sourceTree = "<group>"; };
 		D0BBDEA08A6FD9F2ABD5703F /* Infrastructure-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Infrastructure-Info.plist"; sourceTree = "<group>"; };
+		D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseDownloader.swift; sourceTree = "<group>"; };
 		D67797107671E28F484CA2F2 /* SettingsExpandableCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExpandableCard.swift; sourceTree = "<group>"; };
 		D87A480F96777DF6FE34FB61 /* ProviderKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderKind.swift; sourceTree = "<group>"; };
 		DA1C4B11EB28B7088638D9A2 /* Domain.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Domain.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -523,6 +525,7 @@
 				C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */,
 				0DBBCC57E67CE44781B7867D /* LocalSecretStore.swift */,
 				9CF301DDD63AC22702F76913 /* MacNotificationService.swift */,
+				D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */,
 				2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */,
 				964480BD23406FE27B496D1A /* SMTPClient.swift */,
 				60145F6BD534C3FB05AA116B /* UpdateChecker.swift */,
@@ -786,6 +789,7 @@
 				8541753C4192F59AC907A724 /* ViralTokBalanceProvider.swift in Sources */,
 				EE31A900C3FA17FCB8997FCE /* VolcengineBalanceProvider.swift in Sources */,
 				1DBE74EAD98F03A728A60356 /* VolcengineSigner.swift in Sources */,
+				DAC24879E42C6658477B877C /* ReleaseDownloader.swift in Sources */,
 				FE13F8A8238A78BF04941E6E /* SMTPClient.swift in Sources */,
 				062469C0F777D8C8034128AE /* SettingsStore.swift in Sources */,
 				3365F84CE12D56E8CBEE1A88 /* UpdateChecker.swift in Sources */,
