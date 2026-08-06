@@ -80,40 +80,21 @@ final class AppModel: ObservableObject {
         return "—"
     }
 
-    /// 打开当前首个已启用账号对应控制台；无账号时提示。
+    /// 打开当前首个已启用账号的官网/后台（优先用户填写的链接）。
     func openDashboard() {
         guard let account = settings.enabledAccounts.first else {
             banner = "请先添加 API 账号"
             selectedTab = .settings
             return
         }
-        let urlString: String? = {
-            switch account.kind {
-            case .deepseek:
-                return "https://platform.deepseek.com"
-            case .openrouter:
-                return "https://openrouter.ai/activity"
-            case .viraltok:
-                return "https://www.viraltok.ai"
-            case .laozhang:
-                return "https://api2.laozhang.ai"
-            case .dmxapi:
-                return "https://www.dmxapi.cn"
-            case .kimi:
-                return "https://platform.kimi.com/console/api-keys"
-            case .volcengine:
-                return "https://console.volcengine.com/finance/account-overview/"
-            case .mimo:
-                return "https://platform.xiaomimimo.com/console/balance"
-            case .minimax:
-                return "https://platform.minimaxi.com/user-center/payment/balance"
-            case .newapi:
-                let base = (account.baseURL ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                return base.isEmpty ? nil : base
-            }
-        }()
-        guard let urlString, let url = URL(string: urlString) else {
-            banner = "无法打开 \(account.kind.displayName) 后台地址"
+        openDashboard(for: account)
+    }
+
+    /// 打开指定账号的官网/后台。
+    func openDashboard(for account: BalanceAccount) {
+        guard let urlString = account.resolvedConsoleURL, let url = URL(string: urlString) else {
+            banner = "请先在该账号填写官网/后台链接"
+            selectedTab = .settings
             return
         }
         NSWorkspace.shared.open(url)
@@ -192,6 +173,7 @@ final class AppModel: ObservableObject {
         kind: ProviderKind,
         displayName: String,
         baseURL: String?,
+        consoleURL: String? = nil,
         userId: String? = nil,
         secret: String,
         manualAmount: Double? = nil
@@ -200,6 +182,7 @@ final class AppModel: ObservableObject {
             kind: kind,
             displayName: displayName,
             baseURL: baseURL,
+            consoleURL: consoleURL,
             userId: userId,
             manualAmount: kind.isManualEntry ? manualAmount : nil,
             manualUnit: kind.isManualEntry ? kind.defaultManualUnit : nil,
@@ -261,6 +244,19 @@ final class AppModel: ObservableObject {
         persist()
         banner = "已更新 \(settings.accounts[idx].title) 的用户 ID"
         refresh()
+    }
+
+    /// 修改官网 / 后台链接（「打开后台」跳转用）。
+    func updateAccountConsoleURL(id: UUID, consoleURL: String) {
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = consoleURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            settings.accounts[idx].consoleURL = settings.accounts[idx].kind.defaultConsoleURL
+        } else {
+            settings.accounts[idx].consoleURL = BalanceAccount.normalizedURLString(trimmed) ?? trimmed
+        }
+        persist()
+        banner = "已更新 \(settings.accounts[idx].title) 的官网链接"
     }
 
     /// 手录余额（MiMo / MiniMax）。

@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 import Domain
 import Infrastructure
 
@@ -12,6 +11,7 @@ struct APIAccountsSection: View {
     @State private var expandedKey: String? = nil
     @State private var draftName = ""
     @State private var draftBaseURL = ""
+    @State private var draftConsoleURL = ""
     @State private var draftUserId = ""
     @State private var draftAccessKey = ""
     @State private var draftSecret = ""
@@ -20,6 +20,7 @@ struct APIAccountsSection: View {
     @State private var editField = ""
     @State private var editUserId = ""
     @State private var editAccessKey = ""
+    @State private var editConsoleURL = ""
 
     var body: some View {
         Group {
@@ -133,19 +134,34 @@ struct APIAccountsSection: View {
                 .scaleEffect(0.85)
 
                 Button {
+                    model.openDashboard(for: acc)
+                } label: {
+                    Image(systemName: "safari")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(SBTheme.accent)
+                }
+                .buttonStyle(.plain)
+                .help("打开官网/后台")
+                .disabled(acc.resolvedConsoleURL == nil)
+
+                Button {
                     withAnimation(AppMotion.expand) {
                         if editAccountId == acc.id {
                             editAccountId = nil
                             editField = ""
                             editUserId = ""
+                            editAccessKey = ""
+                            editConsoleURL = ""
                         } else {
                             editAccountId = acc.id
                             editUserId = acc.userId ?? ""
+                            editConsoleURL = acc.consoleURL ?? acc.kind.defaultConsoleURL ?? ""
                             if acc.kind.isManualEntry, let a = acc.manualAmount {
                                 editField = String(format: "%g", a)
                             } else {
                                 editField = ""
                             }
+                            editAccessKey = ""
                         }
                     }
                 } label: {
@@ -154,7 +170,7 @@ struct APIAccountsSection: View {
                         .foregroundStyle(SBTheme.accent)
                 }
                 .buttonStyle(.plain)
-                .help(acc.kind.isManualEntry ? "录入余额" : "更新密钥")
+                .help(acc.kind.isManualEntry ? "录入余额" : "更新密钥 / 官网")
 
                 Button(role: .destructive) {
                     model.removeAccount(acc.id)
@@ -207,6 +223,12 @@ struct APIAccountsSection: View {
 
     private func editEditor(for acc: BalanceAccount) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            Text("官网 / 后台链接（打开后台时跳转）")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+            TextField("https://…", text: $editConsoleURL)
+                .textFieldStyle(.roundedBorder)
+
             if acc.kind.isManualEntry {
                 Text("对照网页录入余额")
                     .font(.system(size: 10, weight: .medium))
@@ -219,16 +241,20 @@ struct APIAccountsSection: View {
                 ))
                 .font(.system(size: 11, weight: .medium))
                 HStack(spacing: 10) {
-                    Button("保存金额") {
-                        model.updateManualAmount(id: acc.id, amountText: editField)
+                    Button("保存") {
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
+                        if !editField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            model.updateManualAmount(id: acc.id, amountText: editField)
+                        }
                         editAccountId = nil
                         editField = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(SBButtonStyle(kind: .accent))
-                    .disabled(editField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button("打开后台") {
-                        if let url = acc.baseURL.flatMap(URL.init(string:)) {
-                            NSWorkspace.shared.open(url)
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
+                        if let refreshed = model.settings.accounts.first(where: { $0.id == acc.id }) {
+                            model.openDashboard(for: refreshed)
                         }
                     }
                     .buttonStyle(.plain)
@@ -237,6 +263,7 @@ struct APIAccountsSection: View {
                     Button("收起") {
                         editAccountId = nil
                         editField = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
@@ -254,30 +281,36 @@ struct APIAccountsSection: View {
                 SecureField(acc.kind.credentialHintCN, text: $editField)
                     .textFieldStyle(.roundedBorder)
                 HStack(spacing: 10) {
-                    Button("保存 AK/SK") {
+                    Button("保存") {
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
                         let ak = editAccessKey.trimmingCharacters(in: .whitespacesAndNewlines)
                         let sk = editField.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !ak.isEmpty, !sk.isEmpty else {
-                            model.banner = "请同时填写 Access Key ID 与 Secret Access Key"
-                            return
+                        if !ak.isEmpty, !sk.isEmpty {
+                            model.updateAccountSecret(
+                                id: acc.id,
+                                secret: VolcengineSigner.packCredentials(accessKeyId: ak, secretAccessKey: sk)
+                            )
                         }
-                        model.updateAccountSecret(
-                            id: acc.id,
-                            secret: VolcengineSigner.packCredentials(accessKeyId: ak, secretAccessKey: sk)
-                        )
                         editAccountId = nil
                         editField = ""
                         editAccessKey = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(SBButtonStyle(kind: .accent))
-                    .disabled(
-                        editAccessKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || editField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    )
+                    Button("打开后台") {
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
+                        if let refreshed = model.settings.accounts.first(where: { $0.id == acc.id }) {
+                            model.openDashboard(for: refreshed)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
                     Button("收起") {
                         editAccountId = nil
                         editField = ""
                         editAccessKey = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
@@ -291,13 +324,14 @@ struct APIAccountsSection: View {
                     TextField(acc.kind.userIdHintCN, text: $editUserId)
                         .textFieldStyle(.roundedBorder)
                 }
-                Text("粘贴密钥（可只改用户 ID 时留空）")
+                Text("粘贴密钥（可只改官网 / 用户 ID 时留空）")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                 SecureField(acc.kind.credentialHintCN, text: $editField)
                     .textFieldStyle(.roundedBorder)
                 HStack(spacing: 10) {
                     Button("保存") {
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
                         let hasUID = !editUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         let hasSecret = !editField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         if acc.kind.needsUserId, hasUID {
@@ -307,7 +341,6 @@ struct APIAccountsSection: View {
                             model.updateAccountSecret(id: acc.id, secret: editField)
                         }
                         if !hasUID && !hasSecret {
-                            // 需要 userId 且当前账号没有 → 必须填
                             if acc.kind.needsUserId, (acc.userId ?? "").isEmpty {
                                 model.banner = "请填写用户 ID"
                                 return
@@ -316,16 +349,23 @@ struct APIAccountsSection: View {
                         editAccountId = nil
                         editField = ""
                         editUserId = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(SBButtonStyle(kind: .accent))
-                    .disabled(
-                        editField.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && editUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    )
+                    Button("打开后台") {
+                        model.updateAccountConsoleURL(id: acc.id, consoleURL: editConsoleURL)
+                        if let refreshed = model.settings.accounts.first(where: { $0.id == acc.id }) {
+                            model.openDashboard(for: refreshed)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
                     Button("收起") {
                         editAccountId = nil
                         editField = ""
                         editUserId = ""
+                        editConsoleURL = ""
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
@@ -348,9 +388,19 @@ struct APIAccountsSection: View {
                 .textFieldStyle(.roundedBorder)
 
             if kind.needsBaseURL {
-                TextField("Base URL，如 https://api.example.com", text: $draftBaseURL)
+                TextField("API Base URL，如 https://api.example.com", text: $draftBaseURL)
                     .textFieldStyle(.roundedBorder)
             }
+
+            Text("官网 / 后台链接（打开后台时跳转，可改）")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+            TextField(
+                kind.defaultConsoleURL ?? "https://… 平台控制台",
+                text: $draftConsoleURL
+            )
+            .textFieldStyle(.roundedBorder)
+
             if kind.needsUserId {
                 TextField(kind.userIdHintCN, text: $draftUserId)
                     .textFieldStyle(.roundedBorder)
@@ -386,7 +436,10 @@ struct APIAccountsSection: View {
 
     private func addDisabled(_ kind: ProviderKind) -> Bool {
         if kind.isManualEntry {
-            return kind.needsBaseURL && draftBaseURL.isEmpty
+            // 手录至少要有官网（默认会预填；New-API 式无默认时需填）
+            let consoleEmpty = draftConsoleURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && (kind.defaultConsoleURL ?? "").isEmpty
+            return consoleEmpty
         }
         if kind.needsAccessKeyPair {
             return draftAccessKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -412,10 +465,12 @@ struct APIAccountsSection: View {
         } else {
             secret = draftSecret
         }
+        let console = draftConsoleURL.trimmingCharacters(in: .whitespacesAndNewlines)
         model.addAccount(
             kind: kind,
             displayName: draftName,
             baseURL: kind.needsBaseURL ? draftBaseURL : kind.defaultBaseURL,
+            consoleURL: console.isEmpty ? kind.defaultConsoleURL : console,
             userId: kind.needsUserId ? draftUserId : nil,
             secret: secret,
             manualAmount: kind.isManualEntry ? amount : nil
@@ -426,6 +481,7 @@ struct APIAccountsSection: View {
     private func resetDraft(for kind: ProviderKind) {
         draftName = ""
         draftBaseURL = kind.defaultBaseURL ?? ""
+        draftConsoleURL = kind.defaultConsoleURL ?? ""
         draftUserId = ""
         draftAccessKey = ""
         draftSecret = ""

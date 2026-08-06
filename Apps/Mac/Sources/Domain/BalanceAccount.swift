@@ -6,7 +6,10 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public var kind: ProviderKind
     /// 用户自定义显示名（可空，空则用 kind.displayName）。
     public var displayName: String
+    /// API 请求根地址（如 New-API 中转站）；与「官网/后台」无关。
     public var baseURL: String?
+    /// 官网 / 控制台链接：点「打开后台」时跳转；用户可改。
+    public var consoleURL: String?
     /// 部分平台管理接口需要的用户 ID（如 DMXAPI 的 Dmx-Api-User）；非密钥，可落盘。
     public var userId: String?
     /// 密钥库引用键；真实密钥在 secrets.vault。
@@ -33,6 +36,7 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         kind: ProviderKind,
         displayName: String = "",
         baseURL: String? = nil,
+        consoleURL: String? = nil,
         userId: String? = nil,
         secretRef: String = UUID().uuidString,
         enabled: Bool = true,
@@ -47,6 +51,9 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         self.kind = kind
         self.displayName = displayName.isEmpty ? kind.displayName : displayName
         self.baseURL = baseURL ?? kind.defaultBaseURL
+        let trimmedConsole = consoleURL?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.consoleURL = (trimmedConsole?.isEmpty == false) ? trimmedConsole : kind.defaultConsoleURL
         self.userId = userId.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         self.secretRef = secretRef
         self.enabled = enabled
@@ -71,5 +78,24 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public var wantsDailyReminder: Bool {
         if let dailyReminderEnabled { return dailyReminderEnabled }
         return kind.isManualEntry
+    }
+
+    /// 「打开后台」最终跳转地址：用户填写的官网优先，否则平台默认，再回退 API baseURL。
+    public var resolvedConsoleURL: String? {
+        if let c = Self.normalizedURLString(consoleURL) { return c }
+        if let d = Self.normalizedURLString(kind.defaultConsoleURL) { return d }
+        // New-API 等：未单独填官网时，用 baseURL 打开
+        return Self.normalizedURLString(baseURL)
+    }
+
+    /// 补全 scheme，保证能用 `URL(string:)` 打开浏览器。
+    public static func normalizedURLString(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else {
+            return nil
+        }
+        if !s.contains("://") {
+            s = "https://\(s)"
+        }
+        return s
     }
 }

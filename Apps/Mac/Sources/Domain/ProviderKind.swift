@@ -37,6 +37,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         }
     }
 
+    /// API 查询用根地址（请求余额接口）；不是浏览器后台。
     public var defaultBaseURL: String? {
         switch self {
         case .deepseek: "https://api.deepseek.com"
@@ -46,6 +47,21 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .laozhang: "https://api2.laozhang.ai"
         case .dmxapi: "https://www.dmxapi.cn"
         case .kimi: "https://api.moonshot.cn"
+        case .volcengine: nil // 固定 billing.volcengineapi.com
+        case .mimo, .minimax: nil // 手录无 API
+        }
+    }
+
+    /// 浏览器打开的官网 / 控制台默认地址（用户可在账号里覆盖）。
+    public var defaultConsoleURL: String? {
+        switch self {
+        case .deepseek: "https://platform.deepseek.com"
+        case .newapi: nil // 随自建站，添加时请填
+        case .openrouter: "https://openrouter.ai/activity"
+        case .viraltok: "https://www.viraltok.ai"
+        case .laozhang: "https://api2.laozhang.ai"
+        case .dmxapi: "https://www.dmxapi.cn"
+        case .kimi: "https://platform.kimi.com/console/api-keys"
         case .volcengine: "https://console.volcengine.com/finance/account-overview/"
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
         case .minimax: "https://platform.minimaxi.com/user-center/payment/balance"
