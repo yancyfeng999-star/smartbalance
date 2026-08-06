@@ -225,14 +225,18 @@ EOF
     > SHA256SUMS.txt
 )
 
-printf '%s\n' "==> [5/5] 复制到桌面"
+printf '%s\n' "==> [5/5] 复制到桌面（只放 dmg/pkg，不散落 .app，避免 Spotlight 搜出多个智余）"
 if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
   rm -rf "${DESKTOP_OUT}"
   mkdir -p "${DESKTOP_OUT}"
   cp -f "$DMG_CN" "$PKG_CN" "$STAGE/RELEASE_NOTES.md" "$STAGE/SHA256SUMS.txt" "${DESKTOP_OUT}/"
-  # 桌面也放一份 app 方便本机立刻试（不进 releases）
-  ditto --norsrc --noextattr --noqtn "$WORK/app/${APP_NAME}.app" "${HOME}/Desktop/${APP_NAME}.app"
-  xattr -cr "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
+  # 可选：COPY_APP_TO_DESKTOP=1 才放裸 app
+  if [[ "${COPY_APP_TO_DESKTOP:-0}" == "1" ]]; then
+    ditto --norsrc --noextattr --noqtn "$WORK/app/${APP_NAME}.app" "${HOME}/Desktop/${APP_NAME}.app"
+    xattr -cr "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
+  else
+    rm -rf "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
+  fi
 fi
 
 echo ""
@@ -242,9 +246,11 @@ echo "目录: ${STAGE}"
 ls -lh "${STAGE}"
 echo ""
 echo "桌面: ${DESKTOP_OUT}/"
-echo "  · ${APP_NAME}-${VERSION}.dmg  ← 推荐发给别人"
+echo "  · ${APP_NAME}-${VERSION}.dmg  ← 推荐发给别人 / 本机安装"
 echo "  · ${APP_NAME}-${VERSION}.pkg  ← 安装向导"
-echo "  · ~/Desktop/${APP_NAME}.app   ← 本机直接试"
+echo ""
+echo "正式安装请只保留一份：/Applications/${APP_NAME}.app"
+echo "（不要在工程 build/、桌面再留裸 .app，否则启动台会出现多个智余）"
 echo ""
 echo "GitHub Release 建议上传英文名："
 echo "  ${EN_NAME}-${VERSION}.dmg"
