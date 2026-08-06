@@ -30,4 +30,23 @@ final class BalanceMailParserTests: XCTestCase {
         XCTAssertTrue(BalanceMailParser.matches(message: ok, source: src))
         XCTAssertFalse(BalanceMailParser.matches(message: bad, source: src))
     }
+
+    func testMultilineChineseVendorMail() {
+        let body = """
+        尊敬的用户：
+        您的 Token 套餐剩余额度：￥36.80
+        请及时充值以免影响调用。
+        """
+        XCTAssertEqual(BalanceMailParser.extractAmount(from: body, customRegex: nil), 36.80)
+    }
+
+    func testHTMLStrippedStillParses() {
+        let body = "<html><body><p>balance: <b>$12.3</b></p></body></html>"
+        XCTAssertEqual(BalanceMailParser.extractAmount(from: body, customRegex: nil), 12.3)
+    }
+
+    func testThousandsSeparator() {
+        let body = "余额：1,234.56 元"
+        XCTAssertEqual(BalanceMailParser.extractAmount(from: body, customRegex: nil), 1234.56)
+    }
 }

@@ -2,17 +2,27 @@ import Foundation
 
 /// 从平台邮件正文/主题中提取余额。
 public enum BalanceMailParser: Sendable {
-    /// 内置模式：捕获金额数字。
+    /// 内置模式：捕获金额数字（允许千分位逗号）。
     public static let builtInPatterns: [String] = [
-        #"余额[为是:：\s]*[¥￥$]?\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"剩余[额度金额余额]*[为是:：\s]*[¥￥$]?\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"balance[:\s]*[¥￥$]?\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"remaining[:\s]*[¥￥$]?\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"[¥￥]\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"\$\s*([0-9]+(?:\.[0-9]+)?)"#,
-        #"credits?[:\s]*([0-9]+(?:\.[0-9]+)?)"#,
-        #"额度[为是:：\s]*([0-9]+(?:\.[0-9]+)?)"#,
+        #"余额[为是:：\s]*[¥￥$]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"剩余额度[：:]\s*[¥￥$]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"剩余[额度金额余额]*[为是:：\s]*[¥￥$]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"balance[:\s]*[¥￥$]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"remaining[:\s]*[¥￥$]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"[¥￥]\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"credits?[:\s]*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
+        #"额度[为是:：\s]*([0-9][0-9,]*(?:\.[0-9]+)?)"#,
     ]
+
+    /// 去掉 HTML 标签，便于从邮件 HTML 正文中匹配金额。
+    public static func stripHTML(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"<[^>]+>"#, options: []) else {
+            return text
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: " ")
+    }
 
     public static func extractAmount(from text: String, customRegex: String?) -> Double? {
         let candidates: [String]
@@ -22,7 +32,7 @@ public enum BalanceMailParser: Sendable {
             candidates = builtInPatterns
         }
 
-        let haystack = text
+        let haystack = stripHTML(text)
         for pattern in candidates {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
             let range = NSRange(haystack.startIndex..<haystack.endIndex, in: haystack)
