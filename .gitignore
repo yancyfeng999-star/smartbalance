@@ -6,6 +6,7 @@ Apps/Mac/**/*.xcworkspace/xcuserdata/
 Apps/Mac/**/*.xcodeproj/xcuserdata/
 Apps/Mac/**/DerivedData/
 Apps/Mac/build/
+Apps/Mac/dist/
 Apps/Mac/.build/
 Apps/Mac/Tuist/.build/
 **/xcuserdata/
