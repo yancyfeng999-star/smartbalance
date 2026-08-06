@@ -57,19 +57,25 @@ cd Apps/Mac
 tuist generate
 open SmartBalance.xcworkspace
 
-# Release 打包 → DMG + PKG（对齐智额）
-./scripts/package-release.sh 0.2.0
+# 一键发版（每次都会升版本再上线）
+./scripts/release.sh              # 0.2.0 → 0.2.1，打包 dmg/pkg 并上传 GitHub
+./scripts/release.sh minor        # 升次版本
+./scripts/release.sh 0.3.0        # 指定版本
+NOTES="修复 xxx" ./scripts/release.sh
+
+# 只打包不上传
+SKIP_PUBLISH=1 ./scripts/release.sh
 ```
 
-输出：
+**规则：每次上线必须走 `release.sh`，自动：升版本 → 打 dmg/pkg → 提交 → tag → GitHub Release。**
+
+产物：
 
 | 文件 | 用途 |
 |------|------|
-| `releases/Mac/v0.2.0/智余-0.2.0.dmg` | **推荐**：打开后拖进 Applications |
-| `releases/Mac/v0.2.0/智余-0.2.0.pkg` | 双击安装向导 |
-| `SmartBalance-0.2.0.dmg` / `.pkg` | 英文名，适合 GitHub Release |
-| `~/Desktop/智余-发布/` | 同上副本 |
-| `~/Desktop/智余.app` | 本机立刻试跑 |
+| `releases/Mac/vX.Y.Z/SmartBalance-X.Y.Z.dmg` | GitHub 主资产（拖进 Applications） |
+| `…/SmartBalance-X.Y.Z.pkg` | 安装向导 |
+| `~/Desktop/智余-发布/` | 本机副本 |
 
 测试：`./scripts/run-tests.sh`
 

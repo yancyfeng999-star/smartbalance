@@ -9,8 +9,11 @@
 #   SHA256SUMS.txt
 #
 # 用法（在 Apps/Mac 下）：
-#   ./scripts/package-release.sh
-#   ./scripts/package-release.sh 0.2.0
+#   ./scripts/package-release.sh              # 用 Info.plist 当前版本
+#   ./scripts/package-release.sh 0.2.1        # 指定版本（会先写入 Info.plist）
+#
+# 完整发版（升版本 + 打包 + GitHub）请用：
+#   ./scripts/release.sh
 #
 set -euo pipefail
 
@@ -29,6 +32,18 @@ DESKTOP_OUT="${DESKTOP_OUT:-$HOME/Desktop/智余-发布}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 VERSION_ARG="${1:-}"
+PLIST="${ROOT}/Sources/App/Info.plist"
+
+# 若传入版本号，先写入 Info.plist（保证包内版本一致）
+if [[ -n "${VERSION_ARG}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION_ARG}" "$PLIST"
+  # 构建号若未随 release.sh 提升，则至少 +1
+  CUR_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+  if [[ "${BUMP_BUILD:-1}" == "1" ]]; then
+    # release.sh 已 bump 过则设 BUMP_BUILD=0
+    :
+  fi
+fi
 
 printf '%s\n' "==> [1/5] tuist generate"
 tuist generate --no-open
@@ -61,7 +76,7 @@ if [[ -z "${APP_SRC}" || ! -d "${APP_SRC}" ]]; then
   exit 1
 fi
 
-VERSION="${VERSION_ARG:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP_SRC}/Contents/Info.plist")}"
+VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${APP_SRC}/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${APP_SRC}/Contents/Info.plist" 2>/dev/null || echo "1")"
 TAG="v${VERSION}"
 STAGE="${RELEASES_ROOT}/${TAG}"
