@@ -269,14 +269,36 @@ struct BackgroundSystemSection: View {
         .background(cardShell)
     }
 
-    // MARK: 关于（不折叠，一句话）
+    // MARK: 关于（固定卡片，不折叠）
 
     private var aboutLine: some View {
-        Text("\(Brand.nameCN) · 查 API 余额，偏低就提醒  ·  v\(model.appVersion)")
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(SBTheme.muted)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 6)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                iconCircle(
+                    systemName: "info.circle.fill",
+                    colors: [
+                        Color(red: 0.95, green: 0.45, blue: 0.55),
+                        Color(red: 0.85, green: 0.35, blue: 0.70),
+                    ]
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("关于")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SBTheme.text)
+                    Text(model.appVersion)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            Text(Brand.aboutLine)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardShell)
     }
 
     // MARK: - Helpers
