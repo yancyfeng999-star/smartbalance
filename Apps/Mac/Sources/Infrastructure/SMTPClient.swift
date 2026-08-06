@@ -2,8 +2,58 @@ import Foundation
 import Network
 import Domain
 
-/// 极简 SMTP 客户端：支持普通提交与 STARTTLS 后的 AUTH LOGIN + DATA。
-/// 优先使用 587 + STARTTLS；465 隐式 TLS 在 Network.framework 下用 NWProtocolTLS 包装。
+/// SMTP 报文格式（可单测）：RFC 2047 主题编码与 DATA 终结符。
+public enum SMTPProtocolFormatting: Sendable {
+    /// RFC 2047 UTF-8 Base64 encoded-word。
+    public static func encodeSubject(_ subject: String) -> String {
+        let b64 = Data(subject.utf8).base64EncodedString()
+        return "=?UTF-8?B?\(b64)?="
+    }
+
+    /// 构建 DATA 段载荷；必须以 `\r\n.\r\n` 终结。
+    public static func buildDATAPayload(
+        fromDisplay: String,
+        fromAddress: String,
+        toAddresses: [String],
+        subject: String,
+        body: String,
+        date: Date = Date()
+    ) -> String {
+        let toHeader = toAddresses.joined(separator: ", ")
+        let dateStr = RFC2822DateFormatter.string(from: date)
+        // 显式 CRLF，避免多行字符串插值在不同平台上变成 LF-only
+        var lines: [String] = [
+            "From: \(fromDisplay) <\(fromAddress)>",
+            "To: \(toHeader)",
+            "Subject: \(encodeSubject(subject))",
+            "Date: \(dateStr)",
+            "MIME-Version: 1.0",
+            "Content-Type: text/plain; charset=utf-8",
+            "Content-Transfer-Encoding: 8bit",
+            "",
+        ]
+        // 正文行：裸「.」行需 dot-stuffing；末尾追加终结符
+        let bodyLines = body.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                let s = String(line)
+                return s.hasPrefix(".") ? "." + s : s
+            }
+        lines.append(contentsOf: bodyLines)
+        lines.append(".")
+        return lines.joined(separator: "\r\n") + "\r\n"
+    }
+
+    /// 推荐路径：465 + 隐式 TLS。
+    public static let recommendedPortHint = "推荐 465 + TLS（隐式 TLS）"
+
+    /// 587 STARTTLS 暂不支持时的提示。
+    public static let startTLSUnsupportedHint = "当前版本请改用 465 + TLS。587 STARTTLS 暂不支持。"
+}
+
+/// 极简 SMTP 客户端：推荐 465 隐式 TLS（NWProtocolTLS）。
+/// 587 STARTTLS：Network.framework 无法原地升级，给出明确错误引导改用 465。
 public actor SMTPClient {
     public init() {}
 
@@ -26,6 +76,11 @@ public actor SMTPClient {
         let recipients = settings.toAddresses.filter { $0.contains("@") }
         guard !recipients.isEmpty else { throw SMTPError.notConfigured }
 
+        // 推荐路径：465 + 隐式 TLS。587 STARTTLS 本版不支持。
+        if port == 587 {
+            throw SMTPError.connection(SMTPProtocolFormatting.startTLSUnsupportedHint)
+        }
+
         let connection = makeConnection(host: host, port: port, useTLS: settings.useTLS)
         try await connection.start()
 
@@ -36,14 +91,6 @@ public actor SMTPClient {
 
         try await connection.sendLine("EHLO smartbalance.local")
         _ = try await connection.readReply()
-
-        if !settings.useTLS && port == 587 {
-            try await connection.sendLine("STARTTLS")
-            _ = try await connection.readReply()
-            try await connection.upgradeToTLS()
-            try await connection.sendLine("EHLO smartbalance.local")
-            _ = try await connection.readReply()
-        }
 
         try await connection.sendLine("AUTH LOGIN")
         _ = try await connection.readReply()
@@ -64,20 +111,13 @@ public actor SMTPClient {
         try await connection.sendLine("DATA")
         _ = try await connection.readReply()
 
-        let toHeader = recipients.joined(separator: ", ")
-        let date = RFC2822DateFormatter.string(from: Date())
-        let message = """
-        From: \(Brand.nameCN) <\(from)>\r
-        To: \(toHeader)\r
-        Subject: \(encodeSubject(subject))\r
-        Date: \(date)\r
-        MIME-Version: 1.0\r
-        Content-Type: text/plain; charset=utf-8\r
-        Content-Transfer-Encoding: 8bit\r
-        \r
-        \(body)\r
-        .\r
-        """
+        let message = SMTPProtocolFormatting.buildDATAPayload(
+            fromDisplay: Brand.nameCN,
+            fromAddress: from,
+            toAddresses: recipients,
+            subject: subject,
+            body: body
+        )
         try await connection.sendRaw(message)
         let dataReply = try await connection.readReply()
         if !dataReply.hasPrefix("250") {
@@ -102,13 +142,8 @@ public actor SMTPClient {
     }
 
     private func makeConnection(host: String, port: UInt16, useTLS: Bool) -> SMTPConnection {
+        // 仅 465/443 + useTLS 走隐式 TLS；587 不支持
         SMTPConnection(host: host, port: port, implicitTLS: useTLS && (port == 465 || port == 443))
-    }
-
-    private func encodeSubject(_ subject: String) -> String {
-        // RFC 2047 UTF-8 Base64
-        let b64 = Data(subject.utf8).base64EncodedString()
-        return "=?UTF-8?B?\(b64)?="
     }
 }
 

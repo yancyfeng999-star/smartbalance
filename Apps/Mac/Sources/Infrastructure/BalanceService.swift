@@ -259,6 +259,7 @@ public actor BalanceService {
 
         var emailed = false
         var notified = false
+        var emailError: String?
 
         if channels.macNotificationEnabled {
             notified = await notifications.post(
@@ -279,22 +280,24 @@ public actor BalanceService {
                 )
                 emailed = true
             } catch {
-                return AlertEvent(
-                    accountId: snapshot.accountId,
-                    title: title,
-                    message: "邮件发送失败：\(error.localizedDescription)\n\n\(message)",
-                    emailed: false,
-                    notified: notified,
-                    source: snapshot.source
-                )
+                emailError = error.localizedDescription
             }
         }
 
-        settings.lastAlertAtByAccount[key] = Date()
+        // 仅通知成功或邮件成功之一才写冷却；两者都失败 → 可立即重试
+        if AlertCooldownPolicy.shouldEnterCooldown(notified: notified, emailed: emailed) {
+            settings.lastAlertAtByAccount[key] = Date()
+        }
+
+        var finalMessage = message
+        if let emailError {
+            finalMessage = "邮件发送失败：\(emailError)\n\n\(message)"
+        }
+
         return AlertEvent(
             accountId: snapshot.accountId,
             title: title,
-            message: message,
+            message: finalMessage,
             emailed: emailed,
             notified: notified,
             source: snapshot.source

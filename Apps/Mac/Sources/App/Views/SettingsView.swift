@@ -310,6 +310,19 @@ struct SettingsView: View {
 
     private var outboundEmailBlock: some View {
         settingsCard(title: "邮件报警 SMTP（发出）") {
+            Text("推荐 465 + TLS（隐式 TLS）。发送失败会显示在首页且不进入冷却，便于重试。")
+                .font(.system(size: 11))
+                .foregroundStyle(SBTheme.muted)
+
+            HStack(spacing: 8) {
+                Text("快捷填入")
+                    .font(.system(size: 10))
+                    .foregroundStyle(SBTheme.muted)
+                smtpPresetButton("QQ", host: "smtp.qq.com")
+                smtpPresetButton("163", host: "smtp.163.com")
+                smtpPresetButton("Gmail", host: "smtp.gmail.com")
+            }
+
             TextField("SMTP 主机，如 smtp.qq.com", text: $smtpHost)
                 .textFieldStyle(.roundedBorder)
             HStack {
@@ -318,6 +331,12 @@ struct SettingsView: View {
                     .frame(width: 70)
                 Toggle("TLS（推荐 465）", isOn: $useTLS)
                     .toggleStyle(.switch)
+            }
+            if smtpPort.trimmingCharacters(in: .whitespaces) == "587" {
+                Text("当前版本请改用 465 + TLS。587 STARTTLS 暂不支持。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(SBTheme.warn)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             TextField("用户名", text: $smtpUser)
                 .textFieldStyle(.roundedBorder)
@@ -349,6 +368,15 @@ struct SettingsView: View {
             }
             .buttonStyle(SBButtonStyle(kind: .accent))
         }
+    }
+
+    private func smtpPresetButton(_ title: String, host: String) -> some View {
+        Button(title) {
+            smtpHost = host
+            smtpPort = "465"
+            useTLS = true
+        }
+        .buttonStyle(SBButtonStyle(kind: .normal))
     }
 
     private var refreshBlock: some View {

@@ -81,6 +81,13 @@ final class AppModel: ObservableObject {
             self.snapshots = result.snapshots.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
             if !result.alerts.isEmpty {
                 self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
+                // 邮件通道失败 → 首页 banner 可见（emailed=false 且 message 带失败前缀）
+                if let fail = result.alerts.first(where: {
+                    !$0.emailed && $0.message.hasPrefix("邮件发送失败")
+                }) {
+                    let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
+                    self.banner = firstLine
+                }
             }
             self.settings = result.settings
             self.lastRefreshAt = Date()
