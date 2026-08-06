@@ -34,18 +34,21 @@
 		78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF301DDD63AC22702F76913 /* MacNotificationService.swift */; };
 		7ABA0134C47F810E8078122C /* BalanceMailParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D14E5DC68EFAA0F09497A /* BalanceMailParserTests.swift */; };
 		7D14D3AB8FBC04D2879F7EA9 /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
+		8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C299590DA907A1C409B8818 /* HTTPClient.swift */; };
 		8B55AF3AD4CB1E79208DED0B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF532DFB5BBC8067BB5820E3 /* AppSettings.swift */; };
 		93D38310245857DB4DA1633B /* Domain.framework in Dependencies */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
 		98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */; };
 		99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */; };
 		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
 		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */; };
 		C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD25801FF4237FC1E955A84 /* Brand.swift */; };
 		C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */; };
 		CD1406BB8CB3E7BAD20F67D2 /* ProviderKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = D87A480F96777DF6FE34FB61 /* ProviderKind.swift */; };
 		D7CC7D7BEB36002C15517110 /* AlertThresholdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */; };
 		D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
 		DC2DE4F60F8DD9822039DFDD /* PlatformMailSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E583FF50A2527CDD50D48AE5 /* PlatformMailSource.swift */; };
+		DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */; };
 		DEF16A51F1A5E627A3D74897 /* AppMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4D0D2EB67A4D44D72A6529 /* AppMode.swift */; };
 		F408E4378A848785F458910E /* BalanceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */; };
 		FDB9A9FC7B7CE252891F0300 /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
@@ -161,6 +164,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProviderTests.swift; sourceTree = "<group>"; };
 		06998D7944A06D8515432118 /* DomainTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "DomainTests-Info.plist"; sourceTree = "<group>"; };
 		0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertThresholdTests.swift; sourceTree = "<group>"; };
 		0936C127D1AF75D376EEE61B /* BalanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceService.swift; sourceTree = "<group>"; };
@@ -174,7 +178,9 @@
 		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
 		456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
+		4C299590DA907A1C409B8818 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		51E8782D402683CD9D05DCD3 /* AlertEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEvent.swift; sourceTree = "<group>"; };
+		5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClientMock.swift; sourceTree = "<group>"; };
 		5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistBundle+SmartBalance.swift"; sourceTree = "<group>"; };
 		60576DDC7BB0B4190A050369 /* DataSourceKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceKind.swift; sourceTree = "<group>"; };
 		637D14E5DC68EFAA0F09497A /* BalanceMailParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceMailParserTests.swift; sourceTree = "<group>"; };
@@ -330,6 +336,8 @@
 		3407E0B92C0B2FA36C306506 /* InfrastructureTests */ = {
 			isa = PBXGroup;
 			children = (
+				02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */,
+				5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */,
 				098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */,
 			);
 			path = InfrastructureTests;
@@ -412,6 +420,7 @@
 			children = (
 				0723A1F9E5CEF28344BAE766 /* Providers */,
 				0936C127D1AF75D376EEE61B /* BalanceService.swift */,
+				4C299590DA907A1C409B8818 /* HTTPClient.swift */,
 				67B323F3AA6CB95224B72917 /* IMAPClient.swift */,
 				456FF830E0EA7EDF5182A0B8 /* KeychainStore.swift */,
 				9CF301DDD63AC22702F76913 /* MacNotificationService.swift */,
@@ -615,6 +624,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */,
+				B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */,
 				3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -640,6 +651,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */,
+				8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */,
 				53CF3045B27EC2C497E41834 /* IMAPClient.swift in Sources */,
 				5F3B5C51CFB928F18BF657A2 /* KeychainStore.swift in Sources */,
 				78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */,

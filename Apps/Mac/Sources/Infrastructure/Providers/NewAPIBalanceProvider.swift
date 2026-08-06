@@ -5,8 +5,11 @@ import Domain
 /// 典型：GET {base}/api/user/self  Header: Authorization: Bearer <token> 或 {token}
 public struct NewAPIBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .newapi
+    private let http: any HTTPClient
 
-    public init() {}
+    public init(http: any HTTPClient = URLSessionHTTPClient()) {
+        self.http = http
+    }
 
     public func fetchBalance(account: BalanceAccount, credentials: ProviderCredentials) async throws -> BalanceSnapshot {
         guard !credentials.apiKey.isEmpty else { throw BalanceProviderError.missingCredential }
@@ -26,15 +29,15 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         request.setValue("New-API", forHTTPHeaderField: "New-API-User")
         request.timeoutInterval = 20
 
-        var (data, response) = try await URLSession.shared.data(for: request)
-        var code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        var (data, response) = try await http.data(for: request)
+        var code = response.statusCode
 
         // 部分站点只要裸 token。
         if code == 401 || code == 403 {
             var retry = request
             retry.setValue(credentials.apiKey, forHTTPHeaderField: "Authorization")
-            (data, response) = try await URLSession.shared.data(for: retry)
-            code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            (data, response) = try await http.data(for: retry)
+            code = response.statusCode
         }
 
         let body = String(data: data, encoding: .utf8) ?? ""

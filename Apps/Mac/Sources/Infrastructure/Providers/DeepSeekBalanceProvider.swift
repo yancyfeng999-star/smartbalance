@@ -5,8 +5,11 @@ import Domain
 /// 文档接口：GET https://api.deepseek.com/user/balance
 public struct DeepSeekBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .deepseek
+    private let http: any HTTPClient
 
-    public init() {}
+    public init(http: any HTTPClient = URLSessionHTTPClient()) {
+        self.http = http
+    }
 
     public func fetchBalance(account: BalanceAccount, credentials: ProviderCredentials) async throws -> BalanceSnapshot {
         guard !credentials.apiKey.isEmpty else { throw BalanceProviderError.missingCredential }
@@ -23,8 +26,8 @@ public struct DeepSeekBalanceProvider: BalanceProvider {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 20
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let (data, response) = try await http.data(for: request)
+        let code = response.statusCode
         let body = String(data: data, encoding: .utf8) ?? ""
         guard (200...299).contains(code) else {
             throw BalanceProviderError.httpStatus(code, body)
