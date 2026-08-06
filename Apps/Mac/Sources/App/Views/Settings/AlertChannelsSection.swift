@@ -3,9 +3,23 @@ import Domain
 
 struct AlertChannelsSection: View {
     @ObservedObject var model: AppModel
+    var embedded: Bool = false
 
     var body: some View {
-        SettingsChrome.card(title: "报警通道（智余如何通知你）") {
+        Group {
+            if embedded {
+                content
+            } else {
+                SettingsChrome.card(title: "报警通道") { content }
+            }
+        }
+        .onAppear {
+            Task { await model.refreshNotificationStatus() }
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: Binding(
                 get: { model.settings.alertChannels.macNotificationEnabled },
                 set: { model.setMacNotificationEnabled($0) }
@@ -31,9 +45,7 @@ struct AlertChannelsSection: View {
             Text(model.notificationStatusCaption)
                 .font(.system(size: 11))
                 .foregroundStyle(
-                    model.notificationStatusCaption == "通知已开启"
-                        ? SBTheme.ok
-                        : SBTheme.warn
+                    model.notificationStatusCaption == "通知已开启" ? SBTheme.ok : SBTheme.warn
                 )
 
             HStack {
@@ -43,12 +55,9 @@ struct AlertChannelsSection: View {
                     .buttonStyle(SBButtonStyle(kind: .normal))
             }
 
-            Text("触发：API/邮件解析后状态为偏低·危急·耗尽；或平台新邮件含报警关键词。")
+            Text("偏低 / 危急 / 耗尽，或平台报警邮件关键词时触发。")
                 .font(.system(size: 10))
                 .foregroundStyle(SBTheme.muted)
-        }
-        .onAppear {
-            Task { await model.refreshNotificationStatus() }
         }
     }
 }

@@ -3,51 +3,51 @@ import Domain
 
 struct APIAccountsSection: View {
     @ObservedObject var model: AppModel
+    /// 嵌在折叠卡内时不再套外层 card
+    var embedded: Bool = false
 
-    @State private var newKind: ProviderKind = .deepseek
+    @State private var newKind: ProviderKind = .viraltok
     @State private var newName = ""
     @State private var newBaseURL = ""
     @State private var newSecret = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            accountsCard
-            addCard
+        Group {
+            if embedded {
+                content
+            } else {
+                SettingsChrome.card(title: "API 账号") { content }
+            }
         }
     }
 
-    private var accountsCard: some View {
-        SettingsChrome.card(title: "API 账号") {
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 12) {
             if model.settings.accounts.isEmpty {
-                Text("暂无 · 多数平台走这里")
+                Text("暂无 · 选平台粘贴 Key 即可")
                     .font(.system(size: 12))
                     .foregroundStyle(SBTheme.muted)
             } else {
                 ForEach(model.settings.accounts) { acc in
-                    accountRow(
-                        title: acc.title,
-                        subtitle: acc.kind.displayName + (model.hasSecret(for: acc) ? " · 已配置密钥" : " · 缺密钥"),
-                        enabled: acc.enabled,
-                        onToggle: { model.toggleAccount(acc.id, enabled: $0) },
-                        onDelete: { model.removeAccount(acc.id) }
-                    )
+                    accountRow(acc)
                     if acc.id != model.settings.accounts.last?.id {
                         Divider().overlay(SBTheme.stroke)
                     }
                 }
             }
-        }
-    }
 
-    private var addCard: some View {
-        SettingsChrome.card(title: "添加 API 账号") {
+            Divider().overlay(SBTheme.stroke)
+
+            Text("添加账号")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(SBTheme.muted)
+
             Picker("平台", selection: $newKind) {
                 ForEach(ProviderKind.allCases) { kind in
                     Text(kind.displayName).tag(kind)
                 }
             }
             .labelsHidden()
-            // 3+ providers: menu is clearer than a cramped segmented control.
             .pickerStyle(.menu)
 
             TextField("显示名称（可选）", text: $newName)
@@ -61,7 +61,7 @@ struct APIAccountsSection: View {
             SecureField(newKind.credentialHintCN, text: $newSecret)
                 .textFieldStyle(.roundedBorder)
 
-            Button("添加 API 账号") {
+            Button("添加") {
                 model.addAccount(
                     kind: newKind,
                     displayName: newName,
@@ -75,27 +75,26 @@ struct APIAccountsSection: View {
         }
     }
 
-    private func accountRow(
-        title: String,
-        subtitle: String,
-        enabled: Bool,
-        onToggle: @escaping (Bool) -> Void,
-        onDelete: @escaping () -> Void
-    ) -> some View {
+    private func accountRow(_ acc: BalanceAccount) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(acc.title)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(SBTheme.text)
-                Text(subtitle)
+                Text(acc.kind.displayName + (model.hasSecret(for: acc) ? " · 已配置密钥" : " · 缺密钥"))
                     .font(.system(size: 10))
                     .foregroundStyle(SBTheme.muted)
             }
             Spacer()
-            Toggle("", isOn: Binding(get: { enabled }, set: onToggle))
-                .labelsHidden()
-                .toggleStyle(.switch)
-            Button(role: .destructive, action: onDelete) {
+            Toggle("", isOn: Binding(
+                get: { acc.enabled },
+                set: { model.toggleAccount(acc.id, enabled: $0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            Button(role: .destructive) {
+                model.removeAccount(acc.id)
+            } label: {
                 Image(systemName: "trash")
                     .foregroundStyle(SBTheme.danger)
             }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IMAPSection: View {
     @ObservedObject var model: AppModel
+    var embedded: Bool = false
 
     @State private var imapEnabled = false
     @State private var imapHost = ""
@@ -12,7 +13,18 @@ struct IMAPSection: View {
     @State private var imapFolder = "INBOX"
 
     var body: some View {
-        SettingsChrome.card(title: "IMAP 收件箱（读平台邮件）") {
+        Group {
+            if embedded {
+                content
+            } else {
+                SettingsChrome.card(title: "IMAP 收件箱") { content }
+            }
+        }
+        .onAppear(perform: loadFields)
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle("启用 IMAP", isOn: $imapEnabled)
                 .toggleStyle(.switch)
             TextField("IMAP 主机，如 imap.qq.com", text: $imapHost)
@@ -21,7 +33,7 @@ struct IMAPSection: View {
                 TextField("端口", text: $imapPort)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
-                Toggle("TLS（推荐 993）", isOn: $imapTLS)
+                Toggle("TLS（993）", isOn: $imapTLS)
                     .toggleStyle(.switch)
             }
             TextField("用户名 / 邮箱", text: $imapUser)
@@ -43,11 +55,10 @@ struct IMAPSection: View {
                 imapPass = ""
             }
             .buttonStyle(SBButtonStyle(kind: .accent))
-            Text("用于拉取平台发来的余额邮件。与下方「邮件报警」SMTP 可同一邮箱，也可分开。")
+            Text("与下方 SMTP 报警可用同一邮箱，也可分开。")
                 .font(.system(size: 10))
                 .foregroundStyle(SBTheme.muted)
         }
-        .onAppear(perform: loadFields)
     }
 
     private func loadFields() {

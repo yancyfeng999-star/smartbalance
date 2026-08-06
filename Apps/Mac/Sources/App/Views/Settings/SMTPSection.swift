@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SMTPSection: View {
     @ObservedObject var model: AppModel
+    var embedded: Bool = false
 
     @State private var smtpHost = ""
     @State private var smtpPort = "465"
@@ -15,13 +16,24 @@ struct SMTPSection: View {
     @State private var cooldown = "3600"
 
     var body: some View {
-        SettingsChrome.card(title: "邮件报警 SMTP（发出）") {
-            Text("推荐 465 + TLS（隐式 TLS）。发送失败会显示在首页且不进入冷却，便于重试。")
+        Group {
+            if embedded {
+                content
+            } else {
+                SettingsChrome.card(title: "邮件报警 SMTP") { content }
+            }
+        }
+        .onAppear(perform: loadFields)
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("推荐 465 + TLS。失败会提示在首页且不进冷却。")
                 .font(.system(size: 11))
                 .foregroundStyle(SBTheme.muted)
 
             HStack(spacing: 8) {
-                Text("快捷填入")
+                Text("快捷")
                     .font(.system(size: 10))
                     .foregroundStyle(SBTheme.muted)
                 smtpPresetButton("QQ", host: "smtp.qq.com")
@@ -29,20 +41,19 @@ struct SMTPSection: View {
                 smtpPresetButton("Gmail", host: "smtp.gmail.com")
             }
 
-            TextField("SMTP 主机，如 smtp.qq.com", text: $smtpHost)
+            TextField("SMTP 主机", text: $smtpHost)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 TextField("端口", text: $smtpPort)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
-                Toggle("TLS（推荐 465）", isOn: $useTLS)
+                Toggle("TLS", isOn: $useTLS)
                     .toggleStyle(.switch)
             }
             if smtpPort.trimmingCharacters(in: .whitespaces) == "587" {
-                Text("当前版本请改用 465 + TLS。587 STARTTLS 暂不支持。")
+                Text("请改用 465 + TLS（暂不支持 587 STARTTLS）。")
                     .font(.system(size: 11))
                     .foregroundStyle(SBTheme.warn)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             TextField("用户名", text: $smtpUser)
                 .textFieldStyle(.roundedBorder)
@@ -54,7 +65,7 @@ struct SMTPSection: View {
                 .textFieldStyle(.roundedBorder)
             HStack {
                 SettingsChrome.labeledField("金额阈值", text: $amountTh)
-                SettingsChrome.labeledField("百分比阈值", text: $percentTh)
+                SettingsChrome.labeledField("百分比", text: $percentTh)
                 SettingsChrome.labeledField("冷却秒", text: $cooldown)
             }
             Button("保存 SMTP 与阈值") {
@@ -74,7 +85,6 @@ struct SMTPSection: View {
             }
             .buttonStyle(SBButtonStyle(kind: .accent))
         }
-        .onAppear(perform: loadFields)
     }
 
     private func smtpPresetButton(_ title: String, host: String) -> some View {
