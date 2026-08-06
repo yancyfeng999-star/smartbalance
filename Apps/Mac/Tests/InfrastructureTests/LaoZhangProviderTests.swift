@@ -32,15 +32,18 @@ final class LaoZhangProviderTests: XCTestCase {
             credentials: ProviderCredentials(apiKey: "lz-access-token")
         )
 
-        // 24997909 / 500000 ≈ 49.995818
-        XCTAssertEqual(snapshot.amount!, 24997909.0 / 500_000.0, accuracy: 0.0001)
-        XCTAssertEqual(snapshot.unit, "USD")
+        // 24997909 / 500000 ≈ 49.995818 USD × 7 ≈ 349.97 CNY
+        let usd = 24997909.0 / 500_000.0
+        let cny = usd * LaoZhangBalanceProvider.cnyPerUSD
+        XCTAssertEqual(snapshot.amount!, cny, accuracy: 0.01)
+        XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .laozhang)
         XCTAssertEqual(snapshot.source, .api)
         XCTAssertEqual(snapshot.status, .healthy)
         XCTAssertTrue(snapshot.detail.contains("demo_user"))
         XCTAssertTrue(snapshot.detail.contains("svip"))
         XCTAssertTrue(snapshot.detail.contains("339"))
+        XCTAssertTrue(snapshot.detail.contains("¥") || snapshot.detail.contains("$"))
         // 裸令牌，不加 Bearer
         XCTAssertEqual(http.authorizationHeaders.first, "lz-access-token")
         XCTAssertFalse(http.authorizationHeaders.first?.hasPrefix("Bearer ") ?? true)

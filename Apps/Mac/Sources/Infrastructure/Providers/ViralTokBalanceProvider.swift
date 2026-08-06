@@ -9,10 +9,12 @@ import Domain
 /// { "code": 20000, "msg": "ok",
 ///   "data": { "balance": 100.5, "used_coin": 20.3, "available": 80.2 } }
 /// ```
-/// 单位：吉米币；展示以 `available` 为主金额。
+/// 平台单位：吉米币 ≈ 美元；统一按汇率换成 **人民币** 再展示/报警。
 public struct ViralTokBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .viraltok
     private let http: any HTTPClient
+    /// 吉米币 → 人民币（用户约定 1 吉米币 ≈ 1 USD × 7.3）
+    public static let cnyPerCoin: Double = 7.3
 
     public init(http: any HTTPClient = URLSessionHTTPClient()) {
         self.http = http
@@ -57,29 +59,36 @@ public struct ViralTokBalanceProvider: BalanceProvider {
             throw BalanceProviderError.decodeFailed("缺少 data 字段")
         }
 
-        let available = payload.available
-        let balance = payload.balance
-        let used = payload.usedCoin
+        let availableCoin = payload.available
+        let balanceCoin = payload.balance
+        let usedCoin = payload.usedCoin
+        let rate = Self.cnyPerCoin
+        let availableCNY = availableCoin * rate
+        let balanceCNY = balanceCoin * rate
+        let usedCNY = usedCoin * rate
 
         let remainingPercent: Double? = {
-            guard balance > 0 else { return available <= 0 ? 0 : nil }
-            return max(0, min(100, (available / balance) * 100))
+            guard balanceCoin > 0 else { return availableCoin <= 0 ? 0 : nil }
+            return max(0, min(100, (availableCoin / balanceCoin) * 100))
         }()
 
+        // 金额阈值按人民币（与全局默认一致）
         let threshold = account.alertThreshold ?? 10
         let percentThreshold = account.alertPercentThreshold ?? 20
         let status = BalanceSnapshot.resolveStatus(
-            amount: available,
+            amount: availableCNY,
             remainingPercent: remainingPercent,
             amountThreshold: threshold,
             percentThreshold: percentThreshold
         )
 
         let detail = String(
-            format: "可用 %.2f · 总额 %.2f · 已用 %.2f 吉米币",
-            available,
-            balance,
-            used
+            format: "可用 ¥%.2f（%.2f 吉米币）· 总额 ¥%.2f · 已用 ¥%.2f · 汇率 %.1f",
+            availableCNY,
+            availableCoin,
+            balanceCNY,
+            usedCNY,
+            rate
         )
 
         return BalanceSnapshot(
@@ -87,10 +96,10 @@ public struct ViralTokBalanceProvider: BalanceProvider {
             providerKind: .viraltok,
             displayName: account.title,
             source: .api,
-            amount: available,
-            unit: "吉米币",
-            used: used,
-            total: balance,
+            amount: availableCNY,
+            unit: "¥",
+            used: usedCNY,
+            total: balanceCNY,
             remainingPercent: remainingPercent,
             status: status,
             detail: detail

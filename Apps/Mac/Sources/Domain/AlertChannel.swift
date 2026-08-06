@@ -28,7 +28,7 @@ public struct AlertChannelSettings: Codable, Equatable, Sendable {
     public var outboundEmailEnabled: Bool
     /// 主开关：额度阈值报警（金额/百分比低于线时通知）
     public var quotaThresholdAlertsEnabled: Bool
-    /// 金额阈值（货币/吉米币等），≤ 此值报警
+    /// 金额阈值（人民币），≤ 此值报警
     public var defaultAmountThreshold: Double
     /// 剩余百分比阈值，≤ 此值报警
     public var defaultPercentThreshold: Double

@@ -116,9 +116,9 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
 
     public var defaultManualUnit: String {
         switch self {
-        case .mimo, .minimax, .deepseek, .kimi, .dmxapi, .volcengine: "¥"
-        case .openrouter, .laozhang, .newapi: "USD"
-        case .viraltok: "吉米币"
+        // 吉米币 / 老张 USD 在 Provider 内已折算为人民币再展示
+        case .mimo, .minimax, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
+        case .openrouter, .newapi: "USD"
         }
     }
 }

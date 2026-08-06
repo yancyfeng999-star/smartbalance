@@ -5,11 +5,13 @@ import Domain
 /// 文档：GET https://api2.laozhang.ai/api/user/self
 /// Header: Authorization: <AccessToken>（裸令牌，不加 Bearer）
 /// 注意：是「系统令牌 AccessToken」，不是模型调用用的 sk- API Key。
-/// 额度：quota / 500000 ≈ USD。
+/// 额度：quota / 500000 ≈ USD，再按汇率换成 **人民币** 展示/报警。
 public struct LaoZhangBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .laozhang
     private let http: any HTTPClient
     private static let quotaPerUSD: Double = 500_000
+    /// USD → 人民币（用户约定）
+    public static let cnyPerUSD: Double = 7.0
 
     public init(http: any HTTPClient = URLSessionHTTPClient()) {
         self.http = http
@@ -58,15 +60,19 @@ public struct LaoZhangBalanceProvider: BalanceProvider {
 
         let amountUSD = quota / Self.quotaPerUSD
         let usedUSD = usedQuota.map { $0 / Self.quotaPerUSD }
+        let rate = Self.cnyPerUSD
+        let amountCNY = amountUSD * rate
+        let usedCNY = usedUSD.map { $0 * rate }
         let remainingPercent: Double? = {
             guard let used = usedQuota, quota + used > 0 else { return nil }
             return max(0, min(100, (quota / (quota + used)) * 100))
         }()
 
-        let threshold = account.alertThreshold ?? 1
+        // 金额阈值按人民币
+        let threshold = account.alertThreshold ?? 10
         let percentThreshold = account.alertPercentThreshold ?? 20
         let status = BalanceSnapshot.resolveStatus(
-            amount: amountUSD,
+            amount: amountCNY,
             remainingPercent: remainingPercent,
             amountThreshold: threshold,
             percentThreshold: percentThreshold
@@ -75,6 +81,8 @@ public struct LaoZhangBalanceProvider: BalanceProvider {
         var detailParts: [String] = []
         if let username { detailParts.append(username) }
         if let group, !group.isEmpty { detailParts.append("分组 \(group)") }
+        detailParts.append(String(format: "约 $%.2f → ¥%.2f", amountUSD, amountCNY))
+        detailParts.append(String(format: "汇率 %.0f", rate))
         detailParts.append(String(format: "剩余点数 %.0f", quota))
         if let usedQuota { detailParts.append(String(format: "已用 %.0f", usedQuota)) }
         if let requestCount { detailParts.append(String(format: "请求 %.0f 次", requestCount)) }
@@ -84,10 +92,10 @@ public struct LaoZhangBalanceProvider: BalanceProvider {
             providerKind: .laozhang,
             displayName: account.title,
             source: .api,
-            amount: amountUSD,
-            unit: "USD",
-            used: usedUSD,
-            total: usedUSD.map { amountUSD + $0 },
+            amount: amountCNY,
+            unit: "¥",
+            used: usedCNY,
+            total: usedCNY.map { amountCNY + $0 },
             remainingPercent: remainingPercent,
             status: status,
             detail: detailParts.joined(separator: " · ")

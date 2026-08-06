@@ -20,16 +20,18 @@ final class ViralTokProviderTests: XCTestCase {
             credentials: ProviderCredentials(apiKey: "sk-vt-test")
         )
 
-        XCTAssertEqual(snapshot.amount!, 80.2, accuracy: 0.0001)
-        XCTAssertEqual(snapshot.unit, "吉米币")
-        XCTAssertEqual(snapshot.total!, 100.5, accuracy: 0.0001)
-        XCTAssertEqual(snapshot.used!, 20.3, accuracy: 0.0001)
+        // 吉米币按 7.3 折人民币：80.2 * 7.3 = 585.46
+        let rate = ViralTokBalanceProvider.cnyPerCoin
+        XCTAssertEqual(snapshot.amount!, 80.2 * rate, accuracy: 0.01)
+        XCTAssertEqual(snapshot.unit, "¥")
+        XCTAssertEqual(snapshot.total!, 100.5 * rate, accuracy: 0.01)
+        XCTAssertEqual(snapshot.used!, 20.3 * rate, accuracy: 0.01)
         XCTAssertEqual(snapshot.source, .api)
         XCTAssertEqual(snapshot.providerKind, .viraltok)
         XCTAssertEqual(snapshot.status, .healthy)
         XCTAssertNotNil(snapshot.remainingPercent)
         XCTAssertEqual(snapshot.remainingPercent!, (80.2 / 100.5) * 100, accuracy: 0.01)
-        XCTAssertTrue(snapshot.detail.contains("吉米币"))
+        XCTAssertTrue(snapshot.detail.contains("吉米币") || snapshot.detail.contains("¥"))
         XCTAssertEqual(http.callCount, 1)
         XCTAssertEqual(http.authorizationHeaders.first, "Bearer sk-vt-test")
     }
