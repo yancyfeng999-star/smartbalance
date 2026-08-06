@@ -2,13 +2,16 @@ import SwiftUI
 import AppKit
 import Domain
 
-/// 首页布局对齐智额：
-/// - 右上角：刷新 + 图钉
-/// - 底部：中部设置 · 右下退出
+/// 视觉与布局对齐智额截图：
+/// - 顶栏：品牌 + 刷新文案 + 沙漏/刷新 + 图钉
+/// - 底栏三等分：刷新 | 设置 | 退出应用
+/// - 高度随内容收缩，上限滚动
 struct MenuRootView: View {
     @ObservedObject var model: AppModel
-    /// 是否在独立置顶窗口中运行
     var runsInPinnedWindow: Bool = false
+
+    private let maxPanelHeight: CGFloat = 640
+    private let minPanelHeight: CGFloat = 220
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -18,17 +21,20 @@ struct MenuRootView: View {
                 settingsHeader
             }
 
-            ScrollView {
-                Group {
-                    if model.selectedTab == .home {
-                        HomeView(model: model)
-                    } else {
-                        SettingsRootView(model: model)
+            Group {
+                if needsScroll {
+                    ScrollView {
+                        content
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 10)
                     }
+                } else {
+                    content
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 10)
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 12)
             }
+            .frame(maxHeight: contentMaxHeight, alignment: .top)
 
             if model.selectedTab == .home {
                 homeFooter
@@ -36,70 +42,124 @@ struct MenuRootView: View {
                 settingsFooter
             }
         }
-        .frame(width: 400, height: 560)
+        .padding(.top, 4)
+        .frame(width: SBTheme.panelWidth)
+        .frame(height: panelHeight)
         .background(SBTheme.bg)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .preferredColorScheme(nil)
     }
 
-    // MARK: - Home header（右上：刷新 + 图钉）
+    @ViewBuilder
+    private var content: some View {
+        if model.selectedTab == .home {
+            HomeView(model: model)
+        } else {
+            SettingsRootView(model: model)
+        }
+    }
+
+    // MARK: - Dynamic height
+
+    /// 按卡片数量估算高度，内容少则矮，多则到上限后滚动。
+    private var panelHeight: CGFloat {
+        if model.selectedTab == .settings {
+            return min(maxPanelHeight, 520)
+        }
+        let header: CGFloat = 48
+        let footer: CGFloat = 54
+        let pad: CGFloat = 14
+        let banner: CGFloat = model.banner == nil ? 0 : 44
+        let cards = model.snapshots.count
+        let cardBlock: CGFloat = {
+            if cards == 0 { return 132 }
+            // 单卡约 118，间距 10
+            return CGFloat(cards) * 118 + CGFloat(max(0, cards - 1)) * 10
+        }()
+        let alerts = min(2, model.recentAlerts.count)
+        let alertBlock: CGFloat = alerts == 0 ? 0 : 22 + CGFloat(alerts) * 58
+        let raw = header + footer + pad + banner + cardBlock + alertBlock
+        return min(maxPanelHeight, max(minPanelHeight, raw))
+    }
+
+    private var contentMaxHeight: CGFloat {
+        max(80, panelHeight - 48 - 54)
+    }
+
+    private var needsScroll: Bool {
+        if model.selectedTab == .settings { return true }
+        // 超过大约 4 张卡就滚
+        return model.snapshots.count > 3 || model.recentAlerts.count > 2
+    }
+
+    // MARK: - Header
 
     private var homeHeader: some View {
         HStack(spacing: 8) {
+            // 品牌标
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.35, green: 0.55, blue: 1.0),
+                                Color(red: 0.55, green: 0.35, blue: 0.95),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 28, height: 28)
+                Text("余")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+
             VStack(alignment: .leading, spacing: 0) {
                 Text(Brand.displayTitle)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(SBTheme.text)
                 Text(Brand.nameEN)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             Text(model.statusLine)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(SBTheme.muted)
                 .monospacedDigit()
 
-            // 刷新
             Button {
                 model.refresh()
             } label: {
                 Image(systemName: model.isRefreshing ? "hourglass" : "arrow.clockwise")
                     .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 28, height: 26)
-                    .foregroundStyle(SBTheme.text)
+                    .foregroundStyle(SBTheme.muted)
+                    .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
             .disabled(model.isRefreshing)
             .help("刷新全部")
             .keyboardShortcut("r")
 
-            // 图钉
             Button {
                 togglePin()
             } label: {
                 let pinned = runsInPinnedWindow || model.settings.windowPinned || PinnedBalanceWindowController.shared.isPinned
                 Image(systemName: pinned ? "pin.fill" : "pin")
                     .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 28, height: 26)
-                    .foregroundStyle(pinned ? SBTheme.accent : SBTheme.text)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(pinned ? SBTheme.accent.opacity(0.12) : Color.clear)
-                    )
+                    .foregroundStyle(pinned ? SBTheme.accent : SBTheme.muted)
+                    .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
-            .help(runsInPinnedWindow || model.settings.windowPinned
-                  ? "取消置顶"
-                  : "置顶常驻窗口（点其他应用不关闭）")
+            .help(runsInPinnedWindow || model.settings.windowPinned ? "取消置顶" : "置顶常驻窗口")
         }
         .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
-
-    // MARK: - Settings header
 
     private var settingsHeader: some View {
         HStack {
@@ -116,54 +176,46 @@ struct MenuRootView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    Capsule()
-                        .fill(SBTheme.panel)
+                    Capsule().fill(SBTheme.footerFill)
                         .overlay(Capsule().stroke(SBTheme.stroke, lineWidth: 1))
                 )
             }
             .buttonStyle(.plain)
 
             Spacer()
-
             Text("设置")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(SBTheme.text)
-
             Spacer()
-
             Color.clear.frame(width: 60, height: 1)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 
-    // MARK: - Home footer（中部设置 · 右下退出）
+    // MARK: - Footer（三等分：刷新 | 设置 | 退出应用）
 
     private var homeFooter: some View {
         HStack(spacing: 8) {
-            // 左占位，让设置视觉居中、退出靠右（三等分槽位，对齐智额工具条）
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: 32)
+            footerPill(title: "刷新", systemName: "arrow.triangle.2.circlepath") {
+                model.refresh()
+            }
+            .disabled(model.isRefreshing)
 
-            footerCommandButton(title: "设置", systemName: "gearshape") {
+            footerPill(title: "设置", systemName: "gearshape") {
                 model.selectedTab = .settings
             }
             .keyboardShortcut(",")
 
-            footerCommandButton(title: "退出", systemName: "power") {
+            footerPill(title: "退出应用", systemName: "power") {
                 model.quit()
             }
             .help("完全退出智余（菜单栏图标会消失）")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(SBTheme.panelElevated.opacity(0.98))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(SBTheme.stroke)
-                .frame(height: 1)
-        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
     private var settingsFooter: some View {
@@ -173,45 +225,33 @@ struct MenuRootView: View {
                 model.selectedTab = .home
             } label: {
                 Text("完成")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule()
-                            .fill(SBTheme.accent)
-                    )
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(SBTheme.accent))
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(SBTheme.panelElevated.opacity(0.98))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(SBTheme.stroke)
-                .frame(height: 1)
-        }
     }
 
-    private func footerCommandButton(
-        title: String,
-        systemName: String,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func footerPill(title: String, systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(SBTheme.text)
-                .frame(maxWidth: .infinity, minHeight: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(SBTheme.panel)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(SBTheme.strokeStrong, lineWidth: 0.8)
-                        )
-                )
+            HStack(spacing: 5) {
+                Image(systemName: systemName)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(SBTheme.text.opacity(0.85))
+            .frame(maxWidth: .infinity, minHeight: 36)
+            .background(
+                RoundedRectangle(cornerRadius: SBTheme.controlCorner, style: .continuous)
+                    .fill(SBTheme.footerFill)
+                    .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -226,7 +266,7 @@ struct MenuRootView: View {
     }
 }
 
-// MARK: - Shared buttons
+// MARK: - Shared buttons (settings forms)
 
 struct SBButtonStyle: ButtonStyle {
     enum Kind { case normal, accent, danger }
@@ -267,8 +307,8 @@ struct SBButtonStyle: ButtonStyle {
 
     private var border: Color {
         switch kind {
-        case .normal: SBTheme.strokeStrong
-        case .accent: SBTheme.accent.opacity(0.55)
+        case .normal: SBTheme.stroke
+        case .accent: SBTheme.accent.opacity(0.5)
         case .danger: SBTheme.danger.opacity(0.35)
         }
     }

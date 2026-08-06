@@ -14,10 +14,10 @@ enum SettingsChrome {
         .background(
             RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                 .fill(SBTheme.panel)
-                .shadow(color: Color.black.opacity(0.05), radius: 6, y: 1)
+                .shadow(color: Color.black.opacity(0.04), radius: 5, y: 1)
                 .overlay(
                     RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                        .stroke(SBTheme.stroke, lineWidth: 1)
+                        .stroke(SBTheme.cardStroke, lineWidth: 1)
                 )
         )
     }
