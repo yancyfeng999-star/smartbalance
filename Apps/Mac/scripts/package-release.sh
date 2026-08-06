@@ -116,6 +116,15 @@ mkdir -p "$STAGE" "$WORK/app"
 ditto --norsrc --noextattr --noqtn "$APP_SRC" "$WORK/app/${APP_NAME}.app"
 xattr -cr "$WORK/app/${APP_NAME}.app" 2>/dev/null || true
 
+# 拷走后立刻删掉 DerivedData 里的 .app，避免启动台/聚焦出现多个「智余」
+LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [[ -x "$LSREG" ]]; then
+  "$LSREG" -u "$APP_SRC" 2>/dev/null || true
+fi
+rm -rf "$APP_SRC"
+# Debug 产物一并清掉（若存在）
+rm -rf "${ROOT}/build/DerivedData/Build/Products" 2>/dev/null || true
+
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$WORK/app/${APP_NAME}.app"
   SIGN_NOTE="临时签名（ad-hoc）。其他 Mac 首次：右键 → 打开，或 系统设置 → 隐私与安全性 → 仍要打开。"
