@@ -140,14 +140,8 @@ public actor BalanceService {
             )
         } catch {
             for src in sources {
-                snapshots.append(BalanceSnapshot(
-                    accountId: src.id,
-                    displayName: src.displayName,
-                    source: .platformEmail,
-                    amount: src.lastParsedAmount,
-                    unit: src.unit,
-                    status: .error,
-                    detail: src.lastParsedAmount != nil ? "沿用上次解析结果" : "",
+                snapshots.append(PlatformMailIngest.snapshotOnIMAPFailure(
+                    source: src,
                     errorMessage: error.localizedDescription
                 ))
             }
@@ -156,86 +150,24 @@ public actor BalanceService {
 
         for src in sources {
             guard let idx = settings.mailSources.firstIndex(where: { $0.id == src.id }) else { continue }
-            let matched = messages
-                .filter { BalanceMailParser.matches(message: $0, source: src) }
-                .reversed() // 最新优先（fetch 通常升序）
-
-            guard let best = matched.first else {
-                // 无新匹配：展示缓存
-                if let amount = settings.mailSources[idx].lastParsedAmount {
-                    let th = src.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
-                    let status = BalanceSnapshot.resolveStatus(
-                        amount: amount,
-                        remainingPercent: nil,
-                        amountThreshold: th,
-                        percentThreshold: settings.alertChannels.defaultPercentThreshold
-                    )
-                    snapshots.append(BalanceSnapshot(
-                        accountId: src.id,
-                        displayName: src.displayName,
-                        source: .platformEmail,
-                        amount: amount,
-                        unit: src.unit,
-                        status: status,
-                        detail: "暂无新匹配邮件 · 显示上次结果",
-                        fetchedAt: settings.mailSources[idx].lastParsedAt ?? Date()
-                    ))
-                } else {
-                    snapshots.append(BalanceSnapshot(
-                        accountId: src.id,
-                        displayName: src.displayName,
-                        source: .platformEmail,
-                        status: .unknown,
-                        detail: "收件箱中未匹配到：发件人含「\(src.fromContains)」"
-                    ))
-                }
-                continue
-            }
-
-            let text = best.subject + "\n" + best.body
-            let amount = BalanceMailParser.extractAmount(from: text, customRegex: src.amountRegex)
-            let platformAlert = BalanceMailParser.looksLikeAlert(subject: best.subject, body: best.body)
-            let th = src.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
-            let status: BalanceStatus = {
-                if let amount {
-                    return BalanceSnapshot.resolveStatus(
-                        amount: amount,
-                        remainingPercent: nil,
-                        amountThreshold: th,
-                        percentThreshold: settings.alertChannels.defaultPercentThreshold
-                    )
-                }
-                return platformAlert ? .warning : .unknown
-            }()
-
-            let isNewMail = settings.mailSources[idx].lastMessageId != best.id
-            if let amount {
-                settings.mailSources[idx].lastParsedAmount = amount
-                settings.mailSources[idx].lastParsedAt = Date()
-            }
-            settings.mailSources[idx].lastMessageId = best.id
-
-            let snap = BalanceSnapshot(
-                accountId: src.id,
-                displayName: src.displayName,
-                source: .platformEmail,
-                amount: amount ?? settings.mailSources[idx].lastParsedAmount,
-                unit: src.unit,
-                status: status,
-                detail: "来自 \(best.from)",
-                mailSubject: best.subject
+            let amountTh = src.alertThreshold ?? settings.alertChannels.defaultAmountThreshold
+            let percentTh = settings.alertChannels.defaultPercentThreshold
+            let result = PlatformMailIngest.ingest(
+                source: settings.mailSources[idx],
+                messages: messages,
+                thresholds: (amount: amountTh, percent: percentTh)
             )
-            snapshots.append(snap)
+            settings.mailSources[idx] = result.updatedSource
+            snapshots.append(result.snapshot)
 
-            // 新邮件 +（余额偏低或平台报警信）→ 报警
-            let should = isNewMail && (shouldAlert(status: status) || platformAlert)
-            if should {
+            // 新 Message-ID +（偏低/危急/耗尽 或 平台报警信）→ 双通道报警（去重由 ingest 判定）
+            if result.shouldAlert {
                 if let event = await dispatchAlerts(
-                    snapshot: snap,
+                    snapshot: result.snapshot,
                     key: "mail-\(src.id.uuidString)",
                     settings: &settings,
                     force: true,
-                    extraNote: platformAlert ? "平台邮件含报警关键词" : nil
+                    extraNote: result.alertNote
                 ) {
                     alerts.append(event)
                 }

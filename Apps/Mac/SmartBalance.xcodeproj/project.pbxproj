@@ -46,8 +46,10 @@
 		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
 		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
 		B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */; };
+		C1307C37D4E534787D176043 /* PlatformMailRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D386793EBDC821863F205E7 /* PlatformMailRefreshTests.swift */; };
 		C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD25801FF4237FC1E955A84 /* Brand.swift */; };
 		C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */; };
+		C4F36E4C01F9A2510E87A744 /* PlatformMailIngest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0573E2411AC77811023543CF /* PlatformMailIngest.swift */; };
 		CD1406BB8CB3E7BAD20F67D2 /* ProviderKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = D87A480F96777DF6FE34FB61 /* ProviderKind.swift */; };
 		D7CC7D7BEB36002C15517110 /* AlertThresholdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */; };
 		D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
@@ -170,6 +172,7 @@
 
 /* Begin PBXFileReference section */
 		02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProviderTests.swift; sourceTree = "<group>"; };
+		0573E2411AC77811023543CF /* PlatformMailIngest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformMailIngest.swift; sourceTree = "<group>"; };
 		06998D7944A06D8515432118 /* DomainTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "DomainTests-Info.plist"; sourceTree = "<group>"; };
 		0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertThresholdTests.swift; sourceTree = "<group>"; };
 		0936C127D1AF75D376EEE61B /* BalanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceService.swift; sourceTree = "<group>"; };
@@ -178,6 +181,7 @@
 		156DADECDC3F39D60715696B /* IMAPFetchParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPFetchParser.swift; sourceTree = "<group>"; };
 		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
 		1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRootView.swift; sourceTree = "<group>"; };
+		2D386793EBDC821863F205E7 /* PlatformMailRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformMailRefreshTests.swift; sourceTree = "<group>"; };
 		2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		3590E1788835BA90EC6C6A87 /* Domain-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Domain-Info.plist"; sourceTree = "<group>"; };
 		3597F046B4FAC85DF2C83703 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -352,6 +356,7 @@
 				44BD1782E833FEFAABCCD035 /* IMAPFetchParserTests.swift */,
 				152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */,
 				F14B6A6413BB5EA3C5A52AA7 /* OpenRouterProviderTests.swift */,
+				2D386793EBDC821863F205E7 /* PlatformMailRefreshTests.swift */,
 				098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */,
 			);
 			path = InfrastructureTests;
@@ -401,6 +406,7 @@
 				EBD25801FF4237FC1E955A84 /* Brand.swift */,
 				60576DDC7BB0B4190A050369 /* DataSourceKind.swift */,
 				E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */,
+				0573E2411AC77811023543CF /* PlatformMailIngest.swift */,
 				E583FF50A2527CDD50D48AE5 /* PlatformMailSource.swift */,
 				D87A480F96777DF6FE34FB61 /* ProviderKind.swift */,
 			);
@@ -644,6 +650,7 @@
 				3096566D56B9CD6F527B8B0F /* IMAPFetchParserTests.swift in Sources */,
 				1BF6C674F693423CE0EE54FE /* NewAPIProviderTests.swift in Sources */,
 				EA65F5255DE4A15AD0445367 /* OpenRouterProviderTests.swift in Sources */,
+				C1307C37D4E534787D176043 /* PlatformMailRefreshTests.swift in Sources */,
 				3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -699,6 +706,7 @@
 				C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */,
 				72D529F018D6AB152FCBFD25 /* DataSourceKind.swift in Sources */,
 				2DF3BF0A55F38A3AE02060F2 /* EmailAlertSettings.swift in Sources */,
+				C4F36E4C01F9A2510E87A744 /* PlatformMailIngest.swift in Sources */,
 				DC2DE4F60F8DD9822039DFDD /* PlatformMailSource.swift in Sources */,
 				CD1406BB8CB3E7BAD20F67D2 /* ProviderKind.swift in Sources */,
 			);
