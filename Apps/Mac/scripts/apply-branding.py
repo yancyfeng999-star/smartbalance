@@ -2,10 +2,12 @@
 """从 Branding/ 源文件生成 AppIcon / AppLogo / MenuBarIcon。
 
 - AppIcon / 通知：有背景 JPG → 白底 PNG / icns
-- 状态栏 / 界面：无背景 PNG，裁内容后缩放（保留透明，外圈强制清空）
+- 界面 AppLogo：无背景彩色 PNG
+- 状态栏 MenuBarIcon：单色 Template（黑墨 + 透明），随菜单栏变色
 """
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tempfile
@@ -115,6 +117,43 @@ def scale_clear(src: Image.Image, px: int, border: int = 1) -> Image.Image:
     return out
 
 
+def to_template_silhouette(im: Image.Image) -> Image.Image:
+    """彩色 Logo → 状态栏 Template：黑墨 + 原 alpha（系统会按菜单栏着色）。"""
+    im = im.convert("RGBA")
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            _, _, _, a = px[x, y]
+            if a == 0:
+                px[x, y] = (0, 0, 0, 0)
+            else:
+                # 形状走 alpha；RGB 固定黑，配合 isTemplate
+                px[x, y] = (0, 0, 0, a)
+    return im
+
+
+def write_menubar_contents_json() -> None:
+    """Assets 里声明 template-rendering-intent。"""
+    MENU.mkdir(parents=True, exist_ok=True)
+    data = {
+        "images": [
+            {"filename": "menu_1x.png", "idiom": "universal", "scale": "1x"},
+            {"filename": "menu_2x.png", "idiom": "universal", "scale": "2x"},
+            {"filename": "menu_3x.png", "idiom": "universal", "scale": "3x"},
+        ],
+        "info": {"author": "xcode", "version": 1},
+        "properties": {
+            "template-rendering-intent": "template",
+            "preserves-vector-representation": False,
+        },
+    }
+    (MENU / "Contents.json").write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     light_clear = resolve("logo-light-clear.png", "智余logo浅色模式无背景.png")
     light_bg = resolve("logo-light-bg.jpg", "智余logo浅色模式有背景.jpg")
@@ -134,17 +173,20 @@ def main() -> None:
 
     write_iconutil_set(icon, ICNS_OUT)
 
-    # —— 状态栏 / 界面：无背景 PNG，裁内容后缩放 ——
+    # —— 界面：彩色无背景 ——
     clear_src = tight_square(Image.open(light_clear), pad_ratio=0.08)
 
     APP_LOGO.mkdir(parents=True, exist_ok=True)
     for name, px in [("logo_1x.png", 64), ("logo_2x.png", 128), ("logo_3x.png", 192)]:
         scale_clear(clear_src, px, border=1).save(APP_LOGO / name, "PNG")
 
-    MENU.mkdir(parents=True, exist_ok=True)
+    # —— 状态栏：单色 Template 剪影 ——
+    menu_src = tight_square(Image.open(light_clear), pad_ratio=0.12)
+    write_menubar_contents_json()
     for name, px in [("menu_1x.png", 18), ("menu_2x.png", 36), ("menu_3x.png", 54)]:
         border = 2 if px >= 36 else 1
-        out = scale_clear(clear_src, px, border=border)
+        out = scale_clear(menu_src, px, border=border)
+        out = to_template_silhouette(out)
         out.save(MENU / name, "PNG")
         for xy in [(0, 0), (px - 1, 0), (0, px - 1), (px - 1, px - 1)]:
             if out.getpixel(xy)[3] != 0:
@@ -157,8 +199,8 @@ def main() -> None:
         raise SystemExit(f"AppIcon.icns missing or too small: {ICNS_OUT}")
 
     print(
-        f"branding applied: AppIcon=white-bg; "
-        f"MenuBar/AppLogo=tight-crop scale of {light_clear.name}; "
+        f"branding applied: AppIcon=white-bg; AppLogo=color; "
+        f"MenuBar=template silhouette from {light_clear.name}; "
         f"icns={ICNS_OUT.stat().st_size}B"
     )
 
