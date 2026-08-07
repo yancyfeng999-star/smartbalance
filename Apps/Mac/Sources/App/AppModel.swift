@@ -647,6 +647,117 @@ final class AppModel: ObservableObject {
         AppLog.revealInFinder()
     }
 
+    // MARK: - 数据导出 / 导入
+
+    /// 导出设置 + 密钥到用户选择的 JSON（含明文 API Key，仅本机保管）。
+    func exportDataBackup() {
+        let secretsMap = secrets.exportAll()
+        let package = DataBackupService.makePackage(
+            settings: settings,
+            secrets: secretsMap,
+            appVersion: appVersion
+        )
+
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = "导出智余数据"
+        panel.message = "备份包含全部账号配置与 API 密钥（明文）。请妥善保管，勿上传公开网盘。"
+        panel.nameFieldStringValue = DataBackupService.defaultFileName()
+        panel.allowedContentTypes = [.json]
+
+        // 菜单栏 App：把面板提到前台
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try DataBackupService.write(package, to: url)
+            let secretCount = secretsMap.count
+            let accountCount = settings.accounts.count
+            let msg = "已导出 \(accountCount) 个账号 · \(secretCount) 条密钥\n\(url.path)"
+            banner = "数据已导出"
+            presentAlert(title: "导出成功", message: msg)
+            AppLog.info("Data backup exported · accounts=\(accountCount) secrets=\(secretCount) → \(url.lastPathComponent)")
+        } catch {
+            banner = "导出失败：\(error.localizedDescription)"
+            presentAlert(title: "导出失败", message: error.localizedDescription)
+            AppLog.error("Data backup export failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// 从备份 JSON 恢复；会覆盖当前设置与密钥库。
+    func importDataBackup() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.title = "导入智余数据"
+        panel.message = "选择之前导出的备份 JSON。导入后会覆盖本机现有账号与密钥。"
+        panel.allowedContentTypes = [.json]
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let package: DataBackupPackage
+        do {
+            package = try DataBackupService.read(from: url)
+        } catch {
+            banner = "导入失败：\(error.localizedDescription)"
+            presentAlert(title: "导入失败", message: error.localizedDescription)
+            AppLog.error("Data backup import read failed: \(error.localizedDescription)")
+            return
+        }
+
+        let confirm = NSAlert()
+        confirm.messageText = "确认导入并覆盖？"
+        confirm.informativeText = """
+        将恢复 \(package.settings.accounts.count) 个账号、\(package.secrets.count) 条密钥（导出自 \(package.appVersion)）。
+
+        当前本机数据会被替换。若只想试装 App，请先导出再卸载。
+        """
+        confirm.alertStyle = .warning
+        confirm.addButton(withTitle: "导入并覆盖")
+        confirm.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
+        do {
+            try applyImportedBackup(package)
+            let msg = "已导入 \(package.settings.accounts.count) 个账号 · \(package.secrets.count) 条密钥"
+            banner = "数据已导入 · 正在刷新余额"
+            presentAlert(title: "导入成功", message: msg)
+            AppLog.info("Data backup imported · accounts=\(package.settings.accounts.count) secrets=\(package.secrets.count)")
+            refresh()
+        } catch {
+            banner = "导入失败：\(error.localizedDescription)"
+            presentAlert(title: "导入失败", message: error.localizedDescription)
+            AppLog.error("Data backup import apply failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func applyImportedBackup(_ package: DataBackupPackage) throws {
+        var next = package.settings
+        // 导入后不要立刻弹置顶窗
+        next.windowPinned = false
+        // 保证查余额开关开启
+        next.apiQueryEnabled = true
+
+        try secrets.replaceAll(package.secrets)
+        try store.save(next)
+
+        settings = next
+        pinWindowOpen = false
+        selectedAccountId = next.enabledAccounts.first?.id
+        snapshots = Self.placeholderSnapshots(from: next)
+        lastRefreshAt = nil
+        recentAlerts = []
+        L10n.shared.setLanguage(next.resolvedLanguage)
+        applyAppearancePreference()
+        rescheduleManualReminders()
+        startAutoRefreshIfNeeded()
+        objectWillChange.send()
+    }
+
     func checkForUpdates() {
         guard !updateChecking else { return }
         updateChecking = true

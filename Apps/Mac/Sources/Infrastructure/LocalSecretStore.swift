@@ -53,6 +53,25 @@ public final class LocalSecretStore: @unchecked Sendable {
         }
     }
 
+    /// 导出全部密钥（备份用；调用方负责安全落盘）。
+    public func exportAll() -> [String: String] {
+        queue.sync {
+            ensureMemoryLoaded()
+            return memory
+        }
+    }
+
+    /// 整库替换（导入备份后用）。
+    public func replaceAll(_ dict: [String: String]) throws {
+        try queue.sync {
+            memory = dict
+            memoryLoaded = true
+            try writeVault(memory)
+        }
+    }
+
+    public var vaultFileURL: URL { vaultURL }
+
     // MARK: - File
 
     private func ensureMemoryLoaded() {
