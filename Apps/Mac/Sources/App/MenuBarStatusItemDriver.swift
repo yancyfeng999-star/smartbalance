@@ -3,13 +3,15 @@ import AppKit
 /// 对齐智额 `StatusItemLabelDriver`：用 AppKit 写 `NSStatusItem.button.image`，
 /// 绕过 SwiftUI MenuBarExtra label 宿主。
 ///
-/// 状态栏品牌图固定用资源 **`MenuBarIcon`**（对应智额的 `AppLogo` 状态栏用法）。
+/// 状态栏品牌图：资源 **`MenuBarIcon`**（规格对齐智额 `AppLogo`：大图 + light/dark）。
 @MainActor
 final class MenuBarStatusItemDriver {
     static let shared = MenuBarStatusItemDriver()
 
     private var statusItem: NSStatusItem?
     private var imageWipeObservation: NSKeyValueObservation?
+    private var wakeObserver: NSObjectProtocol?
+    private var appearanceObserver: NSObjectProtocol?
     private var lastImage: NSImage?
 
     /// 对齐智额：`attach` 后即可；`onAppear`/`onDisappear` 再 `reassertPresentation`。
@@ -31,6 +33,26 @@ final class MenuBarStatusItemDriver {
             }
         }
 
+        if wakeObserver == nil {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.reassertPresentation() }
+            }
+        }
+
+        if appearanceObserver == nil {
+            appearanceObserver = NotificationCenter.default.addObserver(
+                forName: Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification"),
+                object: NSApp,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.reassertPresentation() }
+            }
+        }
+
         reassertPresentation()
     }
 
@@ -46,19 +68,19 @@ final class MenuBarStatusItemDriver {
             .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let image = Self.brandLogoImage(preferDark: preferDark)
 
-        // 与智额相同：仅 image + imageOnly；智余额外清 title（防 Bundle 名「智余」）
+        // 与智额相同：image + imageOnly；额外清 title（防 Bundle 名「智余」）
         if !button.title.isEmpty {
             button.title = ""
         }
         lastImage = image
         button.image = image
         button.imagePosition = .imageOnly
-        // 不设 toolTip（产品要求：悬停不弹余额摘要）
+        // 产品要求：悬停不弹 tip
         button.toolTip = nil
     }
 
     /// 对齐智额 `brandLogoImage`：18pt、sourceOver、isTemplate=false。
-    /// 资源名：智余用 `MenuBarIcon`（智额用 `AppLogo`）。
+    /// 在对应 appearance 下解析 `MenuBarIcon`，以选用 light/dark 变体。
     private static func brandLogoImage(preferDark: Bool) -> NSImage {
         let pointSize: CGFloat = 18
         guard let source = NSImage(named: "MenuBarIcon") else {
@@ -83,7 +105,6 @@ final class MenuBarStatusItemDriver {
         return image
     }
 
-    /// 对齐智额 `symbolImage` 兜底。
     private static func symbolImage(_ name: String, color: NSColor) -> NSImage {
         let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: name)?

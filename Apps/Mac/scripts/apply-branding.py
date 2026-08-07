@@ -2,7 +2,8 @@
 """从 Branding/ 源文件生成 AppIcon / AppLogo / MenuBarIcon。
 
 - AppIcon / 通知：有背景 JPG → 白底 PNG / icns
-- 界面 AppLogo / 状态栏 MenuBarIcon：无背景彩色 PNG（original，非 template）
+- 界面 AppLogo：无背景彩色 PNG
+- 状态栏 MenuBarIcon：对齐智额 AppLogo 规格 —— 128/256/384 + light/dark
 """
 from __future__ import annotations
 
@@ -34,6 +35,16 @@ ICON_SLOTS = [
     ("icon_256x256@2x.png", 512),
     ("icon_512x512.png", 512),
     ("icon_512x512@2x.png", 1024),
+]
+
+# 对齐智额 AppLogo：1x=128, 2x=256, 3x=384
+MENUBAR_SLOTS = [
+    ("menu.png", 128),
+    ("menu@2x.png", 256),
+    ("menu@3x.png", 384),
+    ("menu-dark.png", 128),
+    ("menu-dark@2x.png", 256),
+    ("menu-dark@3x.png", 384),
 ]
 
 
@@ -97,7 +108,7 @@ def tight_square(im: Image.Image, pad_ratio: float = 0.08) -> Image.Image:
 
 
 def clear_outer(im: Image.Image, px: int = 1) -> Image.Image:
-    """外圈强制透明，杜绝缩放抗锯齿在边缘成方框。"""
+    """外圈强制透明。"""
     im = im.convert("RGBA")
     w, h = im.size
     px = max(1, min(px, w // 4, h // 4))
@@ -117,19 +128,33 @@ def scale_clear(src: Image.Image, px: int, border: int = 1) -> Image.Image:
 
 
 def write_menubar_contents_json() -> None:
-    """Assets：彩色 original（非 template）。"""
+    """对齐智额 AppLogo.imageset：universal 1x/2x/3x + dark 变体。"""
     MENU.mkdir(parents=True, exist_ok=True)
     data = {
         "images": [
-            {"filename": "menu_1x.png", "idiom": "universal", "scale": "1x"},
-            {"filename": "menu_2x.png", "idiom": "universal", "scale": "2x"},
-            {"filename": "menu_3x.png", "idiom": "universal", "scale": "3x"},
+            {"filename": "menu.png", "idiom": "universal", "scale": "1x"},
+            {"filename": "menu@2x.png", "idiom": "universal", "scale": "2x"},
+            {"filename": "menu@3x.png", "idiom": "universal", "scale": "3x"},
+            {
+                "appearances": [{"appearance": "luminosity", "value": "dark"}],
+                "filename": "menu-dark.png",
+                "idiom": "universal",
+                "scale": "1x",
+            },
+            {
+                "appearances": [{"appearance": "luminosity", "value": "dark"}],
+                "filename": "menu-dark@2x.png",
+                "idiom": "universal",
+                "scale": "2x",
+            },
+            {
+                "appearances": [{"appearance": "luminosity", "value": "dark"}],
+                "filename": "menu-dark@3x.png",
+                "idiom": "universal",
+                "scale": "3x",
+            },
         ],
         "info": {"author": "xcode", "version": 1},
-        "properties": {
-            "template-rendering-intent": "original",
-            "preserves-vector-representation": False,
-        },
     }
     (MENU / "Contents.json").write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n",
@@ -139,6 +164,7 @@ def write_menubar_contents_json() -> None:
 
 def main() -> None:
     light_clear = resolve("logo-light-clear.png", "智余logo浅色模式无背景.png")
+    dark_clear = resolve("logo-dark-clear.png", "智余logo深色模式无背景.png")
     light_bg = resolve("logo-light-bg.jpg", "智余logo浅色模式有背景.jpg")
 
     # —— AppIcon：有背景 JPG → 白底 ——
@@ -156,19 +182,32 @@ def main() -> None:
 
     write_iconutil_set(icon, ICNS_OUT)
 
-    # —— 界面：彩色无背景 ——
+    # —— 界面 AppLogo：彩色无背景 ——
     clear_src = tight_square(Image.open(light_clear), pad_ratio=0.08)
-
     APP_LOGO.mkdir(parents=True, exist_ok=True)
     for name, px in [("logo_1x.png", 64), ("logo_2x.png", 128), ("logo_3x.png", 192)]:
         scale_clear(clear_src, px, border=1).save(APP_LOGO / name, "PNG")
 
-    # —— 状态栏：彩色 original ——
-    menu_src = tight_square(Image.open(light_clear), pad_ratio=0.12)
+    # —— 状态栏 MenuBarIcon：对齐智额 AppLogo 尺寸 + light/dark ——
+    light_menu = tight_square(Image.open(light_clear), pad_ratio=0.10)
+    dark_menu = tight_square(Image.open(dark_clear), pad_ratio=0.10)
+
+    # 清掉旧的 menu_1x/2x/3x 命名
+    MENU.mkdir(parents=True, exist_ok=True)
+    for old in MENU.glob("menu_*.png"):
+        old.unlink()
+    for old in MENU.glob("menu*.png"):
+        if old.name not in {n for n, _ in MENUBAR_SLOTS}:
+            # 先删全部再写，避免残留
+            pass
+    for p in list(MENU.glob("*.png")):
+        p.unlink()
+
     write_menubar_contents_json()
-    for name, px in [("menu_1x.png", 18), ("menu_2x.png", 36), ("menu_3x.png", 54)]:
-        border = 2 if px >= 36 else 1
-        out = scale_clear(menu_src, px, border=border)
+    for name, px in MENUBAR_SLOTS:
+        src = dark_menu if "dark" in name else light_menu
+        border = 2 if px >= 256 else 1
+        out = scale_clear(src, px, border=border)
         out.save(MENU / name, "PNG")
         for xy in [(0, 0), (px - 1, 0), (0, px - 1), (px - 1, px - 1)]:
             if out.getpixel(xy)[3] != 0:
@@ -181,7 +220,8 @@ def main() -> None:
         raise SystemExit(f"AppIcon.icns missing or too small: {ICNS_OUT}")
 
     print(
-        f"branding applied: AppIcon=white-bg; AppLogo+MenuBar=color from {light_clear.name}; "
+        f"branding applied: AppIcon=white-bg; AppLogo=color; "
+        f"MenuBarIcon=128/256/384 light+dark (like 智额 AppLogo); "
         f"icns={ICNS_OUT.stat().st_size}B"
     )
 

@@ -21,4 +21,5 @@ python3 Apps/Mac/scripts/apply-branding.py
 
 - `Apps/Mac/.../AppIcon.appiconset/*.png`（白底，来自有背景 JPG）
 - `Apps/Mac/Sources/App/Resources/AppIcon.icns`（完整尺寸，通知中心用）
-- `AppLogo` / `MenuBarIcon`：**直接缩放** `logo-light-clear.png`（无去污/预乘等处理）
+- `AppLogo`：界面彩色 Logo（由浅色无背景缩放）
+- `MenuBarIcon`：状态栏用，**对齐智额 AppLogo 规格**（128/256/384 + light/dark），代码里烘焙为 18pt
