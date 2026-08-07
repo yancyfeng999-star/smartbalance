@@ -42,7 +42,7 @@ final class MenuBarStatusItemDriver {
         }
     }
 
-    func applyIcon(toolTip: String? = nil) {
+    func applyIcon() {
         guard let button = statusItem?.button else { return }
         let image = Self.makeLogoImage()
         ownedImage = image
@@ -53,11 +53,10 @@ final class MenuBarStatusItemDriver {
         button.appearsDisabled = false
         button.isBordered = false
         button.wantsLayer = false
+        // 不设 toolTip：悬停不弹余额摘要
+        button.toolTip = nil
         button.setAccessibilityLabel("智余")
         button.setAccessibilityTitle("智余")
-        if let toolTip {
-            button.toolTip = toolTip
-        }
         statusItem?.length = NSStatusItem.variableLength
     }
 

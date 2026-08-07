@@ -16,10 +16,10 @@ struct SmartBalanceApp: App {
             MenuRootView(model: model, runsInPinnedWindow: false)
                 .onAppear {
                     PinnedBalanceWindowController.shared.bind(model: model)
-                    MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
+                    MenuBarStatusItemDriver.shared.applyIcon()
                 }
                 .onDisappear {
-                    MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
+                    MenuBarStatusItemDriver.shared.applyIcon()
                 }
         } label: {
             // 与 AppKit 一致：系统 SF Symbol，无自定义 PNG
@@ -29,14 +29,8 @@ struct SmartBalanceApp: App {
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in
             MenuBarStatusItemDriver.shared.attach(statusItem)
-            MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
+            MenuBarStatusItemDriver.shared.applyIcon()
         }
         .menuBarExtraStyle(.window)
-    }
-
-    private var menuBarHelp: String {
-        let lines = model.snapshots.prefix(6).map { "\($0.displayName) \($0.primaryText)" }
-        if lines.isEmpty { return "\(Brand.nameCN) · 点击打开" }
-        return ([Brand.nameCN] + lines).joined(separator: "\n")
     }
 }
