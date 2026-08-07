@@ -1,13 +1,10 @@
 import AppKit
 
-/// 状态栏仅用系统 SF Symbol（Template）。
-/// 自定义 PNG 无论彩色/单色，在 MenuBarExtra 上仍易被系统衬出方底；SF Symbol 与其它状态栏图标一致。
+/// 用 AppKit 把彩色 Logo 画进 `NSStatusItem.button`。
+/// 悬停不弹 tip；标题清空避免露出「智余」文字。
 @MainActor
 final class MenuBarStatusItemDriver {
     static let shared = MenuBarStatusItemDriver()
-
-    /// 余额场景：日元/圆符号圆标，单色 Template
-    static let symbolName = "yensign.circle"
 
     private var statusItem: NSStatusItem?
     private var imageWipeObservation: NSKeyValueObservation?
@@ -53,7 +50,6 @@ final class MenuBarStatusItemDriver {
         button.appearsDisabled = false
         button.isBordered = false
         button.wantsLayer = false
-        // 不设 toolTip：悬停不弹余额摘要
         button.toolTip = nil
         button.setAccessibilityLabel("智余")
         button.setAccessibilityTitle("智余")
@@ -67,18 +63,34 @@ final class MenuBarStatusItemDriver {
         button.imagePosition = .imageOnly
     }
 
-    /// 系统符号 Template：浅色栏黑、深色栏白，无自定义 PNG 方底问题。
-    static func makeLogoImage(pointSize: CGFloat = 15) -> NSImage {
-        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .medium)
-        if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: "智余")?
-            .withSymbolConfiguration(config) {
-            let image = symbol.copy() as? NSImage ?? symbol
-            image.isTemplate = true
-            return image
+    /// 彩色 MenuBarIcon（18pt），`isTemplate = false`。
+    static func makeLogoImage(pointSize: CGFloat = 18) -> NSImage {
+        let source = NSImage(named: "MenuBarIcon") ?? NSImage(named: "AppLogo")
+        guard let source else {
+            let fallback = NSImage(
+                systemSymbolName: "yensign.circle",
+                accessibilityDescription: "智余"
+            ) ?? NSImage(size: NSSize(width: pointSize, height: pointSize))
+            fallback.isTemplate = true
+            return fallback
         }
-        // 极旧系统兜底
-        let empty = NSImage(size: NSSize(width: pointSize, height: pointSize))
-        empty.isTemplate = true
-        return empty
+
+        let size = NSSize(width: pointSize, height: pointSize)
+        let image = NSImage(size: size, flipped: false) { rect in
+            if let cg = NSGraphicsContext.current?.cgContext {
+                cg.clear(rect)
+            }
+            source.draw(
+                in: rect,
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1.0,
+                respectFlipped: true,
+                hints: [.interpolation: NSImageInterpolation.high]
+            )
+            return true
+        }
+        image.isTemplate = false
+        return image
     }
 }

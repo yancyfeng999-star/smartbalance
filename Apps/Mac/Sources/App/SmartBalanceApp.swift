@@ -22,9 +22,11 @@ struct SmartBalanceApp: App {
                     MenuBarStatusItemDriver.shared.applyIcon()
                 }
         } label: {
-            // 与 AppKit 一致：系统 SF Symbol，无自定义 PNG
-            Image(systemName: MenuBarStatusItemDriver.symbolName)
-                .font(.system(size: 14, weight: .medium))
+            // 占位；真正彩色 Logo 由 AppKit 写入 button.image
+            Image("MenuBarIcon")
+                .renderingMode(.original)
+                .resizable()
+                .frame(width: 18, height: 18)
                 .accessibilityLabel(Brand.nameCN)
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in
