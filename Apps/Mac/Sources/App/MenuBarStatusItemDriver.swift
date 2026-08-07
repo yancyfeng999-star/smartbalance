@@ -32,7 +32,7 @@ final class MenuBarStatusItemDriver {
                 if button.image !== owned {
                     button.image = owned
                 }
-                if !(button.title?.isEmpty ?? true) {
+                if !button.title.isEmpty {
                     button.title = ""
                 }
                 button.imagePosition = .imageOnly
@@ -41,7 +41,7 @@ final class MenuBarStatusItemDriver {
         titleWipeObservation = statusItem.button?.observe(\.title, options: [.new]) { [weak self] button, _ in
             Task { @MainActor in
                 guard self != nil else { return }
-                if !(button.title?.isEmpty ?? true) {
+                if !button.title.isEmpty {
                     button.title = ""
                 }
                 button.imagePosition = .imageOnly
