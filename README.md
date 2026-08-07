@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.2.6 |
+| 版本 | 0.2.7 |
 
 ---
 
@@ -44,7 +44,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 | API Key | DeepSeek · OpenRouter · Kimi · ViralTok · 老张 API |
 | 令牌 + 用户 ID | New-API · DMXAPI |
 | AK/SK | 火山引擎 |
-| 手录 | 小米 MiMo · MiniMax |
+| 手录 | 小米 MiMo · MiniMax · API Nebula |
 
 ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
 

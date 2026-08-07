@@ -27,7 +27,7 @@ open ~/Desktop/智余.app
 | New-API | Base URL + 用户 ID + 系统访问令牌 |
 | DMXAPI | 用户 ID + 系统访问令牌 |
 | 火山引擎 | Access Key ID + Secret Access Key |
-| MiMo / MiniMax | 手录金额（可选），默认每天提醒 |
+| MiMo / MiniMax / API Nebula | 手录金额（可选），默认每天提醒 |
 
 回首页点 **刷新**。
 

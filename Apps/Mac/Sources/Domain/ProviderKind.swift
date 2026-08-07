@@ -19,6 +19,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case mimo
     /// MiniMax：钱包无公开 API → 手动录入 + 每日提醒
     case minimax
+    /// API Nebula：无公开余额 API → 手动录入 + 每日提醒
+    case apinebula
 
     public var id: String { rawValue }
 
@@ -34,6 +36,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .volcengine: "火山引擎"
         case .mimo: "小米 MiMo（手录）"
         case .minimax: "MiniMax（手录）"
+        case .apinebula: "API Nebula（手录）"
         }
     }
 
@@ -48,7 +51,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "https://www.dmxapi.cn"
         case .kimi: "https://api.moonshot.cn"
         case .volcengine: nil // 固定 billing.volcengineapi.com
-        case .mimo, .minimax: nil // 手录无 API
+        case .mimo, .minimax, .apinebula: nil // 手录无 API
         }
     }
 
@@ -65,13 +68,14 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .volcengine: "https://console.volcengine.com/finance/account-overview/"
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
         case .minimax: "https://platform.minimaxi.com/user-center/payment/balance"
+        case .apinebula: "https://apinebula.com"
         }
     }
 
     /// 无公开余额 API，靠用户手录 + 每日提醒。
     public var isManualEntry: Bool {
         switch self {
-        case .mimo, .minimax: true
+        case .mimo, .minimax, .apinebula: true
         default: false
         }
     }
@@ -96,7 +100,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "填写系统访问令牌（非模型 sk-）"
         case .kimi: "填写 Kimi / Moonshot API Key（sk-…）"
         case .volcengine: "Secret Access Key（访问控制 → 密钥管理）"
-        case .mimo, .minimax: "无需 Key · 每天提醒后手录金额"
+        case .mimo, .minimax, .apinebula: "无需 Key · 每天提醒后手录金额"
         }
     }
 
@@ -133,7 +137,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     public var defaultManualUnit: String {
         switch self {
         // 吉米币 / 老张 USD 在 Provider 内已折算为人民币再展示
-        case .mimo, .minimax, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
+        case .mimo, .minimax, .apinebula, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
         case .openrouter, .newapi: "USD"
         }
     }
