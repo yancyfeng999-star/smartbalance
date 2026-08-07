@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.10 — 2026-08-07
+
+- 品牌 Logo 完整入库 Branding/（中英文名源文件 + .ai）
+- 生成脚本 apply-branding.py；发版自动提交品牌资源
+- AppIcon / 菜单栏 / 首页 / 关于 / 空态 全部使用新 Logo
+
+
 ## 0.2.9 — 2026-08-07
 
 - 应用新品牌 Logo：Dock/AppIcon、菜单栏图标、首页与关于页

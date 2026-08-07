@@ -209,9 +209,16 @@ struct HomeView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("智余 · 监控 API 余额")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(SBTheme.text)
+            HStack(spacing: 10) {
+                Image("AppLogo")
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 36, height: 36)
+                Text("智余 · 监控 API 余额")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(SBTheme.text)
+            }
             Text("在菜单栏查看各平台 API / Token 还剩多少钱。")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
