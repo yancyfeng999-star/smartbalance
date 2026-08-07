@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # 一键发版：升版本 → 打包 dmg/pkg → 提交 → 打 tag → push → GitHub Release
 #
+# Agent 默认：功能/修复做完后直接跑本脚本上线，不要让用户自己升版/push。
+# 说明见仓库根 AGENTS.md 与 docs/AGENT_RELEASE_WORKFLOW.md
+#
 # 用法（在 Apps/Mac 下）:
 #   ./scripts/release.sh              # patch 升版并上线
 #   ./scripts/release.sh minor        # minor 升版

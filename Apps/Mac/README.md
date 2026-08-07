@@ -1,5 +1,8 @@
 # 智余 Mac 工程
 
+> Agent 协作与发版：**仓库根目录 [AGENTS.md](../../AGENTS.md)**、[docs/AGENT_RELEASE_WORKFLOW.md](../../docs/AGENT_RELEASE_WORKFLOW.md)。  
+> 默认修完即 `NOTES="…" ./scripts/release.sh`，不要让用户自己升版。
+
 ## 分层
 
 ```text
@@ -11,7 +14,14 @@ Domain → Infrastructure → App (SwiftUI MenuBarExtra)
 ```bash
 tuist generate
 ./scripts/run-tests.sh
-./scripts/package-release.sh 0.2.0
+
+# 正式上线（升版 + 包 + GitHub Release）
+NOTES="修复 xxx" ./scripts/release.sh
+
+# 仅打包
+./scripts/package-release.sh
+# 或
+SKIP_PUBLISH=1 ./scripts/release.sh
 ```
 
 ## 新增 Provider

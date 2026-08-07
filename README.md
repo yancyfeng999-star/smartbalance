@@ -69,6 +69,8 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 
 **规则：每次上线必须走 `release.sh`，自动：升版本 → 打 dmg/pkg → 提交 → tag → GitHub Release。**
 
+**Agent 默认：** 功能/修复做完后直接发版上 GitHub，**不要**让用户自己升版或 push。详见 [AGENTS.md](./AGENTS.md)。
+
 产物：
 
 | 文件 | 用途 |
@@ -112,6 +114,8 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 
 ## 文档
 
+- **[AGENTS.md](./AGENTS.md)** — AI / 自动化协作入口（默认修完即发版上 GitHub）
+- **[docs/AGENT_RELEASE_WORKFLOW.md](./docs/AGENT_RELEASE_WORKFLOW.md)** — 开发与发版逐步流程
 - [PRODUCT.md](./PRODUCT.md)
 - [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 - [CHANGELOG.md](./CHANGELOG.md)
