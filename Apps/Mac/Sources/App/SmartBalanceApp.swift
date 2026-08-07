@@ -12,13 +12,13 @@ struct SmartBalanceApp: App {
                     PinnedBalanceWindowController.shared.bind(model: model)
                 }
         } label: {
-            // 仅图标，不占状态栏宽度
+            // 彩色浅色无背景 Logo（不用 template，避免被系统压成单色）
             Image("MenuBarIcon")
-                .renderingMode(.template)
+                .renderingMode(.original)
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 16, height: 16)
+                .frame(width: 18, height: 18)
                 .help(menuBarHelp)
         }
         .menuBarExtraStyle(.window)
