@@ -56,7 +56,7 @@ open ~/Desktop/智余.app
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（首次读取时指纹或密码解锁） |
+| 密钥 | `…/secrets.vault`（本机文件，权限 0600，启动即可读） |
 
 ---
 

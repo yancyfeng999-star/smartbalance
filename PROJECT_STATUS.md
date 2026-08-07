@@ -7,7 +7,7 @@
 
 - 菜单栏弹层 380×580；深色海军蓝玻璃
 - 多平台余额 + 手录 + 人民币折算报警
-- 本机 vault 密钥；Mac / SMTP 报警
+- 本机 vault 密钥（直读，无指纹）；Mac / SMTP 报警
 - 平台 logo；状态栏仅图标
 - GitHub Releases 检查更新（下载 zip → 打开 → 退出）
 - 打包脚本 → 桌面 app + `releases/` zip

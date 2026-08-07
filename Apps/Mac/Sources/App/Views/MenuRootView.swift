@@ -32,6 +32,10 @@ struct MenuRootView: View {
                 // 只设一次默认框，之后用户可拖；不跟内容跳
                 PinnedBalanceWindowController.shared.ensureDefaultSize()
             }
+            // 打开弹层时若尚未查完，补一次刷新
+            if model.snapshots.isEmpty || model.snapshots.contains(where: { $0.status == .unknown }) {
+                model.refresh()
+            }
         }
         .onChange(of: model.selectedTab) { _, _ in
             // 切 Tab 不改外框；置顶窗也禁止跟着内容收缩

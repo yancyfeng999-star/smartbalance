@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.2.4 |
+| 版本 | 0.2.5 |
 
 ---
 
@@ -97,7 +97,7 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（0600，会话指纹解锁） |
+| 密钥 | `…/secrets.vault`（0600，本机直读，无指纹） |
 
 ---
 

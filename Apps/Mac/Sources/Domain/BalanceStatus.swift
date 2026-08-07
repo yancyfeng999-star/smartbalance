@@ -21,7 +21,7 @@ public enum BalanceStatus: String, Codable, Sendable, CaseIterable {
         case .caution: "不足"
         case .critical: "危急"
         case .depleted: "耗尽"
-        case .unknown: "未知"
+        case .unknown: "查询中"
         case .error: "失败"
         case .setup: "待配置"
         }

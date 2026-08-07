@@ -55,6 +55,8 @@ final class AppModel: ObservableObject {
         self.settings = loaded
         self.pinWindowOpen = false
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
+        self.snapshots = Self.placeholderSnapshots(from: loaded)
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
@@ -63,6 +65,23 @@ final class AppModel: ObservableObject {
             rescheduleManualReminders()
         }
         startAutoRefreshIfNeeded()
+    }
+
+    /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
+    private static func placeholderSnapshots(from settings: AppSettings) -> [BalanceSnapshot] {
+        settings.enabledAccounts
+            .map { account in
+                BalanceSnapshot(
+                    accountId: account.id,
+                    providerKind: account.kind,
+                    displayName: account.title,
+                    source: .api,
+                    status: .unknown,
+                    detail: "查询中…",
+                    errorMessage: nil
+                )
+            }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
     func refreshNotificationStatus() async {
@@ -111,26 +130,39 @@ final class AppModel: ObservableObject {
             settings.apiQueryEnabled = true
             try? store.save(settings)
         }
+        // 刷新过程中始终保留卡片骨架，绝不闪回「去添加账号」
+        if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
+            snapshots = Self.placeholderSnapshots(from: settings)
+        } else if !settings.enabledAccounts.isEmpty {
+            snapshots = settings.enabledAccounts.map { account in
+                if let existing = snapshots.first(where: { $0.accountId == account.id }) {
+                    var copy = existing
+                    if copy.amount == nil {
+                        copy.detail = "查询中…"
+                    }
+                    return copy
+                }
+                return BalanceSnapshot(
+                    accountId: account.id,
+                    providerKind: account.kind,
+                    displayName: account.title,
+                    source: .api,
+                    status: .unknown,
+                    detail: "查询中…"
+                )
+            }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        }
         AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count)")
         Task {
-            // 仅当有「需要密钥的 API 账号」或 SMTP 报警密码时才解锁密钥库。
-            let hasKeyAccounts = settings.enabledAccounts.contains { !$0.kind.isManualEntry }
-            let needsSecrets = hasKeyAccounts || settings.alertChannels.outboundEmailEnabled
-            if needsSecrets {
-                do {
-                    try await secrets.unlockSessionIfNeeded(
-                        reason: "智余需要验证身份以读取 API 密钥与报警邮箱密码"
-                    )
-                } catch {
-                    self.banner = "未通过验证：\(error.localizedDescription)（可用指纹或本机密码）"
-                    self.isRefreshing = false
-                    AppLog.error("Secret unlock failed: \(error.localizedDescription)")
-                    return
-                }
-            }
-
+            // 密钥直接从本机 vault 读，无指纹门禁
             let result = await service.refreshAll(settings: settings)
-            self.snapshots = result.snapshots.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+            self.snapshots = result.snapshots.sorted {
+                $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+            }
+            if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
+                self.snapshots = Self.placeholderSnapshots(from: self.settings)
+            }
             if !result.alerts.isEmpty {
                 self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
                 if let fail = result.alerts.first(where: {
@@ -154,10 +186,16 @@ final class AppModel: ObservableObject {
 
     func startAutoRefreshIfNeeded() {
         refreshTask?.cancel()
-        guard settings.refreshIntervalSecs > 0 else { return }
+        guard settings.refreshIntervalSecs > 0 else {
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                self?.refresh()
+            }
+            return
+        }
         let interval = settings.refreshIntervalSecs
         refreshTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 800_000_000)
+            try? await Task.sleep(nanoseconds: 400_000_000)
             await self?.refresh()
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
@@ -199,6 +237,20 @@ final class AppModel: ObservableObject {
         }
         settings.accounts.append(account)
         persist()
+        // 立刻出现在首页
+        if !snapshots.contains(where: { $0.accountId == account.id }) {
+            snapshots.append(
+                BalanceSnapshot(
+                    accountId: account.id,
+                    providerKind: account.kind,
+                    displayName: account.title,
+                    source: .api,
+                    status: .unknown,
+                    detail: "查询中…"
+                )
+            )
+            snapshots.sort { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        }
         rescheduleManualReminders()
         banner = kind.isManualEntry ? "已添加手录账号 · 每天 10:00 提醒核对" : "账号已保存"
         refresh()
@@ -601,30 +653,19 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 已存密钥的掩码展示（两端可见）。未解锁会话时只提示「已保存」。
+    /// 已存密钥的掩码展示（两端可见）。
     func maskedSecret(for account: BalanceAccount) -> String? {
-        if let s = secrets.get(account: account.secretRef), !s.isEmpty {
-            // 火山 AK/SK 两行：只遮罩展示 AK
-            if account.kind.needsAccessKeyPair,
-               let pair = VolcengineSigner.unpackCredentials(s) {
-                return "AK " + SecretMask.display(pair.accessKeyId)
-            }
-            return SecretMask.display(s)
+        guard let s = secrets.get(account: account.secretRef), !s.isEmpty else { return nil }
+        if account.kind.needsAccessKeyPair,
+           let pair = VolcengineSigner.unpackCredentials(s) {
+            return "AK " + SecretMask.display(pair.accessKeyId)
         }
-        if secrets.contains(account: account.secretRef) {
-            return secrets.isSessionUnlocked ? nil : "已保存 · 点刷新用指纹解锁"
-        }
-        return nil
+        return SecretMask.display(s)
     }
 
     func maskedSMTPPassword() -> String? {
-        if let s = secrets.get(account: settings.email.passwordRef), !s.isEmpty {
-            return SecretMask.display(s)
-        }
-        if secrets.contains(account: settings.email.passwordRef) {
-            return secrets.isSessionUnlocked ? nil : "已保存 · 点刷新用指纹解锁"
-        }
-        return nil
+        guard let s = secrets.get(account: settings.email.passwordRef), !s.isEmpty else { return nil }
+        return SecretMask.display(s)
     }
 
     private func presentAlert(title: String, message: String) {
@@ -645,24 +686,6 @@ final class AppModel: ObservableObject {
 
     func hasSMTPPassword() -> Bool {
         secrets.contains(account: settings.email.passwordRef)
-    }
-
-    var secretsSessionUnlocked: Bool { secrets.isSessionUnlocked }
-
-    /// 主动用指纹解锁（设置页点一下即可，不必等刷新）。
-    func unlockSecrets() {
-        Task {
-            do {
-                try await secrets.unlockSessionIfNeeded(
-                    reason: "智余需要验证身份以显示已保存的密钥"
-                )
-                // 触发界面刷新掩码
-                objectWillChange.send()
-                banner = "已通过指纹/密码验证"
-            } catch {
-                banner = "验证失败：\(error.localizedDescription)"
-            }
-        }
     }
 
     func persist() {

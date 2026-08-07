@@ -29,7 +29,8 @@ struct HomeView: View {
                 )
             }
 
-            if model.snapshots.isEmpty {
+            // 有配置账号就始终走卡片；仅「真的一个账号都没有」才显示引导
+            if model.settings.enabledAccounts.isEmpty && model.snapshots.isEmpty {
                 emptyState
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 8)
@@ -65,6 +66,15 @@ struct HomeView: View {
             animateIn = false
             withAnimation(AppMotion.appear) {
                 animateIn = true
+            }
+        }
+        .onChange(of: model.settings.accounts.count) { _, _ in
+            // 账号列表变了且卡为空时，Home 侧也会重新出现
+            if model.snapshots.isEmpty, !model.settings.enabledAccounts.isEmpty {
+                animateIn = false
+                withAnimation(AppMotion.appear) {
+                    animateIn = true
+                }
             }
         }
     }
