@@ -322,13 +322,11 @@ struct BackgroundSystemSection: View {
     private var aboutLine: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                iconCircle(
-                    systemName: "info.circle.fill",
-                    colors: [
-                        Color(red: 0.95, green: 0.45, blue: 0.55),
-                        Color(red: 0.85, green: 0.35, blue: 0.70),
-                    ]
-                )
+                Image("AppLogo")
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("关于")
                         .font(.system(size: 14, weight: .bold))

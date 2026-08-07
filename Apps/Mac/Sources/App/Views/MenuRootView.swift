@@ -101,23 +101,12 @@ struct MenuRootView: View {
 
     private var homeHeader: some View {
         HStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.35, green: 0.55, blue: 1.0),
-                                Color(red: 0.55, green: 0.35, blue: 0.95),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 28, height: 28)
-                Text("余")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
+            Image("AppLogo")
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(Brand.displayTitle)
