@@ -8,6 +8,7 @@ final class MenuBarStatusItemDriver {
 
     private var statusItem: NSStatusItem?
     private var imageWipeObservation: NSKeyValueObservation?
+    private var titleWipeObservation: NSKeyValueObservation?
     private var ownedImage: NSImage?
 
     func attach(_ statusItem: NSStatusItem) {
@@ -16,6 +17,7 @@ final class MenuBarStatusItemDriver {
             return
         }
         imageWipeObservation?.invalidate()
+        titleWipeObservation?.invalidate()
         self.statusItem = statusItem
 
         // 按内容宽度，避免 squareLength 自带「方块槽」
@@ -23,13 +25,26 @@ final class MenuBarStatusItemDriver {
 
         applyIcon()
 
-        // SwiftUI 会反复清空 button.image，需抢回我们的图
+        // SwiftUI 会反复清空 button.image / 塞回标题，需抢回「仅图标」
         imageWipeObservation = statusItem.button?.observe(\.image, options: [.new]) { [weak self] button, _ in
             Task { @MainActor in
                 guard let self, let owned = self.ownedImage else { return }
                 if button.image !== owned {
                     button.image = owned
                 }
+                if !(button.title?.isEmpty ?? true) {
+                    button.title = ""
+                }
+                button.imagePosition = .imageOnly
+            }
+        }
+        titleWipeObservation = statusItem.button?.observe(\.title, options: [.new]) { [weak self] button, _ in
+            Task { @MainActor in
+                guard self != nil else { return }
+                if !(button.title?.isEmpty ?? true) {
+                    button.title = ""
+                }
+                button.imagePosition = .imageOnly
             }
         }
     }
@@ -38,6 +53,8 @@ final class MenuBarStatusItemDriver {
         guard let button = statusItem?.button else { return }
         let image = Self.makeLogoImage()
         ownedImage = image
+        // 只显示图标：清空标题，否则会露出「智余」二字（Bundle 名 / SwiftUI label）
+        button.title = ""
         button.image = image
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
@@ -45,6 +62,8 @@ final class MenuBarStatusItemDriver {
         button.isBordered = false
         // 切勿 wantsLayer：layer-backed 的 status button 常整块黑/深色方底
         button.wantsLayer = false
+        button.setAccessibilityLabel("智余")
+        button.setAccessibilityTitle("智余")
         if let toolTip {
             button.toolTip = toolTip
         }

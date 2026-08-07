@@ -22,11 +22,11 @@ struct SmartBalanceApp: App {
                     MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
                 }
         } label: {
-            // 占位（与智额相同思路）；真正图标由 AppKit 写入 button.image
-            // 不要用带 frame 的透明 Text——宿主视图会留下矩形槽
+            // 仅图标占位；文案会进 NSStatusItem.button.title 显示成「智余」
+            // 真正 Logo 由 AppKit 写入 button.image，并强制 title 为空
             Image(systemName: "circle.fill")
                 .opacity(0.01)
-                .accessibilityLabel(Brand.nameCN)
+                .accessibilityHidden(true)
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in
             MenuBarStatusItemDriver.shared.attach(statusItem)
