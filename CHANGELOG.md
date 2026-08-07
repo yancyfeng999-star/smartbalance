@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.38 — 2026-08-07
+
+MenuBarIcon 对齐智额：大图+dark，唤醒/外观自动刷新
+
+
 ## 0.2.37 — 2026-08-07
 
 状态栏对齐智额：AppKit 画 MenuBarIcon，label 仅占位
