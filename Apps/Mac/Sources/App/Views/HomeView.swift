@@ -9,26 +9,6 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 10) {
             if model.isReorderMode {
                 reorderBanner
-            } else if model.snapshots.count >= 2 {
-                // 长按不稳定时的备用入口
-                HStack(spacing: 6) {
-                    Image(systemName: "hand.tap")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(SBTheme.muted)
-                    Text("长按卡片可排序 · 或")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(SBTheme.muted)
-                    Button {
-                        model.enterReorderMode()
-                    } label: {
-                        Text("点此排序")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(SBTheme.accent)
-                    }
-                    .buttonStyle(.plain)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 4)
             }
 
             if let banner = model.banner, !model.isReorderMode {
