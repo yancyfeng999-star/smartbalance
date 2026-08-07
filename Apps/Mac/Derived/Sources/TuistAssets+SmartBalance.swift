@@ -31,6 +31,7 @@ import SwiftUI
 // MARK: - Asset Catalogs
 
 public enum SmartBalanceAsset: Sendable {
+  public static let appLogo = SmartBalanceImages(name: "AppLogo")
   public static let menuBarIcon = SmartBalanceImages(name: "MenuBarIcon")
   public static let providerDeepseek = SmartBalanceImages(name: "Provider_deepseek")
   public static let providerDmxapi = SmartBalanceImages(name: "Provider_dmxapi")
