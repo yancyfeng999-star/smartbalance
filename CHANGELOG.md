@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.12 — 2026-08-07
+
+- 清理多入口：cleanup-duplicate-apps.sh 只保留 /Applications/智余.app
+- 本地试装改装到应用程序，不再放桌面
+- 打包后删除 DerivedData/Xcode 残留 .app 并弹出 dmg 卷
+
+
 ## 0.2.11 — 2026-08-07
 
 - App/安装包图标改为浅色无背景彩色 Logo（不再用深色有背景）

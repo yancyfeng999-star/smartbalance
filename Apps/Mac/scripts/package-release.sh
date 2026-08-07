@@ -116,14 +116,24 @@ mkdir -p "$STAGE" "$WORK/app"
 ditto --norsrc --noextattr --noqtn "$APP_SRC" "$WORK/app/${APP_NAME}.app"
 xattr -cr "$WORK/app/${APP_NAME}.app" 2>/dev/null || true
 
-# 拷走后立刻删掉 DerivedData 里的 .app，避免启动台/聚焦出现多个「智余」
+# 拷走后立刻删掉构建产物 .app，避免启动台/聚焦出现多个「智余」
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 if [[ -x "$LSREG" ]]; then
   "$LSREG" -u "$APP_SRC" 2>/dev/null || true
 fi
 rm -rf "$APP_SRC"
-# Debug 产物一并清掉（若存在）
+# 本项目 DerivedData + 全局 Xcode DerivedData 里残留的 智余.app
 rm -rf "${ROOT}/build/DerivedData/Build/Products" 2>/dev/null || true
+rm -rf "${DERIVED}/Build/Products" 2>/dev/null || true
+while IFS= read -r leftover; do
+  [[ -z "$leftover" ]] && continue
+  [[ "$leftover" == "/Applications/${APP_NAME}.app" ]] && continue
+  if [[ -x "$LSREG" ]]; then
+    "$LSREG" -u "$leftover" 2>/dev/null || true
+  fi
+  rm -rf "$leftover"
+done < <(find "${HOME}/Library/Developer/Xcode/DerivedData" \
+  -path '*SmartBalance*' -name "${APP_NAME}.app" -type d 2>/dev/null || true)
 
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$WORK/app/${APP_NAME}.app"
@@ -289,15 +299,21 @@ EOF
 
 printf '%s\n' "==> [5/5] 清理（默认不复制到桌面，发版只上 GitHub）"
 # 避免桌面残留裸 .app / 旧发布夹导致 Spotlight 多个智余
+if [[ -x "$LSREG" && -d "${HOME}/Desktop/${APP_NAME}.app" ]]; then
+  "$LSREG" -u "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
+fi
 rm -rf "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
+# 弹出打包时可能挂上的临时卷
+shopt -s nullglob
+for vol in /Volumes/${APP_NAME}* /Volumes/${EN_NAME}*; do
+  hdiutil detach "$vol" -force 2>/dev/null || true
+done
+shopt -u nullglob
 if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
   rm -rf "${DESKTOP_OUT}"
   mkdir -p "${DESKTOP_OUT}"
   cp -f "$DMG_CN" "$PKG_CN" "$STAGE/RELEASE_NOTES.md" "$STAGE/SHA256SUMS.txt" "${DESKTOP_OUT}/"
-  if [[ "${COPY_APP_TO_DESKTOP:-0}" == "1" ]]; then
-    ditto --norsrc --noextattr --noqtn "$WORK/app/${APP_NAME}.app" "${HOME}/Desktop/${APP_NAME}.app"
-    xattr -cr "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
-  fi
+  # 禁止把裸 .app 放到桌面
 else
   rm -rf "${DESKTOP_OUT}" 2>/dev/null || true
 fi

@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.2.11 |
+| 版本 | 0.2.12 |
 
 ---
 
@@ -77,6 +77,15 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 | `…/SmartBalance-X.Y.Z.pkg` | 安装向导 |
 
 发版只上传 GitHub Releases，**不复制到桌面**。需要本机副本时：`COPY_TO_DESKTOP=1 ./scripts/package-release.sh`。
+
+**只认一个入口：** 正式版在 `/Applications/智余.app`（应用程序）。  
+若启动台/聚焦出现多个「智余」：
+
+```bash
+cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
+```
+
+本地试装也请装到应用程序：`./scripts/build-test-app.sh`（不再放桌面）。
 
 测试：`./scripts/run-tests.sh`
 
