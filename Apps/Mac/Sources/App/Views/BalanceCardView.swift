@@ -2,26 +2,40 @@ import SwiftUI
 import Domain
 
 /// 余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
-/// 交互对齐智额：悬停轻抬 + 描边/阴影，按下缩放反馈，再展开。
+/// 交互对齐智额：悬停轻抬 + 描边/阴影，按下缩放反馈，再展开；长按进入排序。
 /// 字号：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
     var emphasized: Bool = false
+    /// 排序模式：不展开，便于长按 / 右侧 ↑↓
+    var isReorderMode: Bool = false
+    var onLongPress: (() -> Void)? = nil
     /// 默认折叠，与设置页折叠卡一致。
     @State private var isExpanded = false
     @State private var isHovering = false
 
     var body: some View {
-        Button {
-            AppMotion.toggleExpand($isExpanded)
-        } label: {
-            cardContent
+        Group {
+            if isReorderMode {
+                // 非 Button，避免抢走长按；排序时收起展开内容
+                cardContent
+                    .onAppear { isExpanded = false }
+            } else {
+                Button {
+                    AppMotion.toggleExpand($isExpanded)
+                } label: {
+                    cardContent
+                }
+                .buttonStyle(BalanceCardButtonStyle(isHovering: isHovering))
+            }
         }
-        .buttonStyle(BalanceCardButtonStyle(isHovering: isHovering))
         .onHover { hovering in
             withAnimation(AppMotion.hover) {
                 isHovering = hovering
             }
+        }
+        .onLongPressGesture(minimumDuration: 0.4) {
+            onLongPress?()
         }
         // 禁止内容 ideal 宽度撑破固定面板
         .fixedSize(horizontal: false, vertical: true)

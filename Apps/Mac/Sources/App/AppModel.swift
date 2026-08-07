@@ -39,6 +39,8 @@ final class AppModel: ObservableObject {
 
     /// 置顶窗是否打开（驱动图钉高亮；与磁盘标志解耦）
     @Published var pinWindowOpen = false
+    /// 首页长按卡片进入排序模式（对齐智额 ↑↓）
+    @Published var isReorderMode = false
 
     init() {
         var loaded = SettingsStore.shared.load()
@@ -68,20 +70,63 @@ final class AppModel: ObservableObject {
     }
 
     /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
+    /// 顺序与 `settings.accounts`（用户排序）一致。
     private static func placeholderSnapshots(from settings: AppSettings) -> [BalanceSnapshot] {
-        settings.enabledAccounts
-            .map { account in
-                BalanceSnapshot(
-                    accountId: account.id,
-                    providerKind: account.kind,
-                    displayName: account.title,
-                    source: .api,
-                    status: .unknown,
-                    detail: "查询中…",
-                    errorMessage: nil
-                )
-            }
-            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        settings.enabledAccounts.map { account in
+            BalanceSnapshot(
+                accountId: account.id,
+                providerKind: account.kind,
+                displayName: account.title,
+                source: .api,
+                status: .unknown,
+                detail: "查询中…",
+                errorMessage: nil
+            )
+        }
+    }
+
+    /// 按账号列表顺序排列快照（不按名称字母序）。
+    func orderedSnapshots(_ snaps: [BalanceSnapshot]) -> [BalanceSnapshot] {
+        let order = settings.enabledAccounts.map(\.id)
+        return snaps.sorted { a, b in
+            let ia = order.firstIndex(of: a.accountId) ?? Int.max
+            let ib = order.firstIndex(of: b.accountId) ?? Int.max
+            if ia != ib { return ia < ib }
+            return a.displayName.localizedStandardCompare(b.displayName) == .orderedAscending
+        }
+    }
+
+    func enterReorderMode() {
+        guard snapshots.count >= 2 else {
+            banner = "至少两个账号才能排序"
+            return
+        }
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        AppMotion.withSelection {
+            isReorderMode = true
+        }
+    }
+
+    func exitReorderMode() {
+        AppMotion.withSelection {
+            isReorderMode = false
+        }
+    }
+
+    /// 在已启用账号中上移 / 下移，并写回 `settings.accounts` 顺序。
+    func moveAccount(id: UUID, up: Bool) {
+        let enabledIds = settings.enabledAccounts.map(\.id)
+        guard let ei = enabledIds.firstIndex(of: id) else { return }
+        let ej = up ? ei - 1 : ei + 1
+        guard enabledIds.indices.contains(ej) else { return }
+        let otherId = enabledIds[ej]
+        guard let from = settings.accounts.firstIndex(where: { $0.id == id }),
+              let to = settings.accounts.firstIndex(where: { $0.id == otherId }) else { return }
+        AppMotion.withSelection {
+            settings.accounts.swapAt(from, to)
+            snapshots = orderedSnapshots(snapshots)
+        }
+        persist()
     }
 
     func refreshNotificationStatus() async {
@@ -135,21 +180,22 @@ final class AppModel: ObservableObject {
             snapshots = Self.placeholderSnapshots(from: settings)
         } else if !settings.enabledAccounts.isEmpty {
             // 已有结果的卡保持金额；仅无结果的显示查询中
-            snapshots = settings.enabledAccounts.map { account in
-                if let existing = snapshots.first(where: { $0.accountId == account.id }),
-                   existing.amount != nil || existing.errorMessage != nil {
-                    return existing
+            snapshots = orderedSnapshots(
+                settings.enabledAccounts.map { account in
+                    if let existing = snapshots.first(where: { $0.accountId == account.id }),
+                       existing.amount != nil || existing.errorMessage != nil {
+                        return existing
+                    }
+                    return BalanceSnapshot(
+                        accountId: account.id,
+                        providerKind: account.kind,
+                        displayName: account.title,
+                        source: .api,
+                        status: .unknown,
+                        detail: "查询中…"
+                    )
                 }
-                return BalanceSnapshot(
-                    accountId: account.id,
-                    providerKind: account.kind,
-                    displayName: account.title,
-                    source: .api,
-                    status: .unknown,
-                    detail: "查询中…"
-                )
-            }
-            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+            )
         }
         AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count)")
         Task { @MainActor in
@@ -160,9 +206,7 @@ final class AppModel: ObservableObject {
             do {
                 // 密钥直接从本机 vault 读，无指纹门禁
                 let result = await service.refreshAll(settings: settings)
-                self.snapshots = result.snapshots.sorted {
-                    $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
-                }
+                self.snapshots = orderedSnapshots(result.snapshots)
                 if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
                     self.snapshots = Self.placeholderSnapshots(from: self.settings)
                 }
@@ -255,7 +299,7 @@ final class AppModel: ObservableObject {
                     detail: "查询中…"
                 )
             )
-            snapshots.sort { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+            snapshots = orderedSnapshots(snapshots)
         }
         rescheduleManualReminders()
         banner = kind.isManualEntry ? "已添加手录账号 · 每天 10:00 提醒核对" : "账号已保存"
