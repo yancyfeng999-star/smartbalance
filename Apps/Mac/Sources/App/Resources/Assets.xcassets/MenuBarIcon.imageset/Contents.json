@@ -11,6 +11,7 @@
       "scale" : "2x"
     },
     {
+      "filename" : "menu_3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
@@ -20,6 +21,7 @@
     "version" : 1
   },
   "properties" : {
-    "template-rendering-intent" : "original"
+    "template-rendering-intent" : "original",
+    "preserves-vector-representation" : false
   }
 }

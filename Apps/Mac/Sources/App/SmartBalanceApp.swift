@@ -14,14 +14,13 @@ struct SmartBalanceApp: App {
                     PinnedBalanceWindowController.shared.bind(model: model)
                 }
         } label: {
-            // 彩色浅色无背景 Logo（不用 template，避免被系统压成单色）
+            // 真透明彩色 Logo；不要 padding/背景容器，否则菜单栏会显方块底
             Image("MenuBarIcon")
                 .renderingMode(.original)
-                .resizable()
                 .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
                 .frame(width: 18, height: 18)
                 .help(menuBarHelp)
+                .accessibilityLabel(Brand.nameCN)
         }
         .menuBarExtraStyle(.window)
     }
