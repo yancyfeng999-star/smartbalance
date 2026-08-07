@@ -3,9 +3,11 @@ import Domain
 
 struct HomeView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     @State private var animateIn = false
 
     var body: some View {
+        let _ = l10n.revision
         VStack(alignment: .leading, spacing: 10) {
             if model.isReorderMode {
                 reorderBanner
@@ -107,14 +109,14 @@ struct HomeView: View {
             Image(systemName: "arrow.up.arrow.down")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(SBTheme.accent)
-            Text("排序模式 · 用右侧箭头调整顺序")
+            Text(l10n.t("home.sort_mode"))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
             Spacer(minLength: 4)
             Button {
                 model.exitReorderMode()
             } label: {
-                Text("完成")
+                Text(l10n.t("common.done"))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)

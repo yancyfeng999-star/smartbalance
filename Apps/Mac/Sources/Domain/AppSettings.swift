@@ -11,6 +11,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var refreshIntervalSecs: Int
     public var lastAlertAtByAccount: [String: Date]
     public var windowPinned: Bool
+    /// 外观：`light` / `dark` / `system`
+    public var themeMode: String
+    /// 界面语言：`zh-Hans` / `en` / …
+    public var appLanguage: String
 
     public init(
         accounts: [BalanceAccount] = [],
@@ -19,7 +23,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         apiQueryEnabled: Bool = true,
         refreshIntervalSecs: Int = 900,
         lastAlertAtByAccount: [String: Date] = [:],
-        windowPinned: Bool = false
+        windowPinned: Bool = false,
+        themeMode: String = ThemeMode.system.rawValue,
+        appLanguage: String = AppLanguage.default.rawValue
     ) {
         self.accounts = accounts
         self.email = email
@@ -28,6 +34,16 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.refreshIntervalSecs = refreshIntervalSecs
         self.lastAlertAtByAccount = lastAlertAtByAccount
         self.windowPinned = windowPinned
+        self.themeMode = themeMode
+        self.appLanguage = appLanguage
+    }
+
+    public var resolvedThemeMode: ThemeMode {
+        ThemeMode.resolve(themeMode)
+    }
+
+    public var resolvedLanguage: AppLanguage {
+        AppLanguage.resolve(appLanguage)
     }
 
     public var enabledAccounts: [BalanceAccount] {
@@ -60,6 +76,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         refreshIntervalSecs = try c.decodeIfPresent(Int.self, forKey: .refreshIntervalSecs) ?? 900
         lastAlertAtByAccount = try c.decodeIfPresent([String: Date].self, forKey: .lastAlertAtByAccount) ?? [:]
         windowPinned = try c.decodeIfPresent(Bool.self, forKey: .windowPinned) ?? false
+        themeMode = try c.decodeIfPresent(String.self, forKey: .themeMode) ?? ThemeMode.system.rawValue
+        appLanguage = try c.decodeIfPresent(String.self, forKey: .appLanguage) ?? AppLanguage.default.rawValue
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -71,12 +89,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(refreshIntervalSecs, forKey: .refreshIntervalSecs)
         try c.encode(lastAlertAtByAccount, forKey: .lastAlertAtByAccount)
         try c.encode(windowPinned, forKey: .windowPinned)
+        try c.encode(themeMode, forKey: .themeMode)
+        try c.encode(appLanguage, forKey: .appLanguage)
     }
 
     private enum CodingKeys: String, CodingKey {
         case accounts, email, alertChannels
         case apiQueryEnabled, refreshIntervalSecs, lastAlertAtByAccount
-        case windowPinned
+        case windowPinned, themeMode, appLanguage
         case emailAlertModeEnabled
         // 旧字段仅解码忽略
         case mailSources, inboundMailbox, platformMailEnabled

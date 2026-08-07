@@ -42,6 +42,28 @@ final class AppModel: ObservableObject {
     /// 首页长按卡片进入排序模式（对齐智额 ↑↓）
     @Published var isReorderMode = false
 
+    /// 外观 → SwiftUI preferredColorScheme
+    var preferredColorScheme: ColorScheme? {
+        switch settings.resolvedThemeMode {
+        case .light: .light
+        case .dark: .dark
+        case .system: nil
+        }
+    }
+
+    func setThemeMode(_ mode: ThemeMode) {
+        settings.themeMode = mode.rawValue
+        persist()
+        objectWillChange.send()
+    }
+
+    func setLanguage(_ lang: AppLanguage) {
+        settings.appLanguage = lang.rawValue
+        L10n.shared.setLanguage(lang)
+        persist()
+        objectWillChange.send()
+    }
+
     init() {
         var loaded = SettingsStore.shared.load()
         // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
@@ -57,6 +79,7 @@ final class AppModel: ObservableObject {
         self.settings = loaded
         self.pinWindowOpen = false
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        L10n.shared.setLanguage(loaded.resolvedLanguage)
         // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")

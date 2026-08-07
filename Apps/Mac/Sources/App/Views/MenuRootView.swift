@@ -10,8 +10,10 @@ struct MenuRootView: View {
     @ObservedObject var model: AppModel
     var runsInPinnedWindow: Bool = false
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
+        let _ = l10n.revision
         ZStack {
             // 同一尺寸壳内切换，避免 if/else 换根视图时 ideal size 抖动
             if model.selectedTab == .settings {
@@ -26,7 +28,8 @@ struct MenuRootView: View {
         }
         .background(SBTheme.shellBackground(for: colorScheme).ignoresSafeArea())
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
-        .preferredColorScheme(nil)
+        .preferredColorScheme(model.preferredColorScheme)
+        .environment(\.layoutDirection, model.settings.resolvedLanguage == .ar ? .rightToLeft : .leftToRight)
         .onAppear {
             if runsInPinnedWindow {
                 // 只设一次默认框，之后用户可拖；不跟内容跳
@@ -168,7 +171,7 @@ struct MenuRootView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .bold))
-                    Text("返回")
+                    Text(l10n.t("settings.back"))
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundStyle(SBTheme.text)
@@ -186,7 +189,7 @@ struct MenuRootView: View {
             .buttonStyle(.plain)
 
             Spacer()
-            Text("设置")
+            Text(l10n.t("settings.title"))
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(SBTheme.text)
             Spacer()
@@ -199,13 +202,13 @@ struct MenuRootView: View {
 
     private var homeFooter: some View {
         HStack(spacing: 8) {
-            footerPill(title: "打开后台", systemName: "safari") {
+            footerPill(title: l10n.t("home.open_dashboard"), systemName: "safari") {
                 model.openDashboard()
             }
             .keyboardShortcut("d")
             .help("打开当前账号对应平台控制台")
 
-            footerPill(title: "设置", systemName: "gearshape") {
+            footerPill(title: l10n.t("home.settings"), systemName: "gearshape") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖
                 var t = Transaction()
                 t.disablesAnimations = true
@@ -215,7 +218,7 @@ struct MenuRootView: View {
             }
             .keyboardShortcut(",")
 
-            footerPill(title: "退出应用", systemName: "power") {
+            footerPill(title: l10n.t("home.quit"), systemName: "power") {
                 model.quit()
             }
             .help("完全退出智余（菜单栏图标会消失）")
@@ -232,7 +235,7 @@ struct MenuRootView: View {
                     model.selectedTab = .home
                 }
             } label: {
-                Text("完成")
+                Text(l10n.t("settings.done"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 22)
