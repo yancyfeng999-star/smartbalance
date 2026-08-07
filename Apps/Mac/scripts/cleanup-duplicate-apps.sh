@@ -71,9 +71,15 @@ if [[ -d "$KEEP" ]]; then
   ver="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$KEEP/Contents/Info.plist" 2>/dev/null || echo "?")"
   build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$KEEP/Contents/Info.plist" 2>/dev/null || echo "?")"
   echo "==> 正式安装：${KEEP}  (v${ver} build ${build})"
+  # 强制刷新图标缓存，避免 Mac 通知仍显示旧 logo
+  touch "$KEEP" "$KEEP/Contents/Info.plist" "$KEEP/Contents/Resources/AppIcon.icns" 2>/dev/null || true
+  rm -rf "${HOME}/Library/Caches/com.apple.iconservices.store" 2>/dev/null || true
+  find "${HOME}/Library/Caches/com.apple.iconservices" -type f -delete 2>/dev/null || true
   if [[ -x "$LSREG" ]]; then
-    "$LSREG" -f "$KEEP" 2>/dev/null || true
+    "$LSREG" -f -R -trusted "$KEEP" 2>/dev/null || "$LSREG" -f "$KEEP" 2>/dev/null || true
   fi
+  killall usernoted 2>/dev/null || true
+  killall NotificationCenter 2>/dev/null || true
 else
   echo "==> 警告：未找到 ${KEEP}"
   echo "    请从 GitHub 安装 dmg/pkg 到「应用程序」"

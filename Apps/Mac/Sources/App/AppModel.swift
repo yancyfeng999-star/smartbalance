@@ -114,6 +114,8 @@ final class AppModel: ObservableObject {
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         self.selectedAccountId = loaded.enabledAccounts.first?.id
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
+        // 菜单栏 App（LSUIElement）无 Dock 时，系统通知易缓存旧图标；启动强制挂上当前 AppIcon
+        Self.applyAppIconForNotifications()
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
@@ -123,8 +125,26 @@ final class AppModel: ObservableObject {
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
+            Self.applyAppIconForNotifications()
         }
         startAutoRefreshIfNeeded()
+    }
+
+    /// 通知横幅左侧图标跟 `NSApp.applicationIconImage` / 包内 AppIcon 走。
+    /// 显式赋值可避免升级后仍显示旧版 logo。
+    private static func applyAppIconForNotifications() {
+        let icon =
+            NSImage(named: "AppIcon")
+            ?? NSImage(named: NSImage.applicationIconName)
+            ?? Bundle.main.image(forResource: "AppIcon")
+        guard let icon else {
+            AppLog.error("AppIcon missing — notifications may show stale/generic icon")
+            return
+        }
+        icon.isTemplate = false
+        NSApp.applicationIconImage = icon
+        NSApp.dockTile.contentView = nil
+        NSApp.dockTile.display()
     }
 
     /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。

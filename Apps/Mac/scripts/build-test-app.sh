@@ -47,6 +47,17 @@ if [[ -d "${HOME}/Desktop/智余.app" ]]; then
   rm -rf "${HOME}/Desktop/智余.app"
 fi
 
+# 通知中心/启动台常缓存旧 App 图标：碰时间戳 + 清用户图标缓存 + 重注册
+touch "${DEST}" "${DEST}/Contents/Info.plist" "${DEST}/Contents/Resources/AppIcon.icns" 2>/dev/null || true
+rm -rf "${HOME}/Library/Caches/com.apple.iconservices.store" 2>/dev/null || true
+find "${HOME}/Library/Caches/com.apple.iconservices" -type f -delete 2>/dev/null || true
+if [[ -x "$LSREG" ]]; then
+  "$LSREG" -f -R -trusted "${DEST}" 2>/dev/null || "$LSREG" -f "${DEST}" 2>/dev/null || true
+fi
+killall usernoted 2>/dev/null || true
+killall NotificationCenter 2>/dev/null || true
+killall Dock 2>/dev/null || true
+
 VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${DEST}/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${DEST}/Contents/Info.plist")"
 echo "Installed: ${DEST}  v${VER} (${BUILD})"
