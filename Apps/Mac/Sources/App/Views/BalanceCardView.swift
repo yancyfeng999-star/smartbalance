@@ -312,25 +312,29 @@ struct BalanceCardView: View {
     }
 
     private var cardBackground: some View {
-        // 参考智额：悬停抬升底 + 蓝描边加粗
+        // 高亮只跟「选中」走；展开/折叠不改变描边与底色（其它卡一律正常）
+        let selected = emphasized || snapshot.status == .setup
         let strokeColor: Color = {
-            if snapshot.status == .setup { return SBTheme.selectionStroke }
-            if isHovering || emphasized || isExpanded { return SBTheme.selectionStroke }
+            if selected || isHovering { return SBTheme.selectionStroke }
             return SBTheme.cardStroke
         }()
         let fill: Color = {
-            if isHovering || snapshot.status == .setup || emphasized || isExpanded {
-                return SBTheme.cardTint
-            }
+            if selected { return SBTheme.cardTint }
+            if isHovering { return SBTheme.cardTint.opacity(0.55) }
             return SBTheme.panel
         }()
-        let lineWidth: CGFloat = (isHovering || emphasized || isExpanded || snapshot.status == .setup) ? 1.2 : 1
+        // 选中描边更明显；悬停略加粗；展开本身不加粗
+        let lineWidth: CGFloat = selected ? 1.5 : (isHovering ? 1.2 : 1)
         return RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
             .fill(fill)
             .overlay(
                 RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
                     .strokeBorder(strokeColor, lineWidth: lineWidth)
             )
-            .shadow(color: Color.black.opacity(isHovering ? 0.22 : 0.18), radius: isHovering ? 10 : 8, y: 2)
+            .shadow(
+                color: Color.black.opacity(selected ? 0.2 : (isHovering ? 0.2 : 0.16)),
+                radius: selected || isHovering ? 10 : 8,
+                y: 2
+            )
     }
 }
