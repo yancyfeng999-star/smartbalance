@@ -54,9 +54,37 @@ final class AppModel: ObservableObject {
     }
 
     func setThemeMode(_ mode: ThemeMode) {
-        settings.themeMode = mode.rawValue
+        var next = settings
+        next.themeMode = mode.rawValue
+        settings = next
         persist()
+        applyAppearancePreference()
         objectWillChange.send()
+    }
+
+    /// 把浅色 / 深色落到 AppKit。
+    /// MenuBarExtra 仅靠 `preferredColorScheme` 改不了 `SBTheme` 的 `NSColor` 动态色，
+    /// 必须同时设 `NSApp.appearance` + 各 `window.appearance`。
+    func applyAppearancePreference() {
+        let appearance: NSAppearance?
+        switch settings.resolvedThemeMode {
+        case .light:
+            appearance = NSAppearance(named: .aqua)
+        case .dark:
+            appearance = NSAppearance(named: .darkAqua)
+        case .system:
+            appearance = nil
+        }
+        // 应用级：动态 Color / 控件都会跟 effectiveAppearance 走
+        NSApp.appearance = appearance
+        for window in NSApp.windows {
+            window.appearance = appearance
+            window.backgroundColor = SBTheme.windowNSBackground
+            window.contentView?.layer?.backgroundColor = SBTheme.windowNSBackground.cgColor
+            window.contentView?.needsDisplay = true
+            window.contentView?.subviews.forEach { $0.needsDisplay = true }
+        }
+        PinnedBalanceWindowController.shared.refreshAppearance()
     }
 
     func setLanguage(_ lang: AppLanguage) {
@@ -91,6 +119,10 @@ final class AppModel: ObservableObject {
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
             rescheduleManualReminders()
+            // 窗口稍后才创建，延迟再应用一次外观
+            applyAppearancePreference()
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            applyAppearancePreference()
         }
         startAutoRefreshIfNeeded()
     }

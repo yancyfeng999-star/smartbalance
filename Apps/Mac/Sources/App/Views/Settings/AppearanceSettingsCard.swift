@@ -48,6 +48,7 @@ struct AppearanceSettingsCard: View {
                     themeChip(mode)
                 }
             }
+            .animation(AppMotion.selection, value: model.settings.themeMode)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,9 +65,7 @@ struct AppearanceSettingsCard: View {
     private func themeChip(_ mode: ThemeMode) -> some View {
         let on = current == mode
         return Button {
-            AppMotion.withSelection {
-                model.setThemeMode(mode)
-            }
+            model.setThemeMode(mode)
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: mode.icon)

@@ -121,6 +121,22 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         _ = height
     }
 
+    /// 主题切换后刷新置顶窗背景。
+    func refreshAppearance() {
+        guard let win = window else { return }
+        switch model?.settings.resolvedThemeMode {
+        case .light:
+            win.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            win.appearance = NSAppearance(named: .darkAqua)
+        case .system, .none:
+            win.appearance = nil
+        }
+        win.backgroundColor = SBTheme.windowNSBackground
+        win.contentView?.layer?.backgroundColor = SBTheme.windowNSBackground.cgColor
+        win.contentView?.needsDisplay = true
+    }
+
     func positionTopRight(width: CGFloat? = nil, height: CGFloat? = nil, preferDefaultSize: Bool = false) {
         guard let win = window, let screen = win.screen ?? NSScreen.main else { return }
         let visible = screen.visibleFrame

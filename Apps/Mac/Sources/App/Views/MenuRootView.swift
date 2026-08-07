@@ -12,6 +12,15 @@ struct MenuRootView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var l10n = L10n.shared
 
+    /// 壳背景用模型解析的主题，不依赖本视图尚未继承的 preferredColorScheme。
+    private var resolvedShellScheme: ColorScheme {
+        switch model.settings.resolvedThemeMode {
+        case .light: .light
+        case .dark: .dark
+        case .system: colorScheme
+        }
+    }
+
     var body: some View {
         let _ = l10n.revision
         ZStack {
@@ -26,11 +35,14 @@ struct MenuRootView: View {
                     .transition(.opacity)
             }
         }
-        .background(SBTheme.shellBackground(for: colorScheme).ignoresSafeArea())
+        // 主题变化时强制整树重建，让 NSColor 动态 token 按新 appearance 重取
+        .id("theme-\(model.settings.themeMode)")
+        .background(SBTheme.shellBackground(for: resolvedShellScheme).ignoresSafeArea())
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
         .preferredColorScheme(model.preferredColorScheme)
         .environment(\.layoutDirection, model.settings.resolvedLanguage == .ar ? .rightToLeft : .leftToRight)
         .onAppear {
+            model.applyAppearancePreference()
             if runsInPinnedWindow {
                 // 只设一次默认框，之后用户可拖；不跟内容跳
                 PinnedBalanceWindowController.shared.ensureDefaultSize()
@@ -41,6 +53,9 @@ struct MenuRootView: View {
                 || model.snapshots.allSatisfy({ $0.status == .unknown && $0.amount == nil }) {
                 model.refresh()
             }
+        }
+        .onChange(of: model.settings.themeMode) { _, _ in
+            model.applyAppearancePreference()
         }
         .onChange(of: model.selectedTab) { _, _ in
             // 切 Tab 不改外框；置顶窗也禁止跟着内容收缩

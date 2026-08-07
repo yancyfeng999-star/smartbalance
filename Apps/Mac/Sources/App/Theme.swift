@@ -155,7 +155,10 @@ enum SBTheme {
 
     private static func adaptive(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            // 设置会改 NSApp.appearance；绘制上下文也会带上 window.appearance
+            let matched = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+                ?? appearance.bestMatch(from: [.darkAqua, .aqua])
+            let isDark = matched == .darkAqua
             return isDark ? dark : light
         }))
     }
