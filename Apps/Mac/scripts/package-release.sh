@@ -27,7 +27,7 @@ cd "$ROOT"
 
 APP_NAME="智余"
 EN_NAME="SmartBalance"
-BUNDLE_ID="com.smartbalance.app"
+BUNDLE_ID="com.smartbalance.zhiyu"
 CONFIG="Release"
 DERIVED="${ROOT}/build/DerivedData-Release"
 RELEASES_ROOT="${RELEASES_ROOT:-$REPO_ROOT/releases/Mac}"
@@ -120,7 +120,7 @@ mkdir -p "$STAGE" "$WORK/app"
 ditto --norsrc --noextattr --noqtn "$APP_SRC" "$WORK/app/${APP_NAME}.app"
 xattr -cr "$WORK/app/${APP_NAME}.app" 2>/dev/null || true
 
-# 用 branding 脚本生成的完整白底 AppIcon.icns 覆盖 actool 子集，保证通知/Finder 图标正确
+# 用 branding 脚本生成的完整白底 AppIcon.icns 覆盖 actool 子集（对齐智额：只靠包内图标）
 ICNS_SRC="${ROOT}/Sources/App/Resources/AppIcon.icns"
 if [[ -f "${ICNS_SRC}" ]]; then
   mkdir -p "$WORK/app/${APP_NAME}.app/Contents/Resources"
@@ -129,6 +129,9 @@ if [[ -f "${ICNS_SRC}" ]]; then
 else
   echo "  warn: missing ${ICNS_SRC} — run python3 scripts/apply-branding.py" >&2
 fi
+# 去掉自定义 Icon（setIcon 残留会锁住通知中心旧图）
+rm -f "$WORK/app/${APP_NAME}.app/Icon" "$WORK/app/${APP_NAME}.app/Icon"$'\r' 2>/dev/null || true
+xattr -d com.apple.FinderInfo "$WORK/app/${APP_NAME}.app" 2>/dev/null || true
 
 # 拷走后立刻删掉构建产物 .app，避免启动台/聚焦出现多个「智余」
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"

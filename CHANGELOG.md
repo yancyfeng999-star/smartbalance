@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.22 — 2026-08-07
+
+- 对齐智额：去掉 setIcon 自定义 Icon（会锁通知中心旧「余」字标）
+- Bundle ID 改为 com.smartbalance.zhiyu，强制通知中心用白底 S logo
+- AppIcon 命名/结构与智额一致；AppDelegate accessory 策略
+- 账号数据仍在 Application Support/SmartBalance（无需重配）
+- 首次打开请在系统设置中重新允许「通知」（换 id 后系统视为新 App）
+
+
 ## 0.2.21 — 2026-08-07
 
 - 版本 0.2.21 发版（通知 Logo 白底 S 标修复延续）

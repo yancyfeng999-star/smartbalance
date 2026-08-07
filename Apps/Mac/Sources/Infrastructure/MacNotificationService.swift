@@ -73,16 +73,16 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
             return false
         }
 
+        // 对齐智额 SystemAlertSender：title/body/sound，图标一律走包内 AppIcon
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
-        // 菜单栏 App 前台时也尽量以横幅展示
         if #available(macOS 12.0, *) {
             content.interruptionLevel = .timeSensitive
         }
 
-        // nil trigger 在部分 macOS + LSUIElement 场景下不弹出；用 0.15s 延迟
+        // 智额用 nil trigger；菜单栏 agent 上偶发不弹，保留极短延迟更稳
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.15, repeats: false)
         let request = UNNotificationRequest(
             identifier: id + "-\(Int(Date().timeIntervalSince1970))",

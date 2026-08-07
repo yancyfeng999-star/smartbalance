@@ -9,7 +9,9 @@
 set -euo pipefail
 
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-APP_ID="com.smartbalance.app"
+# 0.2.22+ 新 id；同时扫旧 id 残留
+APP_ID="com.smartbalance.zhiyu"
+LEGACY_APP_ID="com.smartbalance.app"
 KEEP="/Applications/智余.app"
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 
@@ -41,11 +43,13 @@ unregister_rm() {
 }
 
 echo "==> 扫描并删除多余 .app"
-# Spotlight
-while IFS= read -r app; do
-  [[ -n "$app" ]] || continue
-  unregister_rm "$app"
-done < <(mdfind "kMDItemCFBundleIdentifier == '${APP_ID}'" 2>/dev/null || true)
+# Spotlight（新 id + 旧 id 残留）
+for id in "${APP_ID}" "${LEGACY_APP_ID}"; do
+  while IFS= read -r app; do
+    [[ -n "$app" ]] || continue
+    unregister_rm "$app"
+  done < <(mdfind "kMDItemCFBundleIdentifier == '${id}'" 2>/dev/null || true)
+done
 
 # 固定路径
 for app in \
@@ -71,11 +75,17 @@ if [[ -d "$KEEP" ]]; then
   ver="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$KEEP/Contents/Info.plist" 2>/dev/null || echo "?")"
   build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$KEEP/Contents/Info.plist" 2>/dev/null || echo "?")"
   echo "==> 正式安装：${KEEP}  (v${ver} build ${build})"
-  # 强制刷新图标缓存，避免 Mac 通知仍显示旧 logo
+  # 去掉自定义 Icon + 刷图标缓存（对齐智额：只信包内 AppIcon）
+  rm -f "$KEEP/Icon" "$KEEP/Icon"$'\r' 2>/dev/null || true
+  xattr -d com.apple.FinderInfo "$KEEP" 2>/dev/null || true
   touch "$KEEP" "$KEEP/Contents/Info.plist" "$KEEP/Contents/Resources/AppIcon.icns" 2>/dev/null || true
   rm -rf "${HOME}/Library/Caches/com.apple.iconservices.store" 2>/dev/null || true
   find "${HOME}/Library/Caches/com.apple.iconservices" -type f -delete 2>/dev/null || true
+  find /private/var/folders -name 'com.apple.iconservices*' -type d 2>/dev/null | while read -r d; do
+    rm -rf "$d" 2>/dev/null || true
+  done
   if [[ -x "$LSREG" ]]; then
+    "$LSREG" -u "$KEEP" 2>/dev/null || true
     "$LSREG" -f -R -trusted "$KEEP" 2>/dev/null || "$LSREG" -f "$KEEP" 2>/dev/null || true
   fi
   killall usernoted 2>/dev/null || true

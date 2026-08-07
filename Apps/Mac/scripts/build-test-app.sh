@@ -31,11 +31,13 @@ echo "==> install → ${DEST}"
 rm -rf "${DEST}"
 ditto --norsrc --noextattr --noqtn "${APP}" "${DEST}"
 xattr -cr "${DEST}" 2>/dev/null || true
-# 覆盖完整白底 icns（通知中心不用黑底/旧「余」字标）
+# 覆盖完整白底 icns；去掉自定义 Icon（对齐智额）
 ICNS_SRC="${ROOT}/Sources/App/Resources/AppIcon.icns"
 if [[ -f "${ICNS_SRC}" ]]; then
   cp -f "${ICNS_SRC}" "${DEST}/Contents/Resources/AppIcon.icns"
 fi
+rm -f "${DEST}/Icon" "${DEST}/Icon"$'\r' 2>/dev/null || true
+xattr -d com.apple.FinderInfo "${DEST}" 2>/dev/null || true
 codesign --force --deep --sign - "${DEST}" 2>/dev/null || true
 
 # 注销并删除构建目录里的 .app，避免第二个入口

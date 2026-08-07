@@ -3,6 +3,8 @@ import Domain
 
 @main
 struct SmartBalanceApp: App {
+    /// 对齐智额：AppKit 生命周期（关窗不退出、accessory 策略）
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
 
     var body: some Scene {
