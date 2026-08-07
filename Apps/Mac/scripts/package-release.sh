@@ -70,7 +70,11 @@ if [[ "${FORCE_REPACKAGE}" != "1" ]]; then
   fi
 fi
 
-printf '%s\n' "==> [1/5] tuist generate"
+printf '%s\n' "==> [1/5] branding + tuist generate"
+# 确保 AppIcon 白底 + 完整 icns 入库后再编
+if command -v python3 >/dev/null 2>&1; then
+  python3 "${ROOT}/scripts/apply-branding.py" || true
+fi
 tuist generate --no-open
 
 printf '%s\n' "==> [2/5] xcodebuild Release"
@@ -115,6 +119,16 @@ mkdir -p "$STAGE" "$WORK/app"
 
 ditto --norsrc --noextattr --noqtn "$APP_SRC" "$WORK/app/${APP_NAME}.app"
 xattr -cr "$WORK/app/${APP_NAME}.app" 2>/dev/null || true
+
+# 用 branding 脚本生成的完整白底 AppIcon.icns 覆盖 actool 子集，保证通知/Finder 图标正确
+ICNS_SRC="${ROOT}/Sources/App/Resources/AppIcon.icns"
+if [[ -f "${ICNS_SRC}" ]]; then
+  mkdir -p "$WORK/app/${APP_NAME}.app/Contents/Resources"
+  cp -f "${ICNS_SRC}" "$WORK/app/${APP_NAME}.app/Contents/Resources/AppIcon.icns"
+  echo "  seeded AppIcon.icns ($(wc -c < "${ICNS_SRC}" | tr -d ' ') bytes, white-bg)"
+else
+  echo "  warn: missing ${ICNS_SRC} — run python3 scripts/apply-branding.py" >&2
+fi
 
 # 拷走后立刻删掉构建产物 .app，避免启动台/聚焦出现多个「智余」
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"

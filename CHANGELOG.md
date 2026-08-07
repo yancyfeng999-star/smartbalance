@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.20 — 2026-08-07
+
+- 修复 Mac 通知仍显示旧「余」字黑底 Logo：AppIcon 强制白底 + 完整 icns
+- 新版本首次启动清 iconservices / 重注册 Launch Services，逼通知中心换新 S 标
+- 打包与试装脚本覆盖完整白底 AppIcon.icns
+
+
 ## 0.2.19 — 2026-08-07
 
 - 修复 Mac 通知仍显示旧版 Logo（启动强制挂上 AppIcon，安装后清图标缓存）

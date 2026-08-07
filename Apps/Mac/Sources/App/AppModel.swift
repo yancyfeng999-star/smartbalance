@@ -114,30 +114,28 @@ final class AppModel: ObservableObject {
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         self.selectedAccountId = loaded.enabledAccounts.first?.id
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
-        // 菜单栏 App（LSUIElement）无 Dock 时，系统通知易缓存旧图标；启动强制挂上当前 AppIcon
-        Self.applyAppIconForNotifications()
+        // 菜单栏 App（LSUIElement）无 Dock：通知中心极易锁住旧「余」字标；启动强制挂白底 AppIcon
+        Self.applyAppIconForNotifications(forceCacheBust: false)
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
             rescheduleManualReminders()
-            // 窗口稍后才创建，延迟再应用一次外观
+            // 窗口稍后才创建，延迟再应用一次外观 + 图标
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
-            Self.applyAppIconForNotifications()
+            Self.applyAppIconForNotifications(forceCacheBust: false)
+            // 新版本首次启动：清 iconservices / 重注册，逼通知中心换新 logo
+            Self.bustNotificationIconCacheIfNeeded()
         }
         startAutoRefreshIfNeeded()
     }
 
-    /// 通知横幅左侧图标跟 `NSApp.applicationIconImage` / 包内 AppIcon 走。
-    /// 显式赋值可避免升级后仍显示旧版 logo。
-    private static func applyAppIconForNotifications() {
-        let icon =
-            NSImage(named: "AppIcon")
-            ?? NSImage(named: NSImage.applicationIconName)
-            ?? Bundle.main.image(forResource: "AppIcon")
-        guard let icon else {
+    /// 通知横幅左侧图标跟包内白底 `AppIcon.icns` / `applicationIconImage` 走。
+    /// 仅设 `applicationIconImage` 不够；升级后还要 `NSWorkspace.setIcon` + 清缓存。
+    private static func applyAppIconForNotifications(forceCacheBust: Bool) {
+        guard let icon = loadBundledAppIcon() else {
             AppLog.error("AppIcon missing — notifications may show stale/generic icon")
             return
         }
@@ -145,6 +143,90 @@ final class AppModel: ObservableObject {
         NSApp.applicationIconImage = icon
         NSApp.dockTile.contentView = nil
         NSApp.dockTile.display()
+
+        // 把图标写回 App 包路径，刷新 Launch Services / Finder 侧缓存
+        let appPath = Bundle.main.bundlePath
+        let ok = NSWorkspace.shared.setIcon(icon, forFile: appPath, options: [])
+        if !ok {
+            AppLog.error("NSWorkspace.setIcon failed for \(appPath)")
+        }
+        if forceCacheBust {
+            refreshLaunchServicesIcon(appPath: appPath)
+        }
+    }
+
+    /// 优先读 Resources/AppIcon.icns（完整白底），再回退 asset catalog。
+    private static func loadBundledAppIcon() -> NSImage? {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let fromIcns = NSImage(contentsOf: url) {
+            return fromIcns
+        }
+        if let named = NSImage(named: "AppIcon") { return named }
+        if let app = NSImage(named: NSImage.applicationIconName) { return app }
+        return Bundle.main.image(forResource: "AppIcon")
+    }
+
+    /// 每个 build 只清一次图标缓存，避免每次启动 kill usernoted。
+    private static func bustNotificationIconCacheIfNeeded() {
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let token = "\(version)-\(build)-white-appicon"
+        let key = "zhiyu.lastIconCacheBustToken"
+        let defaults = UserDefaults.standard
+        if defaults.string(forKey: key) == token {
+            return
+        }
+        AppLog.info("Icon cache bust for notification logo · \(token)")
+        applyAppIconForNotifications(forceCacheBust: true)
+        refreshLaunchServicesIcon(appPath: Bundle.main.bundlePath)
+        clearIconServicesCaches()
+        defaults.set(token, forKey: key)
+    }
+
+    private static func refreshLaunchServicesIcon(appPath: String) {
+        let lsregister = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+        guard FileManager.default.isExecutableFile(atPath: lsregister) else { return }
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: lsregister)
+        proc.arguments = ["-f", "-R", "-trusted", appPath]
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+        } catch {
+            AppLog.error("lsregister failed: \(error.localizedDescription)")
+        }
+        // 碰一下包时间戳，促使 iconservices 失效
+        let touch = Process()
+        touch.executableURL = URL(fileURLWithPath: "/usr/bin/touch")
+        touch.arguments = [appPath, "\(appPath)/Contents/Info.plist"]
+        touch.standardOutput = FileHandle.nullDevice
+        touch.standardError = FileHandle.nullDevice
+        try? touch.run()
+        touch.waitUntilExit()
+    }
+
+    private static func clearIconServicesCaches() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let store = "\(home)/Library/Caches/com.apple.iconservices.store"
+        try? FileManager.default.removeItem(atPath: store)
+        let iconservices = "\(home)/Library/Caches/com.apple.iconservices"
+        if let files = try? FileManager.default.contentsOfDirectory(atPath: iconservices) {
+            for name in files {
+                try? FileManager.default.removeItem(atPath: "\(iconservices)/\(name)")
+            }
+        }
+        // 重启通知守护进程，丢弃旧 app 图标位图
+        for name in ["usernoted", "NotificationCenter"] {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+            p.arguments = [name]
+            p.standardOutput = FileHandle.nullDevice
+            p.standardError = FileHandle.nullDevice
+            try? p.run()
+            p.waitUntilExit()
+        }
     }
 
     /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
