@@ -1,96 +1,103 @@
 import AppKit
 
-/// 用 AppKit 把彩色 Logo 画进 `NSStatusItem.button`。
-/// 悬停不弹 tip；标题清空避免露出「智余」文字。
+/// 对齐智额 `StatusItemLabelDriver`：用 AppKit 写 `NSStatusItem.button.image`，
+/// 绕过 SwiftUI MenuBarExtra label 宿主。
+///
+/// 状态栏品牌图固定用资源 **`MenuBarIcon`**（对应智额的 `AppLogo` 状态栏用法）。
 @MainActor
 final class MenuBarStatusItemDriver {
     static let shared = MenuBarStatusItemDriver()
 
     private var statusItem: NSStatusItem?
     private var imageWipeObservation: NSKeyValueObservation?
-    private var titleWipeObservation: NSKeyValueObservation?
-    private var ownedImage: NSImage?
+    private var lastImage: NSImage?
 
+    /// 对齐智额：`attach` 后即可；`onAppear`/`onDisappear` 再 `reassertPresentation`。
     func attach(_ statusItem: NSStatusItem) {
         guard self.statusItem !== statusItem else {
-            applyIcon()
+            reassertPresentation()
             return
         }
-        imageWipeObservation?.invalidate()
-        titleWipeObservation?.invalidate()
         self.statusItem = statusItem
-        statusItem.length = NSStatusItem.variableLength
-        applyIcon()
 
+        // SwiftUI 开关菜单时会 wipe button.image；同 runloop 抢回（对齐智额）
+        imageWipeObservation?.invalidate()
         imageWipeObservation = statusItem.button?.observe(\.image, options: [.new]) { [weak self] button, _ in
-            Task { @MainActor in
-                guard let self, let owned = self.ownedImage else { return }
+            MainActor.assumeIsolated {
+                guard let self, let owned = self.lastImage else { return }
                 if button.image !== owned {
                     button.image = owned
                 }
-                Self.stripTitle(button)
             }
         }
-        titleWipeObservation = statusItem.button?.observe(\.title, options: [.new]) { [weak self] button, _ in
-            Task { @MainActor in
-                guard self != nil else { return }
-                Self.stripTitle(button)
-            }
-        }
+
+        reassertPresentation()
     }
 
-    func applyIcon() {
+    /// 对齐智额：`onAppear` / `onDisappear` 防御性重绘。
+    func reassertPresentation() {
+        render()
+    }
+
+    private func render() {
         guard let button = statusItem?.button else { return }
-        let image = Self.makeLogoImage()
-        ownedImage = image
-        Self.stripTitle(button)
-        button.image = image
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
-        button.appearsDisabled = false
-        button.isBordered = false
-        button.wantsLayer = false
-        button.toolTip = nil
-        button.setAccessibilityLabel("智余")
-        button.setAccessibilityTitle("智余")
-        statusItem?.length = NSStatusItem.variableLength
-    }
 
-    private static func stripTitle(_ button: NSStatusBarButton) {
+        let preferDark = NSApp.effectiveAppearance
+            .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let image = Self.brandLogoImage(preferDark: preferDark)
+
+        // 与智额相同：仅 image + imageOnly；智余额外清 title（防 Bundle 名「智余」）
         if !button.title.isEmpty {
             button.title = ""
         }
+        lastImage = image
+        button.image = image
         button.imagePosition = .imageOnly
+        // 不设 toolTip（产品要求：悬停不弹余额摘要）
+        button.toolTip = nil
     }
 
-    /// 彩色 MenuBarIcon（18pt），`isTemplate = false`。
-    static func makeLogoImage(pointSize: CGFloat = 18) -> NSImage {
-        let source = NSImage(named: "MenuBarIcon") ?? NSImage(named: "AppLogo")
-        guard let source else {
-            let fallback = NSImage(
-                systemSymbolName: "yensign.circle",
-                accessibilityDescription: "智余"
-            ) ?? NSImage(size: NSSize(width: pointSize, height: pointSize))
-            fallback.isTemplate = true
-            return fallback
+    /// 对齐智额 `brandLogoImage`：18pt、sourceOver、isTemplate=false。
+    /// 资源名：智余用 `MenuBarIcon`（智额用 `AppLogo`）。
+    private static func brandLogoImage(preferDark: Bool) -> NSImage {
+        let pointSize: CGFloat = 18
+        guard let source = NSImage(named: "MenuBarIcon") else {
+            return symbolImage("gauge.with.dots.needle.67percent", color: .labelColor)
         }
 
-        let size = NSSize(width: pointSize, height: pointSize)
-        let image = NSImage(size: size, flipped: false) { rect in
-            if let cg = NSGraphicsContext.current?.cgContext {
-                cg.clear(rect)
+        let appearance = NSAppearance(named: preferDark ? .darkAqua : .aqua)
+        let image = NSImage(size: NSSize(width: pointSize, height: pointSize), flipped: false) { rect in
+            appearance?.performAsCurrentDrawingAppearance {
+                source.draw(
+                    in: rect,
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: 1.0,
+                    respectFlipped: true,
+                    hints: [.interpolation: NSImageInterpolation.high]
+                )
             }
-            source.draw(
-                in: rect,
-                from: .zero,
-                operation: .sourceOver,
-                fraction: 1.0,
-                respectFlipped: true,
-                hints: [.interpolation: NSImageInterpolation.high]
-            )
             return true
         }
         image.isTemplate = false
         return image
+    }
+
+    /// 对齐智额 `symbolImage` 兜底。
+    private static func symbolImage(_ name: String, color: NSColor) -> NSImage {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: name)?
+            .withSymbolConfiguration(configuration) else {
+            return NSImage(size: .zero)
+        }
+        let size = symbol.size
+        let tinted = NSImage(size: size, flipped: false) { rect in
+            symbol.draw(in: rect)
+            color.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        tinted.isTemplate = false
+        return tinted
     }
 }
