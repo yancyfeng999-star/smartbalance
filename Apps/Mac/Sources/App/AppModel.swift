@@ -134,13 +134,11 @@ final class AppModel: ObservableObject {
         if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
             snapshots = Self.placeholderSnapshots(from: settings)
         } else if !settings.enabledAccounts.isEmpty {
+            // 已有结果的卡保持金额；仅无结果的显示查询中
             snapshots = settings.enabledAccounts.map { account in
-                if let existing = snapshots.first(where: { $0.accountId == account.id }) {
-                    var copy = existing
-                    if copy.amount == nil {
-                        copy.detail = "查询中…"
-                    }
-                    return copy
+                if let existing = snapshots.first(where: { $0.accountId == account.id }),
+                   existing.amount != nil || existing.errorMessage != nil {
+                    return existing
                 }
                 return BalanceSnapshot(
                     accountId: account.id,
@@ -154,33 +152,41 @@ final class AppModel: ObservableObject {
             .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
         }
         AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count)")
-        Task {
-            // 密钥直接从本机 vault 读，无指纹门禁
-            let result = await service.refreshAll(settings: settings)
-            self.snapshots = result.snapshots.sorted {
-                $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+        Task { @MainActor in
+            defer {
+                // 无论成功/失败/取消，都解除刷新锁，避免永远「查询中」
+                self.isRefreshing = false
             }
-            if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
-                self.snapshots = Self.placeholderSnapshots(from: self.settings)
-            }
-            if !result.alerts.isEmpty {
-                self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
-                if let fail = result.alerts.first(where: {
-                    !$0.emailed && $0.message.hasPrefix("邮件发送失败")
-                }) {
-                    let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
-                    self.banner = firstLine
-                    AppLog.error(firstLine)
+            do {
+                // 密钥直接从本机 vault 读，无指纹门禁
+                let result = await service.refreshAll(settings: settings)
+                self.snapshots = result.snapshots.sorted {
+                    $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
                 }
-                for a in result.alerts {
-                    AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
+                if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
+                    self.snapshots = Self.placeholderSnapshots(from: self.settings)
                 }
+                if !result.alerts.isEmpty {
+                    self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
+                    if let fail = result.alerts.first(where: {
+                        !$0.emailed && $0.message.hasPrefix("邮件发送失败")
+                    }) {
+                        let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
+                        self.banner = firstLine
+                        AppLog.error(firstLine)
+                    }
+                    for a in result.alerts {
+                        AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
+                    }
+                }
+                self.settings = result.settings
+                self.lastRefreshAt = Date()
+                try? store.save(self.settings)
+                AppLog.info("Refresh done · cards=\(self.snapshots.count)")
+            } catch {
+                self.banner = "刷新失败：\(error.localizedDescription)"
+                AppLog.error("Refresh crashed: \(error.localizedDescription)")
             }
-            self.settings = result.settings
-            self.lastRefreshAt = Date()
-            self.isRefreshing = false
-            try? store.save(self.settings)
-            AppLog.info("Refresh done · cards=\(self.snapshots.count)")
         }
     }
 

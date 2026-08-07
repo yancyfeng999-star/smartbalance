@@ -7,6 +7,11 @@ public actor BalanceService {
     private let smtp: SMTPClient
     private let notifications: MacNotificationService
 
+    /// 单账号查询上限，超时返回失败卡，避免整页卡在「查询中」。
+    private let perAccountTimeout: Duration = .seconds(15)
+    /// 邮件发送上限；超时只记失败，不挡余额展示。
+    private let smtpTimeout: Duration = .seconds(10)
+
     public init(
         secrets: LocalSecretStore = .shared,
         smtp: SMTPClient = SMTPClient(),
@@ -18,17 +23,31 @@ public actor BalanceService {
     }
 
     public func refreshAll(settings: AppSettings) async -> (snapshots: [BalanceSnapshot], alerts: [AlertEvent], settings: AppSettings) {
-        var snapshots: [BalanceSnapshot] = []
-        var alerts: [AlertEvent] = []
         var updated = settings
+        let accounts = settings.enabledAccounts
 
-        // 智余本职就是查余额：始终刷新已启用账号（不再依赖「数据源」总开关）
-        for account in settings.enabledAccounts {
-            let snap = await refreshAPI(account: account, settings: settings)
-            snapshots.append(snap)
+        // 1) 并行查余额（互不阻塞）；先出结果再报警
+        var snapsById: [UUID: BalanceSnapshot] = [:]
+        await withTaskGroup(of: (UUID, BalanceSnapshot).self) { group in
+            for account in accounts {
+                group.addTask {
+                    let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
+                    return (account.id, snap)
+                }
+            }
+            for await (id, snap) in group {
+                snapsById[id] = snap
+            }
+        }
+
+        let snapshots = accounts.compactMap { snapsById[$0.id] }
+
+        // 2) 报警（Mac 通知快；SMTP 有超时，挂住也不影响卡片）
+        var alerts: [AlertEvent] = []
+        for snap in snapshots {
             if let event = await dispatchAlerts(
                 snapshot: snap,
-                key: "api-\(account.id.uuidString)",
+                key: "api-\(snap.accountId.uuidString)",
                 settings: &updated
             ) {
                 alerts.append(event)
@@ -36,6 +55,24 @@ public actor BalanceService {
         }
 
         return (snapshots, alerts, updated)
+    }
+
+    private func refreshAPIWithTimeout(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {
+        do {
+            return try await withTimeout(perAccountTimeout) {
+                await self.refreshAPI(account: account, settings: settings)
+            }
+        } catch {
+            return BalanceSnapshot(
+                accountId: account.id,
+                providerKind: account.kind,
+                displayName: account.title,
+                source: .api,
+                status: .error,
+                detail: "",
+                errorMessage: "查询超时（\(Int(perAccountTimeout.components.seconds))s）"
+            )
+        }
     }
 
     public func refreshAPI(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {
@@ -114,7 +151,9 @@ public actor BalanceService {
 
     public func sendTestEmail(settings: EmailAlertSettings) async throws {
         let password = secrets.get(account: settings.passwordRef) ?? ""
-        try await smtp.sendTest(settings: settings, password: password)
+        try await withTimeout(smtpTimeout) {
+            try await self.smtp.sendTest(settings: settings, password: password)
+        }
     }
 
     public func sendTestMacNotification() async {
@@ -175,20 +214,28 @@ public actor BalanceService {
 
         if channels.outboundEmailEnabled && settings.email.enabled && settings.email.isConfigured {
             let password = secrets.get(account: settings.email.passwordRef) ?? ""
+            let emailSettings = settings.email
+            let mailSubject = title
+            let mailBody = message
             do {
-                try await smtp.send(
-                    settings: settings.email,
-                    password: password,
-                    subject: title,
-                    body: message
-                )
+                try await withTimeout(smtpTimeout) {
+                    try await self.smtp.send(
+                        settings: emailSettings,
+                        password: password,
+                        subject: mailSubject,
+                        body: mailBody
+                    )
+                }
                 emailed = true
             } catch {
                 emailError = error.localizedDescription
+                AppLog.error("SMTP alert failed: \(error.localizedDescription)")
             }
         }
 
-        if AlertCooldownPolicy.shouldEnterCooldown(notified: notified, emailed: emailed) {
+        // 通知已出即可进冷却；邮件失败不反复刷（除非连通知都没有）
+        if AlertCooldownPolicy.shouldEnterCooldown(notified: notified, emailed: emailed)
+            || (notified && emailError != nil) {
             settings.lastAlertAtByAccount[key] = Date()
         }
 
@@ -213,4 +260,31 @@ public actor BalanceService {
         default: false
         }
     }
+
+    // MARK: - Timeout helper
+
+    private func withTimeout<T: Sendable>(
+        _ duration: Duration,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            group.addTask {
+                try await Task.sleep(for: duration)
+                throw TimeoutError(seconds: duration.components.seconds)
+            }
+            guard let first = try await group.next() else {
+                throw TimeoutError(seconds: duration.components.seconds)
+            }
+            group.cancelAll()
+            return first
+        }
+    }
+}
+
+private struct TimeoutError: Error, LocalizedError {
+    let seconds: Int64
+    var errorDescription: String? { "操作超时（\(seconds)s）" }
 }

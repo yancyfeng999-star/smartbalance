@@ -186,30 +186,48 @@ private final class SMTPConnection: @unchecked Sendable {
         let params: NWParameters
         if implicitTLS {
             let tls = NWProtocolTLS.Options()
-            params = NWParameters(tls: tls, tcp: NWProtocolTCP.Options())
+            let tcp = NWProtocolTCP.Options()
+            tcp.connectionTimeout = 8
+            params = NWParameters(tls: tls, tcp: tcp)
         } else {
-            params = NWParameters.tcp
+            // 明文 TCP（本应用主路径是 465 隐式 TLS；587 已在上层拒绝）
+            let tcp = NWProtocolTCP.Options()
+            tcp.connectionTimeout = 8
+            let p = NWParameters.tcp
+            p.defaultProtocolStack.transportProtocol = tcp
+            params = p
         }
         let conn = NWConnection(to: endpoint, using: params)
         self.connection = conn
 
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            conn.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    conn.stateUpdateHandler = nil
-                    cont.resume()
-                case .failed(let err):
-                    conn.stateUpdateHandler = nil
-                    cont.resume(throwing: SMTPError.connection(err.localizedDescription))
-                case .cancelled:
-                    conn.stateUpdateHandler = nil
-                    cont.resume(throwing: SMTPError.connection("cancelled"))
-                default:
-                    break
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    conn.stateUpdateHandler = { state in
+                        switch state {
+                        case .ready:
+                            conn.stateUpdateHandler = nil
+                            cont.resume()
+                        case .failed(let err):
+                            conn.stateUpdateHandler = nil
+                            cont.resume(throwing: SMTPError.connection(err.localizedDescription))
+                        case .cancelled:
+                            conn.stateUpdateHandler = nil
+                            cont.resume(throwing: SMTPError.connection("cancelled"))
+                        default:
+                            break
+                        }
+                    }
+                    conn.start(queue: self.queue)
                 }
             }
-            conn.start(queue: queue)
+            group.addTask {
+                try await Task.sleep(nanoseconds: 10_000_000_000)
+                conn.cancel()
+                throw SMTPError.connection("连接超时（10s）· 请检查 SMTP 主机/端口/网络")
+            }
+            try await group.next()
+            group.cancelAll()
         }
     }
 
@@ -245,27 +263,45 @@ private final class SMTPConnection: @unchecked Sendable {
 
     func readReply() async throws -> String {
         // SMTP 多行回复以「code 」开头的行结束（第三位为空格）。
-        while true {
+        // 整段读回复最多 8s，避免服务器不回包导致刷新永久挂起。
+        let deadline = Date().addingTimeInterval(8)
+        while Date() < deadline {
             if let reply = try extractCompleteReply() {
                 return reply
             }
-            let chunk: Data = try await withCheckedThrowingContinuation { cont in
-                connection?.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
-                    if let error {
-                        cont.resume(throwing: SMTPError.connection(error.localizedDescription))
-                        return
-                    }
-                    if let data, !data.isEmpty {
-                        cont.resume(returning: data)
-                    } else if isComplete {
-                        cont.resume(throwing: SMTPError.connection("connection closed"))
-                    } else {
-                        cont.resume(returning: Data())
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { break }
+            let chunk: Data = try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await withCheckedThrowingContinuation { cont in
+                        self.connection?.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { data, _, isComplete, error in
+                            if let error {
+                                cont.resume(throwing: SMTPError.connection(error.localizedDescription))
+                                return
+                            }
+                            if let data, !data.isEmpty {
+                                cont.resume(returning: data)
+                            } else if isComplete {
+                                cont.resume(throwing: SMTPError.connection("connection closed"))
+                            } else {
+                                cont.resume(returning: Data())
+                            }
+                        }
                     }
                 }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(max(0.2, remaining) * 1_000_000_000))
+                    throw SMTPError.connection("SMTP 读超时")
+                }
+                guard let data = try await group.next() else {
+                    throw SMTPError.connection("SMTP 读失败")
+                }
+                group.cancelAll()
+                return data
             }
             buffer.append(chunk)
         }
+        throw SMTPError.connection("SMTP 读超时（8s）")
     }
 
     private func extractCompleteReply() throws -> String? {

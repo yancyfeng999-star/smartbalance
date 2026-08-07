@@ -32,8 +32,10 @@ struct MenuRootView: View {
                 // 只设一次默认框，之后用户可拖；不跟内容跳
                 PinnedBalanceWindowController.shared.ensureDefaultSize()
             }
-            // 打开弹层时若尚未查完，补一次刷新
-            if model.snapshots.isEmpty || model.snapshots.contains(where: { $0.status == .unknown }) {
+            // 打开弹层时若尚未出结果，且当前没在刷，补一次
+            if !model.isRefreshing,
+               model.snapshots.isEmpty
+                || model.snapshots.allSatisfy({ $0.status == .unknown && $0.amount == nil }) {
                 model.refresh()
             }
         }

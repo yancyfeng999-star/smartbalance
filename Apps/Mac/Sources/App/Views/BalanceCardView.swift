@@ -130,6 +130,9 @@ struct BalanceCardView: View {
         if let err = snapshot.errorMessage, !err.isEmpty, snapshot.amount == nil {
             return err
         }
+        if snapshot.status == .unknown, snapshot.amount == nil {
+            return snapshot.detail.isEmpty ? "查询中…" : snapshot.detail
+        }
         // primaryText 已带 ¥ / $ / 单位
         return snapshot.primaryText
     }
