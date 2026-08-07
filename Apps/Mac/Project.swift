@@ -52,7 +52,7 @@ let project = Project(
             name: "SmartBalance",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.smartbalance.app",
+            bundleId: "com.smartbalance.zhiyu",
             deploymentTargets: .macOS("15.0"),
             infoPlist: .file(path: "Sources/App/Info.plist"),
             sources: ["Sources/App/**"],

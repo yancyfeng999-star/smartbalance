@@ -10,6 +10,7 @@
 		02610ACC217416C78DFBFD98 /* KimiBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA4601AEE6E22E8C68DA45B9 /* KimiBalanceProvider.swift */; };
 		03DC753BA3A451F9726FF7A1 /* AppearanceSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E29D907B3D8CA9ED047AFD5 /* AppearanceSettingsCard.swift */; };
 		062469C0F777D8C8034128AE /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */; };
+		0AEA4C40DCB52374868F67AD /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F9141AAB18DF160ABCB945 /* AppDelegate.swift */; };
 		0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F342A2116AC420D4A006039D /* BalanceCardView.swift */; };
 		0B6178146159F40E7FEC142D /* SettingsExpandableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67797107671E28F484CA2F2 /* SettingsExpandableCard.swift */; };
 		0B9377EC164F3672E419D839 /* DMXAPIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1231E34AA6D3150E0F35241 /* DMXAPIProviderTests.swift */; };
@@ -38,6 +39,7 @@
 		3BE8B92353DD1E25551F5BD3 /* LanguageSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14EEC0DBA2D4A5DB360FECA /* LanguageSettingsCard.swift */; };
 		3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */; };
 		3F4F6534B5564484A9ADEE4F /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */; };
+		433EA782CEF1F5085D7B8318 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 49C9281D2CD654099B754765 /* AppIcon.icns */; };
 		43FA15EFD5C239EC1293B1AA /* LaoZhangBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */; };
 		48083B0B448C8941D61125DD /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3597F046B4FAC85DF2C83703 /* HomeView.swift */; };
 		4BAA0A8715D803A4967FA7CB /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
@@ -216,6 +218,7 @@
 		36669B997FED5162C0E150BC /* ViralTokBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokBalanceProvider.swift; sourceTree = "<group>"; };
 		3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannel.swift; sourceTree = "<group>"; };
 		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
+		49C9281D2CD654099B754765 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
 		4C299590DA907A1C409B8818 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		519D1E55589F026240054991 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
@@ -255,6 +258,7 @@
 		C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		C4CE1EF4B9D661D8E0EC1540 /* ViralTokProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokProviderTests.swift; sourceTree = "<group>"; };
 		C5AAE8EF719BC07AF237A54F /* SMTPSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPSection.swift; sourceTree = "<group>"; };
+		C5F9141AAB18DF160ABCB945 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartBalanceApp.swift; sourceTree = "<group>"; };
 		CBCEB56E7ED644F6397BE1BC /* AppMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMotion.swift; sourceTree = "<group>"; };
 		CFF26DFD225E26801BD8B0EA /* SecretMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretMask.swift; sourceTree = "<group>"; };
@@ -392,6 +396,7 @@
 				FD135B868DABD903E7C816CE /* Resources */,
 				7AC388C0365E76E3D8DC7CDC /* Theme */,
 				35A3F0218FB863E5DFB5AAD2 /* Views */,
+				C5F9141AAB18DF160ABCB945 /* AppDelegate.swift */,
 				6D54145CDACB1B1247DD86DB /* AppModel.swift */,
 				8BF19645DB4D57FA6949B718 /* entitlements.plist */,
 				714250D3631EFC7BA8A4D3D8 /* Info.plist */,
@@ -559,6 +564,7 @@
 		FD135B868DABD903E7C816CE /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				49C9281D2CD654099B754765 /* AppIcon.icns */,
 				9335C8DFE67FB1CBAF966549 /* Assets.xcassets */,
 			);
 			path = Resources;
@@ -718,6 +724,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				433EA782CEF1F5085D7B8318 /* AppIcon.icns in Resources */,
 				D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -770,6 +777,7 @@
 			files = (
 				5E40934CEE7455A0BCDF47D3 /* TuistAssets+SmartBalance.swift in Sources */,
 				5EA0691D6B1E3C6F2560DE04 /* TuistBundle+SmartBalance.swift in Sources */,
+				0AEA4C40DCB52374868F67AD /* AppDelegate.swift in Sources */,
 				74B4CBF8F02D3B3B5852876F /* AppModel.swift in Sources */,
 				AAAD866D367B2FBAA75F22FC /* L10n.swift in Sources */,
 				F41BDA821A1D7689B8343B53 /* PinnedBalanceWindow.swift in Sources */,
@@ -1050,7 +1058,7 @@
 					"$(inherited)",
 					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.zhiyu;
 				PRODUCT_NAME = "智余";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -1230,7 +1238,7 @@
 					"$(inherited)",
 					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.smartbalance.zhiyu;
 				PRODUCT_NAME = "智余";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
