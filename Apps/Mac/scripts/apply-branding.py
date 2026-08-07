@@ -2,7 +2,7 @@
 """从 Branding/ 源文件生成 AppIcon / AppLogo / MenuBarIcon。
 
 - AppIcon / 通知：有背景 JPG → 白底 PNG / icns
-- 状态栏 / 界面：无背景 PNG **原样缩放**，不做去污、预乘、清边等像素处理
+- 状态栏 / 界面：无背景 PNG **原样缩放**（只把 a==0 的 RGB 置 0，避免缩放渗色）
 """
 from __future__ import annotations
 
@@ -68,9 +68,22 @@ def write_iconutil_set(icon_1024: Image.Image, dest_icns: Path) -> None:
         shutil.copy2(tmp_icns, dest_icns)
 
 
+def zero_clear_rgb(im: Image.Image) -> Image.Image:
+    """a==0 时 RGB 置 0。源稿常见 (255,255,255,0)，缩放时会渗边。不改半透明色。"""
+    im = im.convert("RGBA")
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0 and (r or g or b):
+                px[x, y] = (0, 0, 0, 0)
+    return im
+
+
 def scale_png(src: Image.Image, px: int) -> Image.Image:
-    """设计 PNG 原样缩放到正方形，保留 alpha，不做任何颜色处理。"""
-    return src.convert("RGBA").resize((px, px), Image.Resampling.LANCZOS)
+    """设计 PNG 直接缩放，仅清全透明像素的脏 RGB。"""
+    return zero_clear_rgb(src.convert("RGBA").resize((px, px), Image.Resampling.LANCZOS))
 
 
 def main() -> None:
@@ -93,9 +106,7 @@ def main() -> None:
     write_iconutil_set(icon, ICNS_OUT)
 
     # —— 状态栏 / 界面：无背景 PNG 直接缩放 ——
-    clear_src = Image.open(light_clear).convert("RGBA")
-    if clear_src.mode != "RGBA":
-        raise SystemExit(f"{light_clear.name}: expected RGBA PNG, got {clear_src.mode}")
+    clear_src = zero_clear_rgb(Image.open(light_clear).convert("RGBA"))
 
     APP_LOGO.mkdir(parents=True, exist_ok=True)
     for name, px in [("logo_1x.png", 64), ("logo_2x.png", 128), ("logo_3x.png", 192)]:
@@ -112,8 +123,8 @@ def main() -> None:
         raise SystemExit(f"AppIcon.icns missing or too small: {ICNS_OUT}")
 
     print(
-        f"branding applied: AppIcon=white-bg from jpg; "
-        f"MenuBar/AppLogo=direct scale of {light_clear.name}; "
+        f"branding applied: AppIcon=white-bg; "
+        f"MenuBar/AppLogo=direct PNG scale ({light_clear.name}); "
         f"icns={ICNS_OUT.stat().st_size}B"
     )
 

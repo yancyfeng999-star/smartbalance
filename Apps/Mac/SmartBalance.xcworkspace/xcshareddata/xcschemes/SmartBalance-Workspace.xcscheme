@@ -70,6 +70,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "AC957DEC8B9481FF4A46AF82"
+               BuildableName = "MenuBarExtraAccess.framework"
+               BlueprintName = "MenuBarExtraAccess"
+               ReferencedContainer = "container:Tuist/.build/tuist-derived/Projects/MenuBarExtraAccess/MenuBarExtraAccess.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "3750E8F1CDB65C0D71939BC7"
                BuildableName = "智余.app"
                BlueprintName = "SmartBalance"

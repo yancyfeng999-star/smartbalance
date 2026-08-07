@@ -63,6 +63,7 @@ let project = Project(
             dependencies: [
                 .target(name: "Domain"),
                 .target(name: "Infrastructure"),
+                .external(name: "MenuBarExtraAccess"),
             ],
             settings: .settings(
                 base: [

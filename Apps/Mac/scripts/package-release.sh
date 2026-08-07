@@ -70,11 +70,12 @@ if [[ "${FORCE_REPACKAGE}" != "1" ]]; then
   fi
 fi
 
-printf '%s\n' "==> [1/5] branding + tuist generate"
+printf '%s\n' "==> [1/5] branding + tuist install/generate"
 # 确保 AppIcon 白底 + 完整 icns 入库后再编
 if command -v python3 >/dev/null 2>&1; then
   python3 "${ROOT}/scripts/apply-branding.py" || true
 fi
+tuist install
 tuist generate --no-open
 
 printf '%s\n' "==> [2/5] xcodebuild Release"
