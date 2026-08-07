@@ -1,8 +1,7 @@
 import AppKit
 
 /// 用 AppKit 把状态栏图标画进 `NSStatusItem.button`。
-/// SwiftUI `MenuBarExtra` 的 label 对带透明 PNG 常会衬出黑/白方块底；
-/// 对齐智额：`isTemplate = false` + `sourceOver` 绘制。
+/// SwiftUI `MenuBarExtra` label 对透明图易出方块底；对齐智额用 `sourceOver` + `isTemplate = false`。
 @MainActor
 final class MenuBarStatusItemDriver {
     static let shared = MenuBarStatusItemDriver()
@@ -18,6 +17,10 @@ final class MenuBarStatusItemDriver {
         }
         imageWipeObservation?.invalidate()
         self.statusItem = statusItem
+
+        // 按内容宽度，避免 squareLength 自带「方块槽」
+        statusItem.length = NSStatusItem.variableLength
+
         applyIcon()
 
         // SwiftUI 会反复清空 button.image，需抢回我们的图
@@ -37,16 +40,19 @@ final class MenuBarStatusItemDriver {
         ownedImage = image
         button.image = image
         button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
         button.appearsDisabled = false
+        button.isBordered = false
+        // 切勿 wantsLayer：layer-backed 的 status button 常整块黑/深色方底
+        button.wantsLayer = false
         if let toolTip {
             button.toolTip = toolTip
         }
-        // 避免 layer 默认不透明黑底
-        button.wantsLayer = true
-        button.layer?.backgroundColor = NSColor.clear.cgColor
+        statusItem?.length = NSStatusItem.variableLength
     }
 
-    /// 从资源里的 MenuBarIcon（设计 PNG 缩放）烘焙 18pt 非 template 图。
+    /// 从 MenuBarIcon（设计无背景 PNG）烘焙 18pt 非 template 图。
+    /// 使用 `NSImage(size:flipped:)` 绘制块：画布自带透明，禁止 bitmap 残留黑底。
     static func makeLogoImage(pointSize: CGFloat = 18) -> NSImage {
         let source = NSImage(named: "MenuBarIcon") ?? NSImage(named: "AppLogo")
         guard let source else {
@@ -58,30 +64,13 @@ final class MenuBarStatusItemDriver {
             return fallback
         }
 
-        // 按屏幕 scale 烘焙，避免 1x 糊边被系统再衬底
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
-        let px = max(1, Int((pointSize * scale).rounded()))
-        let pixelSize = NSSize(width: px, height: px)
-        let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: px,
-            pixelsHigh: px,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        )!
-        rep.size = NSSize(width: pointSize, height: pointSize)
-
-        NSGraphicsContext.saveGraphicsState()
-        if let ctx = NSGraphicsContext(bitmapImageRep: rep) {
-            NSGraphicsContext.current = ctx
-            ctx.imageInterpolation = .high
-            // 透明底：不 fill 任何颜色
-            let rect = NSRect(origin: .zero, size: NSSize(width: pointSize, height: pointSize))
+        let size = NSSize(width: pointSize, height: pointSize)
+        // 与智额 brandLogoImage 一致：block 绘制，画布默认全透明
+        let image = NSImage(size: size, flipped: false) { rect in
+            // 显式清成透明（防止某些系统上 bitmap 未初始化成黑不透明）
+            if let cg = NSGraphicsContext.current?.cgContext {
+                cg.clear(rect)
+            }
             source.draw(
                 in: rect,
                 from: .zero,
@@ -90,11 +79,8 @@ final class MenuBarStatusItemDriver {
                 respectFlipped: true,
                 hints: [.interpolation: NSImageInterpolation.high]
             )
+            return true
         }
-        NSGraphicsContext.restoreGraphicsState()
-
-        let image = NSImage(size: NSSize(width: pointSize, height: pointSize))
-        image.addRepresentation(rep)
         image.isTemplate = false
         return image
     }

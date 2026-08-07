@@ -18,12 +18,14 @@ struct SmartBalanceApp: App {
                     PinnedBalanceWindowController.shared.bind(model: model)
                     MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
                 }
+                .onDisappear {
+                    MenuBarStatusItemDriver.shared.applyIcon(toolTip: menuBarHelp)
+                }
         } label: {
-            // 占位即可：真正彩色透明 Logo 由 AppKit 写到 NSStatusItem.button
-            // （SwiftUI Image 带 alpha 时常被系统衬出黑/白方块底）
-            Text(Brand.nameCN)
-                .frame(width: 18, height: 18)
-                .opacity(0)
+            // 占位（与智额相同思路）；真正图标由 AppKit 写入 button.image
+            // 不要用带 frame 的透明 Text——宿主视图会留下矩形槽
+            Image(systemName: "circle.fill")
+                .opacity(0.01)
                 .accessibilityLabel(Brand.nameCN)
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in

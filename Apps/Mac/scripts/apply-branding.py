@@ -2,7 +2,7 @@
 """从 Branding/ 源文件生成 AppIcon / AppLogo / MenuBarIcon。
 
 - AppIcon / 通知：有背景 JPG → 白底 PNG / icns
-- 状态栏 / 界面：无背景 PNG **原样缩放**（只把 a==0 的 RGB 置 0，避免缩放渗色）
+- 状态栏 / 界面：无背景 PNG，裁内容后缩放（保留透明，外圈强制清空）
 """
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def write_iconutil_set(icon_1024: Image.Image, dest_icns: Path) -> None:
 
 
 def zero_clear_rgb(im: Image.Image) -> Image.Image:
-    """a==0 时 RGB 置 0。源稿常见 (255,255,255,0)，缩放时会渗边。不改半透明色。"""
+    """a==0 时 RGB 置 0，避免缩放渗色。"""
     im = im.convert("RGBA")
     px = im.load()
     w, h = im.size
@@ -81,9 +81,38 @@ def zero_clear_rgb(im: Image.Image) -> Image.Image:
     return im
 
 
-def scale_png(src: Image.Image, px: int) -> Image.Image:
-    """设计 PNG 直接缩放，仅清全透明像素的脏 RGB。"""
-    return zero_clear_rgb(src.convert("RGBA").resize((px, px), Image.Resampling.LANCZOS))
+def tight_square(im: Image.Image, pad_ratio: float = 0.08) -> Image.Image:
+    """按不透明内容裁切后居中到正方形，外圈真透明。"""
+    im = zero_clear_rgb(im.convert("RGBA"))
+    bbox = im.getbbox()
+    if bbox:
+        im = im.crop(bbox)
+    w, h = im.size
+    side = max(w, h)
+    pad = max(1, int(side * pad_ratio))
+    out = Image.new("RGBA", (side + 2 * pad, side + 2 * pad), (0, 0, 0, 0))
+    out.paste(im, ((out.size[0] - w) // 2, (out.size[1] - h) // 2), im)
+    return zero_clear_rgb(out)
+
+
+def clear_outer(im: Image.Image, px: int = 1) -> Image.Image:
+    """外圈强制透明，杜绝缩放抗锯齿在边缘成方框。"""
+    im = im.convert("RGBA")
+    w, h = im.size
+    px = max(1, min(px, w // 4, h // 4))
+    data = im.load()
+    for y in range(h):
+        for x in range(w):
+            if x < px or y < px or x >= w - px or y >= h - px:
+                data[x, y] = (0, 0, 0, 0)
+    return im
+
+
+def scale_clear(src: Image.Image, px: int, border: int = 1) -> Image.Image:
+    out = src.resize((px, px), Image.Resampling.LANCZOS)
+    out = zero_clear_rgb(out)
+    out = clear_outer(out, border)
+    return out
 
 
 def main() -> None:
@@ -105,16 +134,21 @@ def main() -> None:
 
     write_iconutil_set(icon, ICNS_OUT)
 
-    # —— 状态栏 / 界面：无背景 PNG 直接缩放 ——
-    clear_src = zero_clear_rgb(Image.open(light_clear).convert("RGBA"))
+    # —— 状态栏 / 界面：无背景 PNG，裁内容后缩放 ——
+    clear_src = tight_square(Image.open(light_clear), pad_ratio=0.08)
 
     APP_LOGO.mkdir(parents=True, exist_ok=True)
     for name, px in [("logo_1x.png", 64), ("logo_2x.png", 128), ("logo_3x.png", 192)]:
-        scale_png(clear_src, px).save(APP_LOGO / name, "PNG")
+        scale_clear(clear_src, px, border=1).save(APP_LOGO / name, "PNG")
 
     MENU.mkdir(parents=True, exist_ok=True)
     for name, px in [("menu_1x.png", 18), ("menu_2x.png", 36), ("menu_3x.png", 54)]:
-        scale_png(clear_src, px).save(MENU / name, "PNG")
+        border = 2 if px >= 36 else 1
+        out = scale_clear(clear_src, px, border=border)
+        out.save(MENU / name, "PNG")
+        for xy in [(0, 0), (px - 1, 0), (0, px - 1), (px - 1, px - 1)]:
+            if out.getpixel(xy)[3] != 0:
+                raise SystemExit(f"{name} corner not transparent: {out.getpixel(xy)}")
 
     corner = icon.getpixel((2, 2))
     if corner[0] < 250 or corner[1] < 250 or corner[2] < 250:
@@ -124,7 +158,7 @@ def main() -> None:
 
     print(
         f"branding applied: AppIcon=white-bg; "
-        f"MenuBar/AppLogo=direct PNG scale ({light_clear.name}); "
+        f"MenuBar/AppLogo=tight-crop scale of {light_clear.name}; "
         f"icns={ICNS_OUT.stat().st_size}B"
     )
 
