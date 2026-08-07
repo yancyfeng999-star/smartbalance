@@ -45,8 +45,11 @@ struct HomeView: View {
                     HStack(alignment: .center, spacing: 6) {
                         BalanceCardView(
                             snapshot: snap,
-                            emphasized: index == 0 && !model.isReorderMode,
+                            emphasized: model.selectedAccountId == snap.accountId && !model.isReorderMode,
                             isReorderMode: model.isReorderMode,
+                            onSelect: {
+                                model.selectAccount(id: snap.accountId)
+                            },
                             onLongPress: {
                                 model.enterReorderMode()
                             }

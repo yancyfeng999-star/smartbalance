@@ -206,7 +206,7 @@ struct MenuRootView: View {
                 model.openDashboard()
             }
             .keyboardShortcut("d")
-            .help("打开当前账号对应平台控制台")
+            .help("打开当前选中账号对应平台控制台")
 
             footerPill(title: l10n.t("home.settings"), systemName: "gearshape") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖

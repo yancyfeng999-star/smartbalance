@@ -9,6 +9,8 @@ struct BalanceCardView: View {
     var emphasized: Bool = false
     /// 排序模式：不展开，便于长按 / 右侧 ↑↓
     var isReorderMode: Bool = false
+    /// 点按选中（供首页高亮与「打开后台」）；与展开同时发生。
+    var onSelect: (() -> Void)? = nil
     var onLongPress: (() -> Void)? = nil
     /// 默认折叠，与设置页折叠卡一致。
     @State private var isExpanded = false
@@ -54,6 +56,7 @@ struct BalanceCardView: View {
                         return
                     }
                     guard !isReorderMode else { return }
+                    onSelect?()
                     AppMotion.toggleExpand($isExpanded)
                 }
             )

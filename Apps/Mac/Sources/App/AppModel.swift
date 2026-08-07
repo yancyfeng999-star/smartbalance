@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
     @Published var lastRefreshAt: Date?
     @Published var banner: String?
     @Published var selectedTab: Tab = .home
+    /// 首页当前选中的账号（高亮 +「打开后台」目标）；点卡片切换。
+    @Published var selectedAccountId: UUID?
     /// Mac 通知授权状态文案（设置页展示）。
     @Published var notificationStatusCaption: String = "系统未授权通知 · 点测试可再次请求"
 
@@ -82,6 +84,7 @@ final class AppModel: ObservableObject {
         L10n.shared.setLanguage(loaded.resolvedLanguage)
         // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
         self.snapshots = Self.placeholderSnapshots(from: loaded)
+        self.selectedAccountId = loaded.enabledAccounts.first?.id
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
@@ -167,9 +170,35 @@ final class AppModel: ObservableObject {
         return "—"
     }
 
-    /// 打开当前首个已启用账号的官网/后台（优先用户填写的链接）。
+    /// 选中首页账号（高亮 +「打开后台」目标）。
+    func selectAccount(id: UUID) {
+        guard settings.enabledAccounts.contains(where: { $0.id == id }) else { return }
+        guard selectedAccountId != id else { return }
+        AppMotion.withSelection {
+            selectedAccountId = id
+        }
+    }
+
+    /// 若当前选中已失效，回落到第一个已启用账号。
+    func ensureValidSelectedAccount() {
+        let enabled = settings.enabledAccounts
+        if let id = selectedAccountId, enabled.contains(where: { $0.id == id }) {
+            return
+        }
+        selectedAccountId = enabled.first?.id
+    }
+
+    /// 打开当前选中账号的官网/后台；无选中时用首个已启用账号。
     func openDashboard() {
-        guard let account = settings.enabledAccounts.first else {
+        ensureValidSelectedAccount()
+        let account: BalanceAccount?
+        if let id = selectedAccountId {
+            account = settings.enabledAccounts.first(where: { $0.id == id })
+                ?? settings.accounts.first(where: { $0.id == id })
+        } else {
+            account = nil
+        }
+        guard let account = account ?? settings.enabledAccounts.first else {
             banner = "请先添加 API 账号"
             selectedTab = .settings
             return
@@ -309,6 +338,9 @@ final class AppModel: ObservableObject {
             }
         }
         settings.accounts.append(account)
+        if selectedAccountId == nil {
+            selectedAccountId = account.id
+        }
         persist()
         // 立刻出现在首页
         if !snapshots.contains(where: { $0.accountId == account.id }) {
@@ -335,6 +367,9 @@ final class AppModel: ObservableObject {
         }
         settings.accounts.removeAll { $0.id == id }
         snapshots.removeAll { $0.accountId == id }
+        if selectedAccountId == id {
+            selectedAccountId = settings.enabledAccounts.first?.id
+        }
         persist()
         rescheduleManualReminders()
     }
@@ -419,6 +454,11 @@ final class AppModel: ObservableObject {
     func toggleAccount(_ id: UUID, enabled: Bool) {
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
         settings.accounts[idx].enabled = enabled
+        if !enabled, selectedAccountId == id {
+            selectedAccountId = settings.enabledAccounts.first?.id
+        } else if enabled, selectedAccountId == nil {
+            selectedAccountId = id
+        }
         persist()
         rescheduleManualReminders()
     }
