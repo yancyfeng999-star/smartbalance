@@ -19,6 +19,6 @@ python3 Apps/Mac/scripts/apply-branding.py
 
 脚本会写出：
 
-- `Apps/Mac/.../AppIcon.appiconset/*.png`（白底）
+- `Apps/Mac/.../AppIcon.appiconset/*.png`（白底，来自有背景 JPG）
 - `Apps/Mac/Sources/App/Resources/AppIcon.icns`（完整尺寸，通知中心用）
-- `AppLogo` / `MenuBarIcon`（浅色无背景）
+- `AppLogo` / `MenuBarIcon`：**直接缩放** `logo-light-clear.png`（无去污/预乘等处理）
