@@ -2,8 +2,8 @@
 """从 Branding/ 源文件生成 AppIcon / AppLogo / MenuBarIcon。
 
 产品要求：
-- 安装包 / Dock / AppIcon：浅色无背景彩色 Logo
-- 状态栏：浅色无背景彩色 Logo（非模板、非深色底）
+- 安装包 / Dock / AppIcon：浅色有背景（白底）Logo
+- 状态栏：浅色无背景彩色 Logo
 - 界面 AppLogo：浅色无背景彩色 Logo
 """
 from pathlib import Path
@@ -16,6 +16,14 @@ APP_BRAND = ROOT / "Apps/Mac/Branding"
 ICONSET = ROOT / "Apps/Mac/Sources/App/Resources/Assets.xcassets/AppIcon.appiconset"
 MENU = ROOT / "Apps/Mac/Sources/App/Resources/Assets.xcassets/MenuBarIcon.imageset"
 APP_LOGO = ROOT / "Apps/Mac/Sources/App/Resources/Assets.xcassets/AppLogo.imageset"
+
+
+def resolve(*names: str) -> Path:
+    for n in names:
+        p = BRAND / n
+        if p.exists():
+            return p
+    raise SystemExit(f"missing under {BRAND}: {names}")
 
 
 def tight_square(im: Image.Image, pad_ratio: float = 0.10) -> Image.Image:
@@ -32,21 +40,12 @@ def tight_square(im: Image.Image, pad_ratio: float = 0.10) -> Image.Image:
 
 
 def main() -> None:
-    light_clear = BRAND / "logo-light-clear.png"
-    if not light_clear.exists():
-        # 中文文件名回退
-        alt = BRAND / "智余logo浅色模式无背景.png"
-        if alt.exists():
-            light_clear = alt
-        else:
-            raise SystemExit(f"missing light-clear master under {BRAND}")
+    light_clear = resolve("logo-light-clear.png", "智余logo浅色模式无背景.png")
+    light_bg = resolve("logo-light-bg.jpg", "智余logo浅色模式有背景.jpg")
 
-    # 浅色无背景：透明底 + 彩色 Logo
-    master = tight_square(Image.open(light_clear), pad_ratio=0.10)
-    master_1024 = master.resize((1024, 1024), Image.Resampling.LANCZOS)
-
-    # App / Dock / 安装包图标
-    master_1024.save(BRAND / "app-icon-1024.png", "PNG")
+    # —— 安装包 / Dock：白底彩色 ——
+    icon = Image.open(light_bg).convert("RGBA").resize((1024, 1024), Image.Resampling.LANCZOS)
+    icon.save(BRAND / "app-icon-1024.png", "PNG")
     APP_BRAND.mkdir(parents=True, exist_ok=True)
     shutil.copy2(BRAND / "app-icon-1024.png", APP_BRAND / "app-icon-1024.png")
 
@@ -57,19 +56,19 @@ def main() -> None:
         ("mac_256.png", 256), ("mac_256@2x.png", 512),
         ("mac_512.png", 512), ("mac_512@2x.png", 1024),
     ]:
-        master.resize((px, px), Image.Resampling.LANCZOS).save(ICONSET / name, "PNG")
+        icon.resize((px, px), Image.Resampling.LANCZOS).save(ICONSET / name, "PNG")
 
-    # 界面 AppLogo
+    # —— 界面 / 状态栏：浅色无背景彩色 ——
+    ui = tight_square(Image.open(light_clear), pad_ratio=0.08)
     APP_LOGO.mkdir(parents=True, exist_ok=True)
     for name, px in [("logo_1x.png", 64), ("logo_2x.png", 128), ("logo_3x.png", 192)]:
-        master.resize((px, px), Image.Resampling.LANCZOS).save(APP_LOGO / name, "PNG")
+        ui.resize((px, px), Image.Resampling.LANCZOS).save(APP_LOGO / name, "PNG")
 
-    # 状态栏：彩色浅色无背景（非 template）
-    menu_src = tight_square(Image.open(light_clear), pad_ratio=0.12)
-    menu_src.resize((18, 18), Image.Resampling.LANCZOS).save(MENU / "menu_1x.png", "PNG")
-    menu_src.resize((36, 36), Image.Resampling.LANCZOS).save(MENU / "menu_2x.png", "PNG")
+    menu = tight_square(Image.open(light_clear), pad_ratio=0.12)
+    menu.resize((18, 18), Image.Resampling.LANCZOS).save(MENU / "menu_1x.png", "PNG")
+    menu.resize((36, 36), Image.Resampling.LANCZOS).save(MENU / "menu_2x.png", "PNG")
 
-    print("branding applied (light-clear color): AppIcon / AppLogo / MenuBarIcon")
+    print("branding applied: AppIcon=white-bg, AppLogo/MenuBar=light-clear")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.13 — 2026-08-07
+
+- 安装包/Dock 图标改用白底 Logo（浅色有背景）
+- 长按排序：去掉 Button 抢手势，0.32s 触发，允许轻微移动
+- 备用：右键「排序卡片」+ 首页「点此排序」
+
+
 ## 0.2.12 — 2026-08-07
 
 - 清理多入口：cleanup-duplicate-apps.sh 只保留 /Applications/智余.app

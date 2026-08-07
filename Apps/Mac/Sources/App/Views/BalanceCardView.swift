@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 
 /// 余额卡：默认折叠（名称 + 主金额 + 状态），点击展开进度与明细。
-/// 交互对齐智额：悬停轻抬 + 描边/阴影，按下缩放反馈，再展开；长按进入排序。
+/// 交互对齐智额：不用 Button（避免抢走长按）；点按展开、长按排序。
 /// 字号：标题 15 / 徽章 11 / 副文 10 / 数值 12 bold / 状态 10。
 struct BalanceCardView: View {
     let snapshot: BalanceSnapshot
@@ -13,32 +13,68 @@ struct BalanceCardView: View {
     /// 默认折叠，与设置页折叠卡一致。
     @State private var isExpanded = false
     @State private var isHovering = false
+    @State private var isPressing = false
+    /// 长按成功后吞掉随后的 tap，避免展开
+    @State private var suppressNextTap = false
 
     var body: some View {
-        Group {
-            if isReorderMode {
-                // 非 Button，避免抢走长按；排序时收起展开内容
-                cardContent
-                    .onAppear { isExpanded = false }
-            } else {
-                Button {
-                    AppMotion.toggleExpand($isExpanded)
-                } label: {
-                    cardContent
+        cardContent
+            .onAppear {
+                if isReorderMode { isExpanded = false }
+            }
+            .onChange(of: isReorderMode) { _, on in
+                if on { isExpanded = false }
+            }
+            .scaleEffect(isPressing ? 0.985 : (isHovering && !isReorderMode ? 1.015 : 1.0))
+            .shadow(
+                color: SBTheme.accent.opacity(isHovering && !isPressing && !isReorderMode ? 0.18 : 0),
+                radius: isHovering && !isPressing && !isReorderMode ? 10 : 0,
+                y: isHovering && !isPressing && !isReorderMode ? 3 : 0
+            )
+            .contentShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
+            // 长按优先：不用 Button，稍短时长 + 允许轻微移动
+            .onLongPressGesture(
+                minimumDuration: 0.32,
+                maximumDistance: 48,
+                pressing: { pressing in
+                    withAnimation(.easeOut(duration: 0.1)) {
+                        isPressing = pressing
+                    }
+                },
+                perform: {
+                    guard !isReorderMode else { return }
+                    suppressNextTap = true
+                    onLongPress?()
                 }
-                .buttonStyle(BalanceCardButtonStyle(isHovering: isHovering))
+            )
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    if suppressNextTap {
+                        suppressNextTap = false
+                        return
+                    }
+                    guard !isReorderMode else { return }
+                    AppMotion.toggleExpand($isExpanded)
+                }
+            )
+            .contextMenu {
+                if !isReorderMode {
+                    Button {
+                        onLongPress?()
+                    } label: {
+                        Label("排序卡片", systemImage: "arrow.up.arrow.down")
+                    }
+                }
             }
-        }
-        .onHover { hovering in
-            withAnimation(AppMotion.hover) {
-                isHovering = hovering
+            .onHover { hovering in
+                withAnimation(AppMotion.hover) {
+                    isHovering = hovering
+                }
             }
-        }
-        .onLongPressGesture(minimumDuration: 0.4) {
-            onLongPress?()
-        }
-        // 禁止内容 ideal 宽度撑破固定面板
-        .fixedSize(horizontal: false, vertical: true)
+            .animation(AppMotion.hover, value: isHovering)
+            .animation(.easeOut(duration: 0.1), value: isPressing)
+            // 禁止内容 ideal 宽度撑破固定面板
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var cardContent: some View {
@@ -293,31 +329,5 @@ struct BalanceCardView: View {
                     .strokeBorder(strokeColor, lineWidth: lineWidth)
             )
             .shadow(color: Color.black.opacity(isHovering ? 0.22 : 0.18), radius: isHovering ? 10 : 8, y: 2)
-    }
-}
-
-// MARK: - 悬停抬升 + 按下压回（对齐智额）
-
-private struct BalanceCardButtonStyle: ButtonStyle {
-    var isHovering: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        let pressed = configuration.isPressed
-        let scale: CGFloat = pressed ? 0.985 : (isHovering ? 1.015 : 1.0)
-        return configuration.label
-            .scaleEffect(scale)
-            .shadow(
-                color: SBTheme.accent.opacity(isHovering && !pressed ? 0.18 : 0),
-                radius: isHovering && !pressed ? 10 : 0,
-                y: isHovering && !pressed ? 3 : 0
-            )
-            .overlay {
-                // 按下时轻微压暗，增强「点到了」的反馈
-                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
-                    .fill(Color.black.opacity(pressed ? 0.08 : 0))
-                    .allowsHitTesting(false)
-            }
-            .animation(AppMotion.hover, value: isHovering)
-            .animation(.easeOut(duration: 0.1), value: pressed)
     }
 }

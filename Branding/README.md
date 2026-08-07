@@ -4,12 +4,12 @@
 
 | 文件 | 用途 |
 |------|------|
-| `logo-light-clear.png` / `智余logo浅色模式无背景.png` | **主用**：App/Dock/安装包、状态栏、界面 Logo |
-| `logo-dark-clear.png` / `智余logo深色模式无背景.png` | 备用（深色场景） |
-| `logo-dark-bg.jpg` / `智余logo深色模式有背景.jpg` | 备用（有背景展示） |
-| `logo-light-bg.jpg` / `智余logo浅色模式有背景.jpg` | 备用（浅底展示） |
+| `logo-light-bg.jpg` / `智余logo浅色模式有背景.jpg` | **安装包 / Dock AppIcon**（白底） |
+| `logo-light-clear.png` / `智余logo浅色模式无背景.png` | 状态栏 + 界面彩色 Logo |
+| `logo-dark-clear.png` / `智余logo深色模式无背景.png` | 备用 |
+| `logo-dark-bg.jpg` / `智余logo深色模式有背景.jpg` | 备用 |
 | `logo-source.ai` / `智余logo.ai` | 矢量源文件 |
-| `app-icon-1024.png` | 由浅色无背景导出的 1024 图标 |
+| `app-icon-1024.png` | 由白底 Logo 导出的 1024 图标 |
 
 重新生成资源：
 
