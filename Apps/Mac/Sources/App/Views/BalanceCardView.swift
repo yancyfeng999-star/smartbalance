@@ -300,9 +300,7 @@ struct BalanceCardView: View {
         if let amount = snapshot.amount, let total = snapshot.total, total > 0 {
             return CGFloat(max(0, min(1, amount / total)))
         }
-        if let amount = snapshot.amount {
-            return CGFloat(max(0, min(1, amount / max(amount, 50))))
-        }
+        // 无总额/百分比时不画「假满」进度
         return 0
     }
 

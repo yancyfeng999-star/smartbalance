@@ -22,10 +22,10 @@ final class MenuBarStatusItemDriver {
         }
         self.statusItem = statusItem
 
-        // SwiftUI 开关菜单时会 wipe button.image；同 runloop 抢回（对齐智额）
+        // SwiftUI 开关菜单时会 wipe button.image；主线程抢回（不用 assumeIsolated）
         imageWipeObservation?.invalidate()
         imageWipeObservation = statusItem.button?.observe(\.image, options: [.new]) { [weak self] button, _ in
-            MainActor.assumeIsolated {
+            Task { @MainActor in
                 guard let self, let owned = self.lastImage else { return }
                 if button.image !== owned {
                     button.image = owned
@@ -68,19 +68,16 @@ final class MenuBarStatusItemDriver {
             .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let image = Self.brandLogoImage(preferDark: preferDark)
 
-        // 与智额相同：image + imageOnly；额外清 title（防 Bundle 名「智余」）
         if !button.title.isEmpty {
             button.title = ""
         }
         lastImage = image
         button.image = image
         button.imagePosition = .imageOnly
-        // 产品要求：悬停不弹 tip
         button.toolTip = nil
     }
 
     /// 对齐智额 `brandLogoImage`：18pt、sourceOver、isTemplate=false。
-    /// 在对应 appearance 下解析 `MenuBarIcon`，以选用 light/dark 变体。
     private static func brandLogoImage(preferDark: Bool) -> NSImage {
         let pointSize: CGFloat = 18
         guard let source = NSImage(named: "MenuBarIcon") else {

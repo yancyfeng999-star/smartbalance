@@ -76,12 +76,15 @@ public actor SMTPClient {
         let recipients = settings.toAddresses.filter { $0.contains("@") }
         guard !recipients.isEmpty else { throw SMTPError.notConfigured }
 
-        // 推荐路径：465 + 隐式 TLS。587 STARTTLS 本版不支持。
+        // 强制隐式 TLS（465/443）；拒绝明文 AUTH 与 587 STARTTLS
         if port == 587 {
             throw SMTPError.connection(SMTPProtocolFormatting.startTLSUnsupportedHint)
         }
+        guard settings.useTLS, port == 465 || port == 443 else {
+            throw SMTPError.connection("请使用 465 端口并开启 TLS（不支持明文 SMTP）")
+        }
 
-        let connection = makeConnection(host: host, port: port, useTLS: settings.useTLS)
+        let connection = makeConnection(host: host, port: port, useTLS: true)
         try await connection.start()
 
         defer { connection.cancel() }
@@ -98,7 +101,8 @@ public actor SMTPClient {
         _ = try await connection.readReply()
         try await connection.sendLine(Data(password.utf8).base64EncodedString())
         let authReply = try await connection.readReply()
-        if !authReply.hasPrefix("235") && !authReply.hasPrefix("2") {
+        // 仅 235 视为认证成功
+        if !authReply.hasPrefix("235") {
             throw SMTPError.authFailed(authReply)
         }
 

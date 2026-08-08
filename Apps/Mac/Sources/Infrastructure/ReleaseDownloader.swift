@@ -29,7 +29,8 @@ public final class ReleaseDownloader: NSObject, URLSessionDownloadDelegate, @unc
         fileName: String? = nil,
         onProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> URL {
-        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+        // 仅 HTTPS，降低中间人替换安装包风险（不做加密存储，仅传输约束）
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" else {
             throw DownloadError.invalidURL
         }
         destinationFileName = Self.safeFileName(fileName ?? url.lastPathComponent)

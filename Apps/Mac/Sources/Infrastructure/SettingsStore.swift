@@ -41,19 +41,20 @@ public final class SettingsStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         // 防止误把空账号列表覆盖已有配置：若磁盘上已有账号而内存为空，拒绝保存
+        var toWrite = settings
         if settings.accounts.isEmpty,
            let existing = try? Data(contentsOf: url),
            let old = try? decoder.decode(AppSettings.self, from: existing),
            !old.accounts.isEmpty {
             AppLog.error("拒绝用空 accounts 覆盖已有 \(old.accounts.count) 个账号的配置")
-            var merged = settings
-            merged.accounts = old.accounts
-            let data = try encoder.encode(merged)
-            try data.write(to: url, options: .atomic)
-            return
+            toWrite.accounts = old.accounts
         }
-        let data = try encoder.encode(settings)
+        let data = try encoder.encode(toWrite)
         try data.write(to: url, options: .atomic)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: url.path
+        )
     }
 
     public var fileURL: URL { url }

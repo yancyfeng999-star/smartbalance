@@ -27,6 +27,8 @@ final class AppModel: ObservableObject {
     private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
     private var refreshTask: Task<Void, Never>?
+    /// 刷新代数：避免慢请求后到覆盖新结果 / 新设置
+    private var refreshGeneration: UInt64 = 0
 
     @Published var launchAtLoginEnabled: Bool = LaunchAtLogin.isEnabled
     @Published var updateChecking = false
@@ -254,6 +256,8 @@ final class AppModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         banner = nil
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         // 兼容旧设置：若用户曾关掉「数据源」总开关，强制恢复（产品本职就是查余额）
         if !settings.apiQueryEnabled {
             settings.apiQueryEnabled = true
@@ -281,15 +285,21 @@ final class AppModel: ObservableObject {
                 }
             )
         }
-        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count)")
+        // 快照：只把「开始时」的设置交给 Service；返回后禁止整表覆盖
+        let settingsSnapshot = settings
+        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) gen=\(generation)")
         Task { @MainActor in
             defer {
-                // 无论成功/失败/取消，都解除刷新锁，避免永远「查询中」
-                self.isRefreshing = false
+                if generation == self.refreshGeneration {
+                    self.isRefreshing = false
+                }
             }
             do {
-                // 密钥直接从本机 vault 读，无指纹门禁
-                let result = await service.refreshAll(settings: settings)
+                let result = await service.refreshAll(settings: settingsSnapshot)
+                guard generation == self.refreshGeneration else {
+                    AppLog.info("Refresh stale gen=\(generation) discarded")
+                    return
+                }
                 self.snapshots = orderedSnapshots(result.snapshots)
                 if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
                     self.snapshots = Self.placeholderSnapshots(from: self.settings)
@@ -307,14 +317,46 @@ final class AppModel: ObservableObject {
                         AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
                     }
                 }
-                self.settings = result.settings
+                // 只合并报警冷却时间戳，不回滚用户中途改的主题/账号/阈值
+                self.settings.lastAlertAtByAccount = result.settings.lastAlertAtByAccount
                 self.lastRefreshAt = Date()
                 try? store.save(self.settings)
-                AppLog.info("Refresh done · cards=\(self.snapshots.count)")
+                AppLog.info("Refresh done · cards=\(self.snapshots.count) gen=\(generation)")
             } catch {
+                guard generation == self.refreshGeneration else { return }
                 self.banner = "刷新失败：\(error.localizedDescription)"
                 AppLog.error("Refresh crashed: \(error.localizedDescription)")
             }
+        }
+    }
+
+    /// 按当前阈值本地重算卡片状态（不打 API）。
+    func recomputeSnapshotStatusesFromThresholds() {
+        let ch = settings.alertChannels
+        snapshots = snapshots.map { snap in
+            var s = snap
+            if s.errorMessage != nil || s.status == .setup || s.status == .error {
+                return s
+            }
+            guard s.amount != nil || s.remainingPercent != nil else { return s }
+            let account = settings.accounts.first(where: { $0.id == s.accountId })
+            let warningAmt = account?.alertThreshold ?? ch.warningAmount
+            let midAmt = min(ch.midAmount, warningAmt)
+            let critAmt = min(ch.criticalAmount, midAmt)
+            let warnPct = account?.alertPercentThreshold ?? ch.warningPercent
+            let midPct = min(ch.midPercent, warnPct)
+            let critPct = min(ch.criticalPercent, midPct)
+            s.status = BalanceSnapshot.resolveStatus(
+                amount: s.amount,
+                remainingPercent: s.remainingPercent,
+                warningAmount: warningAmt,
+                midAmount: midAmt,
+                criticalAmount: critAmt,
+                warningPercent: warnPct,
+                midPercent: midPct,
+                criticalPercent: critPct
+            )
+            return s
         }
     }
 
@@ -491,6 +533,24 @@ final class AppModel: ObservableObject {
         } else if enabled, selectedAccountId == nil {
             selectedAccountId = id
         }
+        // 立刻同步首页卡片，不必等下一次 refresh
+        if !enabled {
+            snapshots.removeAll { $0.accountId == id }
+        } else if !snapshots.contains(where: { $0.accountId == id }) {
+            let acc = settings.accounts[idx]
+            snapshots.append(
+                BalanceSnapshot(
+                    accountId: acc.id,
+                    providerKind: acc.kind,
+                    displayName: acc.title,
+                    source: .api,
+                    status: .unknown,
+                    detail: "查询中…"
+                )
+            )
+            snapshots = orderedSnapshots(snapshots)
+            refresh()
+        }
         persist()
         rescheduleManualReminders()
     }
@@ -564,7 +624,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.criticalAmount = t.c
         settings.email.defaultAmountThreshold = t.w
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setMidAmount(_ value: Double) {
@@ -577,7 +637,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.midAmount = t.m
         settings.alertChannels.criticalAmount = t.c
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setCriticalAmount(_ value: Double) {
@@ -590,7 +650,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.midAmount = t.m
         settings.alertChannels.criticalAmount = t.c
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setWarningPercent(_ value: Double) {
@@ -604,7 +664,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.criticalPercent = t.c
         settings.email.defaultPercentThreshold = t.w
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setMidPercent(_ value: Double) {
@@ -617,7 +677,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.midPercent = t.m
         settings.alertChannels.criticalPercent = t.c
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setCriticalPercent(_ value: Double) {
@@ -630,7 +690,7 @@ final class AppModel: ObservableObject {
         settings.alertChannels.midPercent = t.m
         settings.alertChannels.criticalPercent = t.c
         persist()
-        refresh()
+        recomputeSnapshotStatusesFromThresholds()
     }
 
     func setLaunchAtLogin(_ on: Bool) {
@@ -737,13 +797,18 @@ final class AppModel: ObservableObject {
 
     private func applyImportedBackup(_ package: DataBackupPackage) throws {
         var next = package.settings
-        // 导入后不要立刻弹置顶窗
         next.windowPinned = false
-        // 保证查余额开关开启
         next.apiQueryEnabled = true
 
+        // 导入事务：settings 失败则回滚 vault
+        let vaultBefore = secrets.snapshot()
         try secrets.replaceAll(package.secrets)
-        try store.save(next)
+        do {
+            try store.save(next)
+        } catch {
+            try? secrets.replaceAll(vaultBefore)
+            throw error
+        }
 
         settings = next
         pinWindowOpen = false
@@ -775,9 +840,22 @@ final class AppModel: ObservableObject {
                 self.updateAvailable = result.status == .available
                 AppLog.info("Update check: \(result.message)")
             }
-            // 对齐智额：发现新版本 → 自动下载 → 打开 → 退出
             if result.status == .available {
-                await downloadAndOpenUpdate(result: result)
+                let shouldDownload = await MainActor.run { () -> Bool in
+                    let alert = NSAlert()
+                    alert.messageText = "发现新版本 \(result.latestVersion ?? "")"
+                    alert.informativeText = "将下载安装包到「下载」文件夹并打开。是否继续？"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "下载并打开")
+                    alert.addButton(withTitle: "稍后")
+                    NSApp.activate(ignoringOtherApps: true)
+                    return alert.runModal() == .alertFirstButtonReturn
+                }
+                if shouldDownload {
+                    await downloadAndOpenUpdate(result: result)
+                } else {
+                    await MainActor.run { self.updateChecking = false }
+                }
             } else {
                 await MainActor.run { self.updateChecking = false }
             }
@@ -789,6 +867,14 @@ final class AppModel: ObservableObject {
         guard let remote = result.downloadURL else {
             updateChecking = false
             updateMessage = (result.message) + "（无 zip，打开发布页）"
+            if let page = result.openURL {
+                NSWorkspace.shared.open(page)
+            }
+            return
+        }
+        guard remote.scheme?.lowercased() == "https" else {
+            updateChecking = false
+            updateMessage = "下载地址必须为 HTTPS"
             if let page = result.openURL {
                 NSWorkspace.shared.open(page)
             }
@@ -826,7 +912,7 @@ final class AppModel: ObservableObject {
     }
 
     var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
     }
 
     func saveOutboundEmail(

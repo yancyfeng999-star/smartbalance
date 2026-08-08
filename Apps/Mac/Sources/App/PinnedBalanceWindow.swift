@@ -15,6 +15,8 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var isOpening = false
     private(set) var isOpen = false
+    /// 打开代数：取消/关闭后使延迟 openNow 失效
+    private var openGeneration: UInt64 = 0
     /// 用户是否亲手拖过尺寸；拖过后不再强制回默认。
     private var userResized = false
     private weak var model: AppModel?
@@ -46,17 +48,25 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         }
         if isOpening { return }
         isOpening = true
+        openGeneration &+= 1
+        let generation = openGeneration
         model.pinWindowOpen = true
         model.settings.windowPinned = true
         model.persist()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.openNow(model: model)
+            guard let self, self.openGeneration == generation, self.isOpening else { return }
+            self.openNow(model: model, generation: generation)
         }
     }
 
-    private func openNow(model: AppModel) {
-        defer { isOpening = false }
+    private func openNow(model: AppModel, generation: UInt64) {
+        defer {
+            if openGeneration == generation {
+                isOpening = false
+            }
+        }
+        guard openGeneration == generation else { return }
 
         let shell = MenuRootView(model: model, runsInPinnedWindow: true)
         let host = NSHostingView(rootView: shell)
@@ -169,6 +179,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     }
 
     func close() {
+        openGeneration &+= 1
         isOpening = false
         isOpen = false
         if let model {
@@ -181,6 +192,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        openGeneration &+= 1
         isOpen = false
         isOpening = false
         if let model {
@@ -191,6 +203,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        openGeneration &+= 1
         isOpen = false
         isOpening = false
         if let model {
@@ -204,9 +217,10 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
     }
 
     private func dismissMenuBarPopover() {
+        // 仅收起非激活 panel（MenuBarExtra 宿主），避免误关其它窗口
         for window in NSApp.windows where window.isVisible {
-            if window.styleMask.contains(.nonactivatingPanel) || window.level != .normal {
-                if window === self.window { continue }
+            guard window !== self.window else { continue }
+            if window.styleMask.contains(.nonactivatingPanel) {
                 window.orderOut(nil)
             }
         }

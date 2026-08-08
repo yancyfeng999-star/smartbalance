@@ -97,10 +97,11 @@ public actor BalanceService {
             )
         }
 
+        let apiBase = account.kind.resolveAPIBaseURL(accountBase: account.baseURL)
         return await fetchViaProvider(
             account: account,
             settings: settings,
-            credentials: ProviderCredentials(apiKey: secret, baseURL: account.baseURL, userId: account.userId)
+            credentials: ProviderCredentials(apiKey: secret, baseURL: apiBase, userId: account.userId)
         )
     }
 
@@ -113,27 +114,25 @@ public actor BalanceService {
         do {
             var snap = try await provider.fetchBalance(account: account, credentials: credentials)
             snap.source = .api
+            // 稳定列表身份
+            snap.id = account.id
             let ch = settings.alertChannels
+            // 账号级阈值只覆盖 warning；mid/critical 不得被 clamp 抬到大于 warning
             let warningAmt = account.alertThreshold ?? ch.warningAmount
-            let tiers = AlertChannelSettings.clampAmountTiers(
-                warning: warningAmt,
-                mid: ch.midAmount,
-                critical: ch.criticalAmount
-            )
-            let pct = AlertChannelSettings.clampPercentTiers(
-                warning: account.alertPercentThreshold ?? ch.warningPercent,
-                mid: ch.midPercent,
-                critical: ch.criticalPercent
-            )
+            let midAmt = min(ch.midAmount, warningAmt)
+            let critAmt = min(ch.criticalAmount, midAmt)
+            let warnPct = account.alertPercentThreshold ?? ch.warningPercent
+            let midPct = min(ch.midPercent, warnPct)
+            let critPct = min(ch.criticalPercent, midPct)
             snap.status = BalanceSnapshot.resolveStatus(
                 amount: snap.amount,
                 remainingPercent: snap.remainingPercent,
-                warningAmount: tiers.w,
-                midAmount: tiers.m,
-                criticalAmount: tiers.c,
-                warningPercent: pct.w,
-                midPercent: pct.m,
-                criticalPercent: pct.c
+                warningAmount: warningAmt,
+                midAmount: midAmt,
+                criticalAmount: critAmt,
+                warningPercent: warnPct,
+                midPercent: midPct,
+                criticalPercent: critPct
             )
             return snap
         } catch {

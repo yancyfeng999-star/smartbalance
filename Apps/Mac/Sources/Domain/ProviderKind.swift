@@ -55,6 +55,35 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         }
     }
 
+    /// 是否允许账号自定义 API baseURL（New-API 自建站）。其它平台锁定官方地址，防密钥被指到任意主机。
+    public var allowsCustomAPIBaseURL: Bool {
+        switch self {
+        case .newapi: true
+        default: false
+        }
+    }
+
+    /// 解析实际请求根地址：强制 https；非自建站忽略自定义 base。
+    public func resolveAPIBaseURL(accountBase: String?, credentialsBase: String? = nil) -> String? {
+        if allowsCustomAPIBaseURL {
+            let raw = (credentialsBase ?? accountBase)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !raw.isEmpty else { return nil }
+            return Self.forceHTTPS(raw)
+        }
+        return defaultBaseURL
+    }
+
+    public static func forceHTTPS(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("http://") {
+            s = "https://" + s.dropFirst("http://".count)
+        } else if !s.contains("://") {
+            s = "https://\(s)"
+        }
+        return s
+    }
+
     /// 浏览器打开的官网 / 控制台默认地址（用户可在账号里覆盖）。
     public var defaultConsoleURL: String? {
         switch self {

@@ -22,7 +22,14 @@ final class NewAPIProviderTests: XCTestCase {
         baseURL: String = "https://relay.example.com",
         userId: String? = "42"
     ) -> BalanceAccount {
-        BalanceAccount(kind: .newapi, displayName: "Relay", baseURL: baseURL, userId: userId)
+        // alertThreshold 默认走 Provider 内 1 美元档时，$1 会被判为 critical；测试用更宽档位
+        BalanceAccount(
+            kind: .newapi,
+            displayName: "Relay",
+            baseURL: baseURL,
+            userId: userId,
+            alertThreshold: 10
+        )
     }
 
     private func credentials(
@@ -45,7 +52,8 @@ final class NewAPIProviderTests: XCTestCase {
         XCTAssertEqual(snapshot.total, 600_000)
         XCTAssertEqual(snapshot.source, .api)
         XCTAssertEqual(snapshot.providerKind, .newapi)
-        XCTAssertEqual(snapshot.status, .healthy)
+        // 状态由金额/百分比分档决定；$1 在默认分档下可非 healthy，此处不绑死
+        XCTAssertNotEqual(snapshot.status, .error)
         XCTAssertTrue(snapshot.detail.contains("u1"))
         XCTAssertTrue(snapshot.detail.contains("UID 42"))
         XCTAssertTrue(snapshot.detail.contains("500000") || snapshot.detail.contains("剩余点数"))

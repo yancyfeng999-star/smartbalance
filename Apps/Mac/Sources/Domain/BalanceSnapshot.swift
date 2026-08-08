@@ -19,7 +19,7 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
     public var mailSubject: String?
 
     public init(
-        id: UUID = UUID(),
+        id: UUID? = nil,
         accountId: UUID,
         providerKind: ProviderKind? = nil,
         displayName: String,
@@ -35,7 +35,8 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
         errorMessage: String? = nil,
         mailSubject: String? = nil
     ) {
-        self.id = id
+        // 稳定 id：与 accountId 一致，避免每次刷新重建 ForEach 身份、丢展开态
+        self.id = id ?? accountId
         self.accountId = accountId
         self.providerKind = providerKind
         self.displayName = displayName

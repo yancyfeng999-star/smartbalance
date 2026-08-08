@@ -41,7 +41,7 @@ struct HomeView: View {
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 8)
             } else {
-                ForEach(Array(model.snapshots.enumerated()), id: \.element.id) { index, snap in
+                ForEach(Array(model.snapshots.enumerated()), id: \.element.accountId) { index, snap in
                     HStack(alignment: .center, spacing: 6) {
                         BalanceCardView(
                             snapshot: snap,
@@ -55,6 +55,7 @@ struct HomeView: View {
                             }
                         )
                         .frame(maxWidth: .infinity)
+                        .id(snap.accountId)
 
                         if model.isReorderMode {
                             reorderControls(accountId: snap.accountId, index: index)
