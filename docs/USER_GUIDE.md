@@ -29,7 +29,7 @@ open ~/Desktop/智余.app
 | 火山引擎 | Access Key ID + Secret Access Key |
 | 小米 MiMo | **推荐**：Chrome 登录控制台后点「从 Chrome 导入」；或手贴 `serviceToken`+`userId` |
 | MiniMax | **推荐**：Chrome 登录充值页后点「从 Chrome 导入」；或手贴 `_token`+`group_id` |
-| Apinebula | 手录金额（可选），默认每天提醒 |
+| apinebula | 系统访问令牌或 session Cookie + 用户 ID |
 
 回首页点 **刷新**。
 

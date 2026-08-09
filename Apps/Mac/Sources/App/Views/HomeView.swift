@@ -231,7 +231,7 @@ struct HomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 4) {
                 Text("1. 设置 → API 账号 → 添加平台")
-                Text("2. 贴 Key / Cookie 自动查；Apinebula 可选手录")
+                Text("2. 贴 Key / Cookie / 系统令牌后自动查余额")
                 Text("3. 偏低时：Mac 通知 / 邮件报警")
                 Text("4. 长按卡片可调整顺序")
             }

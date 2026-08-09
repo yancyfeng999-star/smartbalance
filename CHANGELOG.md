@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **apinebula**：可自动查余额（不再手录）。系统访问令牌或 session Cookie + 用户 ID；`quota/500000` → ¥；默认控制台 `https://apinebula.ai/zh/console/topup`
+- 显示名统一为 **apinebula**
+
 ## 0.2.48 — 2026-08-09
 
 黄色提示条约 3.5 秒自动消失

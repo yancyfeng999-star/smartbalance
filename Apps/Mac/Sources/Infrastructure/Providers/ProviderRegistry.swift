@@ -14,7 +14,7 @@ public enum ProviderRegistry {
         case .volcengine: VolcengineBalanceProvider()
         case .mimo: MiMoBalanceProvider()
         case .minimax: MiniMaxBalanceProvider()
-        case .apinebula: ManualBalanceProvider(kind: .apinebula)
+        case .apinebula: ApinebulaBalanceProvider()
         }
     }
 }

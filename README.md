@@ -45,7 +45,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 | 令牌 + 用户 ID | New-API · DMXAPI |
 | AK/SK | 火山引擎 |
 | 控制台 Cookie（可从 Chrome 一键导入） | 小米 MiMo · MiniMax |
-| 手录 | Apinebula |
+| 系统令牌或 session Cookie + 用户 ID | apinebula |
 
 ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
 

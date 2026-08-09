@@ -86,6 +86,6 @@ final class MiniMaxProviderTests: XCTestCase {
         XCTAssertFalse(ProviderKind.minimax.isManualEntry)
         XCTAssertTrue(ProviderKind.minimax.needsUserId)
         XCTAssertEqual(ProviderKind.minimax.displayName, "MiniMax")
-        XCTAssertTrue(ProviderKind.apinebula.isManualEntry)
+        XCTAssertFalse(ProviderKind.apinebula.isManualEntry)
     }
 }

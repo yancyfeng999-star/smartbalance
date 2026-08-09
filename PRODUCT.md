@@ -14,7 +14,7 @@
 
 1. **API 直查** — 各平台 Key / 系统令牌 / AK·SK  
 2. **控制台 Cookie** — MiMo / MiniMax 粘贴会话查 API 钱包余额  
-3. **手录** — 无可用接口时（Apinebula），用户录入 + 每天 10:00 提醒  
+3. **系统令牌 / session** — apinebula（New-API 兼容）+ 用户 ID  
 
 ### 报警
 

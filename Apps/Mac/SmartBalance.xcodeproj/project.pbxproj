@@ -82,6 +82,7 @@
 		AEDC07174D7D3354AC55C76B /* MenuBarStatusItemDriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */; };
 		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
 		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		B7E4CF570B51C311571289BE /* ApinebulaBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361EDD733384688663DA5925 /* ApinebulaBalanceProvider.swift */; };
 		B920E4E0F76A20E95C77560B /* MiniMaxBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */; };
 		B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */; };
 		C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD25801FF4237FC1E955A84 /* Brand.swift */; };
@@ -92,6 +93,7 @@
 		D9AE0F7F4BCE39BAB8A44CFF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
 		DAC24879E42C6658477B877C /* ReleaseDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */; };
 		DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */; };
+		DE7E08DF96902B0538B8D951 /* ApinebulaProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010B67BCD0A807A907594423 /* ApinebulaProviderTests.swift */; };
 		DEB257278157844EE997587C /* SettingsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8870F539D14F573853FD8408 /* SettingsChrome.swift */; };
 		E019C035637318750622C4AC /* TuistBundle+AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF2E45DE4645D3FE9E0814 /* TuistBundle+AppTests.swift */; };
 		E2527499AD2C162A25D45195 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */; };
@@ -225,6 +227,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		010B67BCD0A807A907594423 /* ApinebulaProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApinebulaProviderTests.swift; sourceTree = "<group>"; };
 		02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProviderTests.swift; sourceTree = "<group>"; };
 		05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxProviderTests.swift; sourceTree = "<group>"; };
 		060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBalanceProvider.swift; sourceTree = "<group>"; };
@@ -245,6 +248,7 @@
 		3590E1788835BA90EC6C6A87 /* Domain-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Domain-Info.plist"; sourceTree = "<group>"; };
 		3597F046B4FAC85DF2C83703 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		35EACBEF49880E359E6C73B4 /* OpenRouterBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterBalanceProvider.swift; sourceTree = "<group>"; };
+		361EDD733384688663DA5925 /* ApinebulaBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApinebulaBalanceProvider.swift; sourceTree = "<group>"; };
 		36669B997FED5162C0E150BC /* ViralTokBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokBalanceProvider.swift; sourceTree = "<group>"; };
 		3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannel.swift; sourceTree = "<group>"; };
 		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
@@ -383,6 +387,7 @@
 		0723A1F9E5CEF28344BAE766 /* Providers */ = {
 			isa = PBXGroup;
 			children = (
+				361EDD733384688663DA5925 /* ApinebulaBalanceProvider.swift */,
 				1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */,
 				A43CF5F4C7DC6B2FCC7BFB76 /* DMXAPIBalanceProvider.swift */,
 				EA4601AEE6E22E8C68DA45B9 /* KimiBalanceProvider.swift */,
@@ -474,6 +479,7 @@
 		3407E0B92C0B2FA36C306506 /* InfrastructureTests */ = {
 			isa = PBXGroup;
 			children = (
+				010B67BCD0A807A907594423 /* ApinebulaProviderTests.swift */,
 				02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */,
 				E1231E34AA6D3150E0F35241 /* DMXAPIProviderTests.swift */,
 				5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */,
@@ -856,6 +862,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DE7E08DF96902B0538B8D951 /* ApinebulaProviderTests.swift in Sources */,
 				0B9377EC164F3672E419D839 /* DMXAPIProviderTests.swift in Sources */,
 				DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */,
 				B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */,
@@ -916,6 +923,7 @@
 				3F4F6534B5564484A9ADEE4F /* LaunchAtLogin.swift in Sources */,
 				85590F0DDE8532CFF8C7C120 /* LocalSecretStore.swift in Sources */,
 				78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */,
+				B7E4CF570B51C311571289BE /* ApinebulaBalanceProvider.swift in Sources */,
 				CEAFD0F3A1559BF61519B0C3 /* DMXAPIBalanceProvider.swift in Sources */,
 				30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */,
 				02610ACC217416C78DFBFD98 /* KimiBalanceProvider.swift in Sources */,
