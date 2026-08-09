@@ -48,6 +48,10 @@ public struct UpdateChecker: Sendable {
         URL(string: "https://github.com/\(githubOwner)/\(githubRepo)/releases")
     }
 
+    /// 国内访问 api.github.com 偶发慢，请求超时放宽；失败时再试一次。
+    private static let requestTimeout: TimeInterval = 30
+    private static let maxAttempts = 2
+
     public init() {}
 
     public func currentVersion() -> String {
@@ -64,70 +68,118 @@ public struct UpdateChecker: Sendable {
             )
         }
 
+        var lastError: Error?
+        for attempt in 1...Self.maxAttempts {
+            do {
+                return try await fetchLatest(api: api, current: current)
+            } catch {
+                lastError = error
+                AppLog.info("Update check attempt \(attempt)/\(Self.maxAttempts) failed: \(error.localizedDescription)")
+                if attempt < Self.maxAttempts {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                }
+            }
+        }
+
+        let detail = friendlyNetworkError(lastError)
+        return UpdateCheckResult(
+            status: .failed,
+            currentVersion: current,
+            message: "检查失败：\(detail) · 可点下方打开 GitHub 手动下载",
+            openURL: Self.releasesPage
+        )
+    }
+
+    private func fetchLatest(api: URL, current: String) async throws -> UpdateCheckResult {
         var request = URLRequest(url: api)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("SmartBalance (update-check)", forHTTPHeaderField: "User-Agent")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.timeoutInterval = 15
+        request.timeoutInterval = Self.requestTimeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            if code == 404 {
-                return UpdateCheckResult(
-                    status: .unknown,
-                    currentVersion: current,
-                    message: "当前 \(current) · 暂无公开 Release",
-                    openURL: Self.releasesPage
-                )
-            }
-            guard (200...299).contains(code) else {
-                return UpdateCheckResult(
-                    status: .failed,
-                    currentVersion: current,
-                    message: "检查失败 HTTP \(code)",
-                    openURL: Self.releasesPage
-                )
-            }
-            guard
-                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let tag = json["tag_name"] as? String
-            else {
-                return UpdateCheckResult(
-                    status: .failed,
-                    currentVersion: current,
-                    message: "无法解析版本信息"
-                )
-            }
-            let latest = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-            let html = (json["html_url"] as? String).flatMap(URL.init(string:))
-            let zip = preferredZipURL(from: json)
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = Self.requestTimeout
+        config.timeoutIntervalForResource = Self.requestTimeout + 15
+        config.waitsForConnectivity = true
+        config.allowsConstrainedNetworkAccess = true
+        config.allowsExpensiveNetworkAccess = true
+        let session = URLSession(configuration: config)
 
-            if compareVersion(latest, current) > 0 {
-                return UpdateCheckResult(
-                    status: .available,
-                    currentVersion: current,
-                    latestVersion: latest,
-                    message: "发现新版本 \(latest)，正在下载…",
-                    openURL: html ?? Self.releasesPage,
-                    downloadURL: zip
-                )
-            }
+        let (data, response) = try await session.data(for: request)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 404 {
             return UpdateCheckResult(
-                status: .upToDate,
+                status: .unknown,
                 currentVersion: current,
-                latestVersion: latest,
-                message: "已是最新 \(current)",
-                openURL: html ?? Self.releasesPage
-            )
-        } catch {
-            return UpdateCheckResult(
-                status: .failed,
-                currentVersion: current,
-                message: "检查失败：\(error.localizedDescription)",
+                message: "当前 \(current) · 暂无公开 Release",
                 openURL: Self.releasesPage
             )
         }
+        guard (200...299).contains(code) else {
+            return UpdateCheckResult(
+                status: .failed,
+                currentVersion: current,
+                message: "检查失败 HTTP \(code)",
+                openURL: Self.releasesPage
+            )
+        }
+        guard
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let tag = json["tag_name"] as? String
+        else {
+            return UpdateCheckResult(
+                status: .failed,
+                currentVersion: current,
+                message: "无法解析版本信息",
+                openURL: Self.releasesPage
+            )
+        }
+        let latest = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        let html = (json["html_url"] as? String).flatMap(URL.init(string:))
+        let zip = preferredZipURL(from: json)
+
+        if compareVersion(latest, current) > 0 {
+            return UpdateCheckResult(
+                status: .available,
+                currentVersion: current,
+                latestVersion: latest,
+                message: "发现新版本 \(latest)，正在下载…",
+                openURL: html ?? Self.releasesPage,
+                downloadURL: zip
+            )
+        }
+        return UpdateCheckResult(
+            status: .upToDate,
+            currentVersion: current,
+            latestVersion: latest,
+            message: "已是最新 \(current)",
+            openURL: html ?? Self.releasesPage
+        )
+    }
+
+    private func friendlyNetworkError(_ error: Error?) -> String {
+        guard let error else { return "未知网络错误" }
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain {
+            switch ns.code {
+            case NSURLErrorTimedOut:
+                return "连接 GitHub 超时（网络不稳或被墙），请稍后重试或浏览器打开发布页"
+            case NSURLErrorNotConnectedToInternet:
+                return "无网络连接"
+            case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+                return "无法解析 GitHub 域名"
+            case NSURLErrorNetworkConnectionLost:
+                return "网络中断"
+            default:
+                break
+            }
+        }
+        let desc = error.localizedDescription
+        if desc.contains("超时") || desc.lowercased().contains("timed out") {
+            return "连接 GitHub 超时，请稍后重试或浏览器打开发布页"
+        }
+        return desc
     }
 
     /// 优先 dmg → pkg → zip（对齐智额 ManualUpdateEvaluator）
