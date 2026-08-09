@@ -107,13 +107,27 @@ let project = Project(
                 .target(name: "Domain"),
             ]
         ),
+        .target(
+            name: "AppTests",
+            destinations: .macOS,
+            product: .unitTests,
+            bundleId: "com.smartbalance.app-tests",
+            deploymentTargets: .macOS("15.0"),
+            sources: [
+                "Sources/App/MenuBarStatusItemDriver.swift",
+                "Tests/AppTests/**",
+            ],
+            resources: [
+                "Sources/App/Resources/**",
+            ]
+        ),
     ],
     schemes: [
         .scheme(
             name: "SmartBalance",
             shared: true,
             buildAction: .buildAction(targets: [.target("SmartBalance")]),
-            testAction: .targets(["DomainTests", "InfrastructureTests"]),
+            testAction: .targets(["DomainTests", "InfrastructureTests", "AppTests"]),
             runAction: .runAction(configuration: .debug, executable: .target("SmartBalance"))
         ),
         .scheme(

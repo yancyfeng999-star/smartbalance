@@ -7,4 +7,5 @@ xcodebuild test \
   -scheme SmartBalance \
   -destination 'platform=macOS' \
   -only-testing:DomainTests \
-  -only-testing:InfrastructureTests
+  -only-testing:InfrastructureTests \
+  -only-testing:AppTests

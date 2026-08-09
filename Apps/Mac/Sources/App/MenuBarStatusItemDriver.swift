@@ -64,6 +64,18 @@ final class MenuBarStatusItemDriver {
     private func render() {
         guard let button = statusItem?.button else { return }
 
+        // macOS 26's MenuBarExtraAccess host is an NSStatusBarWindow. Its
+        // default opaque content view paints a white slot behind non-template
+        // images even when the status button and image are transparent.
+        if let window = button.window {
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            if let contentView = window.contentView {
+                contentView.wantsLayer = true
+                contentView.layer?.backgroundColor = NSColor.clear.cgColor
+            }
+        }
+
         let preferDark = NSApp.effectiveAppearance
             .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let image = Self.brandLogoImage(preferDark: preferDark)
@@ -74,10 +86,14 @@ final class MenuBarStatusItemDriver {
         lastImage = image
         button.image = image
         button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        button.isBordered = false
+        button.isTransparent = true
+        button.wantsLayer = false
         button.toolTip = nil
     }
 
-    /// 对齐智额 `brandLogoImage`：18pt、sourceOver、isTemplate=false。
+    /// 对齐智额 `brandLogoImage`：18pt、带 Alpha 的 bitmap、sourceOver、isTemplate=false。
     private static func brandLogoImage(preferDark: Bool) -> NSImage {
         let pointSize: CGFloat = 18
         guard let source = NSImage(named: "MenuBarIcon") else {
@@ -85,10 +101,47 @@ final class MenuBarStatusItemDriver {
         }
 
         let appearance = NSAppearance(named: preferDark ? .darkAqua : .aqua)
-        let image = NSImage(size: NSSize(width: pointSize, height: pointSize), flipped: false) { rect in
+        return makeAlphaBackedColorImage(
+            from: source,
+            pointSize: pointSize,
+            appearance: appearance
+        )
+    }
+
+    static func makeAlphaBackedColorImage(
+        from source: NSImage,
+        pointSize: CGFloat = 18,
+        appearance: NSAppearance? = nil
+    ) -> NSImage {
+        let imageSize = NSSize(width: pointSize, height: pointSize)
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
+        let pixels = max(1, Int((pointSize * scale).rounded()))
+        guard let bitmapRepresentation = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixels,
+            pixelsHigh: pixels,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return symbolImage("gauge.with.dots.needle.67percent", color: .labelColor)
+        }
+        bitmapRepresentation.size = imageSize
+
+        NSGraphicsContext.saveGraphicsState()
+        if let graphicsContext = NSGraphicsContext(bitmapImageRep: bitmapRepresentation) {
+            NSGraphicsContext.current = graphicsContext
+            graphicsContext.imageInterpolation = .high
+            graphicsContext.cgContext.clear(
+                CGRect(x: 0, y: 0, width: CGFloat(pixels), height: CGFloat(pixels))
+            )
             appearance?.performAsCurrentDrawingAppearance {
                 source.draw(
-                    in: rect,
+                    in: NSRect(origin: .zero, size: imageSize),
                     from: .zero,
                     operation: .sourceOver,
                     fraction: 1.0,
@@ -96,8 +149,11 @@ final class MenuBarStatusItemDriver {
                     hints: [.interpolation: NSImageInterpolation.high]
                 )
             }
-            return true
         }
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: imageSize)
+        image.addRepresentation(bitmapRepresentation)
         image.isTemplate = false
         return image
     }
