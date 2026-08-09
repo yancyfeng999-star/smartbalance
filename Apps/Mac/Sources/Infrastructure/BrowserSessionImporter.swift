@@ -1,9 +1,10 @@
 import Foundation
 import Domain
 import CommonCrypto
-import Security
 
-/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供 MiMo / MiniMax 新用户一键导入。
+/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供 MiMo / MiniMax 一键导入。
+///
+/// - Important: 全部逻辑可重入后台线程；禁止在 MainActor 上同步调用。
 public enum BrowserSessionImporter: Sendable {
     public struct Credential: Sendable, Equatable {
         public var secret: String
@@ -17,87 +18,90 @@ public enum BrowserSessionImporter: Sendable {
         case keychainDenied(String)
         case cookieNotFound(String)
         case decryptFailed
+        case timedOut(String)
 
         public var errorDescription: String? {
             switch self {
             case .unsupportedKind:
                 return "当前平台不支持浏览器导入"
             case .browserNotFound:
-                return "未找到 Chrome / Edge Cookie。请先安装并登录后重试"
+                return "未找到 Chrome / Edge。请安装并登录控制台后重试"
             case .keychainDenied(let s):
-                return "无法读取浏览器密钥链：\(s)。若弹出钥匙串权限请点「允许」"
+                return "无法读取浏览器钥匙串：\(s)。若弹出权限请点「允许」后重试"
             case .cookieNotFound(let s):
                 return s
             case .decryptFailed:
-                return "Cookie 解密失败。请完全退出浏览器后再试，或手动粘贴 Cookie"
+                return "Cookie 解密失败。请退出 Chrome 后再试，或手动粘贴 Cookie"
+            case .timedOut(let s):
+                return s
             }
         }
     }
 
-    /// 按平台从本机浏览器取会话。
-    /// - Important: 必须在后台线程调用（钥匙串 / sqlite 会阻塞）。
-    public static func importSession(for kind: ProviderKind) throws -> Credential {
-        switch kind {
-        case .mimo:
-            return try importMiMo()
-        case .minimax:
-            return try importMiniMax()
-        default:
-            throw ImportError.unsupportedKind
+    /// 异步导入（始终在非主线程执行）。
+    public static func importSessionAsync(for kind: ProviderKind) async throws -> Credential {
+        try await withCheckedThrowingContinuation { cont in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    cont.resume(returning: try importSession(for: kind))
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
         }
     }
 
-    /// 异步封装，避免卡住 UI。
-    public static func importSessionAsync(for kind: ProviderKind) async throws -> Credential {
-        try await Task.detached(priority: .userInitiated) {
-            try importSession(for: kind)
-        }.value
+    /// 同步导入；仅应在后台队列调用。
+    public static func importSession(for kind: ProviderKind) throws -> Credential {
+        switch kind {
+        case .mimo: return try importMiMo()
+        case .minimax: return try importMiniMax()
+        default: throw ImportError.unsupportedKind
+        }
     }
 
     // MARK: - Platforms
 
     private static func importMiMo() throws -> Credential {
-        let cookies = try loadCookies(hostContains: ["xiaomimimo.com", "platform.xiaomimimo.com"])
+        let cookies = try loadCookies(
+            hostNeedles: ["xiaomimimo"],
+            names: ["api-platform_serviceToken", "userId"]
+        )
         let token = cookies.first(where: { $0.name == "api-platform_serviceToken" })?.value
         let userId = cookies.first(where: { $0.name == "userId" })?.value
         guard let token, !token.isEmpty else {
             throw ImportError.cookieNotFound(
-                "未找到 MiMo 登录 Cookie。请先在 Chrome 打开并登录 https://platform.xiaomimimo.com/console/balance 后再点导入"
+                "未找到 MiMo 登录态。请先在 Chrome 登录 https://platform.xiaomimimo.com/console/balance 后再导入"
             )
         }
         guard let userId, !userId.isEmpty else {
-            throw ImportError.cookieNotFound(
-                "找到 serviceToken，但缺少 userId。请确认已登录控制台后重试"
-            )
+            throw ImportError.cookieNotFound("找到 serviceToken，但缺少 userId。请确认已登录控制台")
         }
-        let source = cookies.first?.browserName ?? "Chrome"
-        return Credential(secret: token, userId: userId, source: source)
+        return Credential(secret: token, userId: userId, source: cookies.first?.browserName ?? "Chrome")
     }
 
     private static func importMiniMax() throws -> Credential {
-        let cookies = try loadCookies(hostContains: ["minimaxi.com", "minimax.io"])
-        // 优先 www 的 _token
+        let cookies = try loadCookies(
+            hostNeedles: ["minimaxi", "minimax.io"],
+            names: ["_token", "minimax_group_id_v2"]
+        )
         let wwwToken = cookies.first(where: { $0.name == "_token" && $0.host.contains("www.minimaxi") })?.value
         let anyToken = cookies.first(where: { $0.name == "_token" })?.value
         let token = wwwToken ?? anyToken
         let groupId = cookies.first(where: { $0.name == "minimax_group_id_v2" })?.value
         guard let token, !token.isEmpty else {
             throw ImportError.cookieNotFound(
-                "未找到 MiniMax 登录 Cookie。请先在 Chrome 打开并登录 https://platform.minimaxi.com/console/recharge-records 后再点导入"
+                "未找到 MiniMax 登录态。请先在 Chrome 登录 https://platform.minimaxi.com/console/recharge-records 后再导入"
             )
         }
         guard let groupId, !groupId.isEmpty else {
-            throw ImportError.cookieNotFound(
-                "找到 _token，但缺少 minimax_group_id_v2。请在控制台登录后刷新页面再试"
-            )
+            throw ImportError.cookieNotFound("找到 _token，但缺少 minimax_group_id_v2。请在控制台刷新后再试")
         }
-        let source = cookies.first?.browserName ?? "Chrome"
-        // 拼成可被 SessionCookieParser 识别的串，便于后续解析
         let secret = "_token=\(token); minimax_group_id_v2=\(groupId)"
-        return Credential(secret: secret, userId: groupId, source: source)
+        return Credential(secret: secret, userId: groupId, source: cookies.first?.browserName ?? "Chrome")
     }
 
-    // MARK: - Cookie DB
+    // MARK: - Cookie load
 
     private struct CookieRow: Sendable {
         var host: String
@@ -106,8 +110,8 @@ public enum BrowserSessionImporter: Sendable {
         var browserName: String
     }
 
-    private static func loadCookies(hostContains: [String]) throws -> [CookieRow] {
-        let browsers: [(name: String, cookiesPath: String, keychainService: String, keychainAccount: String)] = [
+    private static func loadCookies(hostNeedles: [String], names: [String]) throws -> [CookieRow] {
+        let candidates: [(name: String, path: String, service: String, account: String)] = [
             (
                 "Chrome",
                 NSHomeDirectory() + "/Library/Application Support/Google/Chrome/Default/Cookies",
@@ -128,92 +132,95 @@ public enum BrowserSessionImporter: Sendable {
             ),
         ]
 
-        var all: [CookieRow] = []
         var sawDB = false
-        var lastKeychainError: String?
-        var chromeKey: Data?
+        var lastKeyError: String?
+        var cachedKey: [String: Data] = [:]
 
-        for browser in browsers {
-            guard FileManager.default.fileExists(atPath: browser.cookiesPath) else { continue }
+        for c in candidates {
+            guard FileManager.default.fileExists(atPath: c.path) else { continue }
             sawDB = true
-            // 同一浏览器只解一次钥匙串
+
             let key: Data
-            if browser.name == "Chrome", let chromeKey {
-                key = chromeKey
+            if let k = cachedKey[c.service] {
+                key = k
             } else {
                 do {
-                    key = try chromeEncryptionKey(
-                        service: browser.keychainService,
-                        account: browser.keychainAccount
-                    )
-                    if browser.name == "Chrome" { chromeKey = key }
+                    key = try chromeEncryptionKey(service: c.service, account: c.account)
+                    cachedKey[c.service] = key
                 } catch {
-                    lastKeychainError = error.localizedDescription
+                    lastKeyError = error.localizedDescription
+                    AppLog.error("Keychain \(c.service): \(error.localizedDescription)")
                     continue
                 }
             }
+
             do {
                 let rows = try readCookieDB(
-                    path: browser.cookiesPath,
+                    path: c.path,
                     key: key,
-                    hostContains: hostContains,
-                    browserName: browser.name
+                    hostNeedles: hostNeedles,
+                    names: names,
+                    browserName: c.name
                 )
-                all.append(contentsOf: rows)
-                // Default 已够用就不再扫其它 Profile
-                if !rows.isEmpty, browser.cookiesPath.contains("/Default/") {
-                    break
-                }
+                if !rows.isEmpty { return rows }
             } catch {
-                AppLog.error("Cookie DB read failed \(browser.cookiesPath): \(error.localizedDescription)")
+                AppLog.error("Cookie read \(c.path): \(error.localizedDescription)")
             }
         }
 
-        if !sawDB {
-            throw ImportError.browserNotFound
-        }
-        if all.isEmpty, let lastKeychainError {
-            throw ImportError.keychainDenied(lastKeychainError)
-        }
-        return all
+        if !sawDB { throw ImportError.browserNotFound }
+        if let lastKeyError { throw ImportError.keychainDenied(lastKeyError) }
+        return []
     }
 
     private static func readCookieDB(
         path: String,
         key: Data,
-        hostContains: [String],
+        hostNeedles: [String],
+        names: [String],
         browserName: String
     ) throws -> [CookieRow] {
-        // Chrome 可能锁库，复制到临时文件再读
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("smartbalance-cookies-\(UUID().uuidString).db")
-        defer { try? FileManager.default.removeItem(at: tmp) }
-        try FileManager.default.copyItem(atPath: path, toPath: tmp.path)
+        // 复制 Cookies + WAL，避免 Chrome 打开时锁库/半截读
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sb-cookie-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
 
-        // SQL 侧过滤 host，避免把整库 Cookie hex 进内存（主因卡死）
-        let likeClauses = hostContains
+        let baseName = URL(fileURLWithPath: path).lastPathComponent
+        let dest = tmpDir.appendingPathComponent(baseName)
+        try copyIfExists(path, to: dest.path)
+        try copyIfExists(path + "-wal", to: dest.path + "-wal")
+        try copyIfExists(path + "-shm", to: dest.path + "-shm")
+
+        let like = hostNeedles
             .map { "host_key LIKE '%\($0.replacingOccurrences(of: "'", with: "''"))%'" }
             .joined(separator: " OR ")
+        let nameList = names
+            .map { "'\($0.replacingOccurrences(of: "'", with: "''"))'" }
+            .joined(separator: ",")
+
+        // 用 unit separator 拼接，避免 cookie 值里的特殊字符搞乱解析
         let sql = """
-        SELECT host_key || char(1) || name || char(1) ||
-               hex(encrypted_value) || char(1) || IFNULL(value,'')
+        .mode list
+        .separator '|'
+        SELECT host_key, name, hex(encrypted_value), IFNULL(value,'')
         FROM cookies
-        WHERE \(likeClauses)
-          AND name IN (
-            'api-platform_serviceToken','userId','_token','minimax_group_id_v2'
-          );
+        WHERE (\(like))
+          AND name IN (\(nameList))
+        LIMIT 40;
         """
 
         let data = try runProcess(
             executable: "/usr/bin/sqlite3",
-            arguments: [tmp.path, sql],
-            timeoutSeconds: 8
+            arguments: [dest.path],
+            stdin: sql,
+            timeoutSeconds: 5
         )
         let text = String(data: data, encoding: .utf8) ?? ""
 
         var rows: [CookieRow] = []
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            let parts = line.split(separator: "\u{0001}", omittingEmptySubsequences: false)
+            let parts = line.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false)
             guard parts.count >= 4 else { continue }
             let host = String(parts[0])
             let name = String(parts[1])
@@ -223,11 +230,10 @@ public enum BrowserSessionImporter: Sendable {
             let value: String
             if !plainCol.isEmpty {
                 value = plainCol
-            } else {
-                guard let enc = Data(hexString: hex), let dec = decryptChromeV10(enc, key: key) else {
-                    continue
-                }
+            } else if let enc = Data(hexString: hex), let dec = decryptChromeV10(enc, key: key) {
                 value = dec
+            } else {
+                continue
             }
             guard !value.isEmpty else { continue }
             rows.append(CookieRow(host: host, name: name, value: value, browserName: browserName))
@@ -235,20 +241,43 @@ public enum BrowserSessionImporter: Sendable {
         return rows
     }
 
-    /// 带超时的外部进程，避免钥匙串/sqlite 永久卡住。
+    private static func copyIfExists(_ src: String, to dst: String) throws {
+        guard FileManager.default.fileExists(atPath: src) else { return }
+        try FileManager.default.copyItem(atPath: src, toPath: dst)
+    }
+
+    /// 带超时 + 并发读管道，避免 stdout 塞满导致进程死锁。
     private static func runProcess(
         executable: String,
         arguments: [String],
+        stdin: String? = nil,
         timeoutSeconds: TimeInterval
     ) throws -> Data {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: executable)
         proc.arguments = arguments
-        let out = Pipe()
-        let err = Pipe()
-        proc.standardOutput = out
-        proc.standardError = err
-        try proc.run()
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        proc.standardOutput = outPipe
+        proc.standardError = errPipe
+        if let stdin {
+            let inPipe = Pipe()
+            proc.standardInput = inPipe
+            try proc.run()
+            inPipe.fileHandleForWriting.write(Data(stdin.utf8))
+            try? inPipe.fileHandleForWriting.close()
+        } else {
+            try proc.run()
+        }
+
+        let box = ProcessOutputBox()
+        let outHandle = outPipe.fileHandleForReading
+        let errHandle = errPipe.fileHandleForReading
+
+        // 并发读 stdout/stderr，防止 pipe 缓冲区塞满死锁
+        let q = DispatchQueue(label: "com.smartbalance.process-io", attributes: .concurrent)
+        q.async { box.appendOut(outHandle.readDataToEndOfFile()) }
+        q.async { box.appendErr(errHandle.readDataToEndOfFile()) }
 
         let group = DispatchGroup()
         group.enter()
@@ -256,16 +285,28 @@ public enum BrowserSessionImporter: Sendable {
             proc.waitUntilExit()
             group.leave()
         }
-        let wait = group.wait(timeout: .now() + timeoutSeconds)
-        if wait == .timedOut {
+
+        if group.wait(timeout: .now() + timeoutSeconds) == .timedOut {
             proc.terminate()
-            throw ImportError.cookieNotFound("读取浏览器数据超时（\(Int(timeoutSeconds))s）。请完全退出 Chrome 后重试，或手动粘贴 Cookie")
+            // 再等极短时间后强杀
+            usleep(100_000)
+            if proc.isRunning {
+                kill(proc.processIdentifier, SIGKILL)
+            }
+            throw ImportError.timedOut(
+                "读取浏览器超时（\(Int(timeoutSeconds))s）。请完全退出 Chrome 后重试，或改用手动粘贴 Cookie"
+            )
         }
+
+        // 等管道读完
+        usleep(50_000)
         if proc.terminationStatus != 0 {
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw ImportError.cookieNotFound("读取失败：\(e.isEmpty ? "exit \(proc.terminationStatus)" : e)")
+            let e = String(data: box.err, encoding: .utf8) ?? ""
+            throw ImportError.cookieNotFound(
+                "读取失败（\(proc.terminationStatus)）：\(e.isEmpty ? executable : e)"
+            )
         }
-        return out.fileHandleForReading.readDataToEndOfFile()
+        return box.out
     }
 
     // MARK: - Crypto
@@ -276,17 +317,19 @@ public enum BrowserSessionImporter: Sendable {
             data = try runProcess(
                 executable: "/usr/bin/security",
                 arguments: ["find-generic-password", "-w", "-s", service, "-a", account],
-                timeoutSeconds: 12
+                timeoutSeconds: 8
             )
+        } catch let e as ImportError {
+            throw ImportError.keychainDenied(e.localizedDescription)
         } catch {
             throw ImportError.keychainDenied(error.localizedDescription)
         }
         let password = String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if password.isEmpty {
-            throw ImportError.keychainDenied("钥匙串无返回。若弹出权限请点「允许」后重试")
+            throw ImportError.keychainDenied("钥匙串无返回。请在弹窗中点「允许」后重试")
         }
-        // PBKDF2-SHA1, salt "saltysalt", 1003 iters, 16 bytes
+
         let salt = Data("saltysalt".utf8)
         var derived = Data(count: 16)
         let status = derived.withUnsafeMutableBytes { derivedBytes in
@@ -310,12 +353,10 @@ public enum BrowserSessionImporter: Sendable {
         return derived
     }
 
-    /// Chrome macOS v10 cookie: AES-128-CBC, IV = 16 spaces, then strip 32-byte prefix if payload looks printable.
     private static func decryptChromeV10(_ encrypted: Data, key: Data) -> String? {
         guard encrypted.count > 3 else { return nil }
         let prefix = encrypted.prefix(3)
         guard prefix == Data("v10".utf8) || prefix == Data("v11".utf8) else {
-            // maybe already plain
             return String(data: encrypted, encoding: .utf8)
         }
         let cipherData = Data(encrypted.dropFirst(3))
@@ -343,7 +384,6 @@ public enum BrowserSessionImporter: Sendable {
         }
         guard status == kCCSuccess else { return nil }
         var plain = out.prefix(outLen)
-        // strip optional 32-byte chrome prefix when remainder is printable
         if plain.count > 32 {
             let tail = plain.dropFirst(32)
             let printable = tail.filter { ($0 >= 32 && $0 < 127) || $0 == 9 || $0 == 10 || $0 == 13 }.count
@@ -360,10 +400,24 @@ public enum BrowserSessionImporter: Sendable {
     }
 }
 
+/// 线程安全收集进程输出。
+private final class ProcessOutputBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _out = Data()
+    private var _err = Data()
+    var out: Data { lock.lock(); defer { lock.unlock() }; return _out }
+    var err: Data { lock.lock(); defer { lock.unlock() }; return _err }
+    func appendOut(_ d: Data) { lock.lock(); _out.append(d); lock.unlock() }
+    func appendErr(_ d: Data) { lock.lock(); _err.append(d); lock.unlock() }
+}
+
 private extension Data {
     init?(hexString: String) {
         let hex = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard hex.count.isMultiple(of: 2) else { return nil }
+        guard hex.count.isMultiple(of: 2), !hex.isEmpty else {
+            if hex.isEmpty { self = Data(); return }
+            return nil
+        }
         var data = Data()
         data.reserveCapacity(hex.count / 2)
         var idx = hex.startIndex

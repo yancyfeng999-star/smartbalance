@@ -495,7 +495,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（后台执行，不卡 UI）。
+    /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（纯后台，绝不堵 UI）。
     func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") {
         guard kind == .mimo || kind == .minimax else {
             banner = "该平台不支持浏览器导入"
@@ -503,9 +503,10 @@ final class AppModel: ObservableObject {
         }
         guard !browserImporting else { return }
         browserImporting = true
-        banner = "正在从 Chrome 读取登录态…"
+        banner = "正在从 Chrome 读取登录态（请稍候，勿重复点击）…"
         let name = displayName
-        Task {
+        // 用 detached，避免 MainActor Task 继承导致钥匙串/进程仍卡界面
+        Task.detached(priority: .userInitiated) {
             do {
                 let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
                 await MainActor.run {
@@ -521,16 +522,17 @@ final class AppModel: ObservableObject {
                     self.banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
                 }
             } catch {
+                let msg = error.localizedDescription
                 await MainActor.run {
                     self.browserImporting = false
-                    self.banner = error.localizedDescription
+                    self.banner = msg
                 }
-                AppLog.error("Browser import failed: \(error.localizedDescription)")
+                AppLog.error("Browser import failed: \(msg)")
             }
         }
     }
 
-    /// 已有账号：从浏览器刷新会话 Cookie（后台执行）。
+    /// 已有账号：从浏览器刷新会话 Cookie（纯后台）。
     func importBrowserSession(intoAccountId id: UUID) {
         guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
         guard acc.kind == .mimo || acc.kind == .minimax else {
@@ -539,10 +541,10 @@ final class AppModel: ObservableObject {
         }
         guard !browserImporting else { return }
         browserImporting = true
-        banner = "正在从 Chrome 更新登录态…"
+        banner = "正在从 Chrome 更新登录态（请稍候）…"
         let kind = acc.kind
         let title = acc.title
-        Task {
+        Task.detached(priority: .userInitiated) {
             do {
                 let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
                 await MainActor.run {
@@ -554,11 +556,12 @@ final class AppModel: ObservableObject {
                     self.banner = "已从 \(cred.source) 更新 \(title) 登录态"
                 }
             } catch {
+                let msg = error.localizedDescription
                 await MainActor.run {
                     self.browserImporting = false
-                    self.banner = error.localizedDescription
+                    self.banner = msg
                 }
-                AppLog.error("Browser re-import failed: \(error.localizedDescription)")
+                AppLog.error("Browser re-import failed: \(msg)")
             }
         }
     }
