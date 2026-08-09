@@ -333,8 +333,14 @@ struct BackgroundSystemSection: View {
                 }
             }
 
-            if model.updateAvailable, model.updateOpenURL != nil, model.updateDownloadProgress == nil {
-                Button("打开下载 / 发布页") {
+            // 失败时才给「打开发布页」兜底；正常一点更新静默装 pkg，不插中间按钮
+            if !model.updateChecking,
+               model.updateDownloadProgress == nil,
+               let msg = model.updateMessage,
+               (msg.contains("失败") || msg.contains("无安装包")),
+               model.updateOpenURL != nil
+            {
+                Button("打开发布页") {
                     model.openUpdateURL()
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))

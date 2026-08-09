@@ -946,10 +946,11 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    /// 一点「检查更新」：有新版本则直接下 pkg 静默安装，中间不弹任何窗。
     func checkForUpdates() {
         guard !updateChecking else { return }
         updateChecking = true
-        updateMessage = nil
+        updateMessage = "正在检查更新…"
         updateOpenURL = nil
         updateDownloadURL = nil
         updateAvailable = false
@@ -964,21 +965,7 @@ final class AppModel: ObservableObject {
                 AppLog.info("Update check: \(result.message)")
             }
             if result.status == .available {
-                let shouldDownload = await MainActor.run { () -> Bool in
-                    let alert = NSAlert()
-                    alert.messageText = "发现新版本 \(result.latestVersion ?? "")"
-                    alert.informativeText = "将下载安装包到「下载」文件夹并打开。是否继续？"
-                    alert.alertStyle = .informational
-                    alert.addButton(withTitle: "下载并打开")
-                    alert.addButton(withTitle: "稍后")
-                    NSApp.activate(ignoringOtherApps: true)
-                    return alert.runModal() == .alertFirstButtonReturn
-                }
-                if shouldDownload {
-                    await downloadAndOpenUpdate(result: result)
-                } else {
-                    await MainActor.run { self.updateChecking = false }
-                }
+                await downloadAndInstallUpdate(result: result)
             } else {
                 await MainActor.run { self.updateChecking = false }
             }
@@ -986,45 +973,49 @@ final class AppModel: ObservableObject {
     }
 
     @MainActor
-    private func downloadAndOpenUpdate(result: UpdateCheckResult) async {
+    private func downloadAndInstallUpdate(result: UpdateCheckResult) async {
         guard let remote = result.downloadURL else {
             updateChecking = false
-            updateMessage = (result.message) + "（无 zip，打开发布页）"
-            if let page = result.openURL {
-                BrowserLauncher.open(page)
-            }
+            updateMessage = (result.message) + "（无安装包）"
             return
         }
         guard remote.scheme?.lowercased() == "https" else {
             updateChecking = false
             updateMessage = "下载地址必须为 HTTPS"
-            if let page = result.openURL {
-                BrowserLauncher.open(page)
-            }
             return
         }
-        updateMessage = "正在下载 \(result.latestVersion ?? "")…"
+        let ver = result.latestVersion ?? ""
+        updateMessage = "正在下载 \(ver)…"
         updateDownloadProgress = 0
         do {
             let file = try await ReleaseDownloader().download(from: remote) { [weak self] fraction in
                 Task { @MainActor in
                     self?.updateDownloadProgress = fraction
-                    self?.updateMessage = "下载中 \(Int((fraction * 100).rounded()))%"
+                    self?.updateMessage = "下载 \(ver)  \(Int((fraction * 100).rounded()))%"
                 }
             }
             updateDownloadProgress = 1
-            updateMessage = "已下载，正在打开…"
+            let ext = file.pathExtension.lowercased()
+            if ext == "pkg" {
+                updateMessage = "正在安装 \(ver)…"
+                try PackageSilentInstaller.scheduleReplace(pkgURL: file)
+                updateMessage = "安装中，即将重启…"
+                updateChecking = false
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                NSApp.terminate(nil)
+                return
+            }
+            // dmg / zip 回退：无确认框直接打开文件
+            updateMessage = "已下载，正在打开安装包…"
             updateChecking = false
             NSWorkspace.shared.open(file)
-            try? await Task.sleep(nanoseconds: 800_000_000)
+            try? await Task.sleep(nanoseconds: 600_000_000)
             NSApp.terminate(nil)
         } catch {
             updateChecking = false
             updateDownloadProgress = nil
-            updateMessage = "下载失败：\(error.localizedDescription)"
-            if let page = result.openURL {
-                BrowserLauncher.open(page)
-            }
+            updateMessage = "更新失败：\(error.localizedDescription)"
+            AppLog.error("Update failed: \(error.localizedDescription)")
         }
     }
 

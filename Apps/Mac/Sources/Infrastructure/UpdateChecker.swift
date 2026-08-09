@@ -14,7 +14,7 @@ public struct UpdateCheckResult: Sendable, Equatable {
     public var message: String
     /// Release 页
     public var openURL: URL?
-    /// 直接 zip 下载（有则自动下载）
+    /// 安装包下载（优先 .pkg，有则一点更新自动静默安装）
     public var downloadURL: URL?
 
     public init(
@@ -34,8 +34,8 @@ public struct UpdateCheckResult: Sendable, Equatable {
     }
 }
 
-/// 检查更新（公开 GitHub Releases，对齐智额：无 Sparkle）。
-/// 有新版本时由 App 层自动下载 zip → 打开 → 退出以便替换安装。
+/// 检查更新（公开 GitHub Releases，无 Sparkle）。
+/// 有新版本时自动下载 **pkg** → 静默解包覆盖 → 重启，中间不弹窗。
 public struct UpdateChecker: Sendable {
     public static let githubOwner = "yancyfeng999-star"
     public static let githubRepo = "smartbalance"
@@ -137,16 +137,16 @@ public struct UpdateChecker: Sendable {
         }
         let latest = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
         let html = (json["html_url"] as? String).flatMap(URL.init(string:))
-        let zip = preferredZipURL(from: json)
+        let package = preferredPackageURL(from: json)
 
         if compareVersion(latest, current) > 0 {
             return UpdateCheckResult(
                 status: .available,
                 currentVersion: current,
                 latestVersion: latest,
-                message: "发现新版本 \(latest)，正在下载…",
+                message: "发现新版本 \(latest)，正在下载安装…",
                 openURL: html ?? Self.releasesPage,
-                downloadURL: zip
+                downloadURL: package
             )
         }
         return UpdateCheckResult(
@@ -182,8 +182,8 @@ public struct UpdateChecker: Sendable {
         return desc
     }
 
-    /// 优先 dmg → pkg → zip（对齐智额 ManualUpdateEvaluator）
-    private func preferredZipURL(from releaseJSON: [String: Any]) -> URL? {
+    /// 优先 pkg（静默装）→ dmg → zip；同类型优先 SmartBalance 英文名。
+    func preferredPackageURL(from releaseJSON: [String: Any]) -> URL? {
         guard let assets = releaseJSON["assets"] as? [[String: Any]] else { return nil }
         let namesAndURLs: [(String, URL)] = assets.compactMap { asset in
             guard
@@ -195,13 +195,17 @@ public struct UpdateChecker: Sendable {
         }
         let ranked = namesAndURLs.compactMap { name, url -> (Int, URL)? in
             let n = name.lowercased()
+            let branded = n.contains("smartbalance") || name.contains("智余")
             let score: Int
-            if n.hasSuffix(".dmg") {
-                score = (n.contains("smartbalance") || n.contains("智余")) ? 0 : 1
-            } else if n.hasSuffix(".pkg") {
-                score = 2
+            if n.hasSuffix(".pkg") {
+                // SmartBalance-*.pkg 路径最稳
+                if n.contains("smartbalance") { score = 0 }
+                else if branded { score = 1 }
+                else { score = 2 }
+            } else if n.hasSuffix(".dmg") {
+                score = branded ? 10 : 11
             } else if n.hasSuffix(".zip") {
-                score = 3
+                score = branded ? 20 : 21
             } else {
                 return nil
             }
