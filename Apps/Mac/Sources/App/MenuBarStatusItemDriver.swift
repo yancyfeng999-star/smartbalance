@@ -13,10 +13,38 @@ final class MenuBarStatusItemDriver {
     private var wakeObserver: NSObjectProtocol?
     private var appearanceObserver: NSObjectProtocol?
     private var lastImage: NSImage?
+    private var startupTransparencyTask: Task<Void, Never>?
+
+    /// 在 MenuBarExtraAccess 回调之前处理状态栏宿主窗口，避免启动加载阶段出现不透明背景。
+    func startStartupTransparencyBootstrap() {
+        guard startupTransparencyTask == nil else { return }
+
+        startupTransparencyTask = Task { @MainActor [weak self] in
+            defer { self?.startupTransparencyTask = nil }
+
+            // MenuBarExtraAccess 本身会等待状态栏窗口出现；这里保持略长的窗口，
+            // 覆盖它的发现延迟，同时避免永久轮询。
+            for _ in 0..<60 {
+                guard !Task.isCancelled, let self else { return }
+                self.configureDiscoveredHostWindows()
+
+                if self.statusItem?.button?.window != nil {
+                    return
+                }
+
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+
+            self?.configureDiscoveredHostWindows()
+        }
+    }
 
     /// 对齐智额：`attach` 后即可；`onAppear`/`onDisappear` 再 `reassertPresentation`。
     func attach(_ statusItem: NSStatusItem) {
         guard self.statusItem !== statusItem else {
+            if statusItem.button?.window == nil {
+                startStartupTransparencyBootstrap()
+            }
             reassertPresentation()
             return
         }
@@ -53,6 +81,9 @@ final class MenuBarStatusItemDriver {
             }
         }
 
+        if statusItem.button?.window == nil {
+            startStartupTransparencyBootstrap()
+        }
         reassertPresentation()
     }
 
@@ -68,12 +99,7 @@ final class MenuBarStatusItemDriver {
         // default opaque content view paints a white slot behind non-template
         // images even when the status button and image are transparent.
         if let window = button.window {
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            if let contentView = window.contentView {
-                contentView.wantsLayer = true
-                contentView.layer?.backgroundColor = NSColor.clear.cgColor
-            }
+            Self.configureHostWindowForTransparency(window)
         }
 
         let preferDark = NSApp.effectiveAppearance
@@ -91,6 +117,22 @@ final class MenuBarStatusItemDriver {
         button.isTransparent = true
         button.wantsLayer = false
         button.toolTip = nil
+    }
+
+    /// 清除 macOS 状态栏宿主窗口的默认底色，供启动期扫描和已绑定状态项共同使用。
+    static func configureHostWindowForTransparency(_ window: NSWindow) {
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        if let contentView = window.contentView {
+            contentView.wantsLayer = true
+            contentView.layer?.backgroundColor = NSColor.clear.cgColor
+        }
+    }
+
+    private func configureDiscoveredHostWindows() {
+        for window in NSApp.windows where window.className.contains("NSStatusBarWindow") {
+            Self.configureHostWindowForTransparency(window)
+        }
     }
 
     /// 对齐智额 `brandLogoImage`：18pt、带 Alpha 的 bitmap、sourceOver、isTemplate=false。

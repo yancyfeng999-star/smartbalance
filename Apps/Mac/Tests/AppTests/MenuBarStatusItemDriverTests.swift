@@ -3,6 +3,26 @@ import XCTest
 
 @MainActor
 final class MenuBarStatusItemDriverTests: XCTestCase {
+    func testHostWindowTransparencyHelperClearsLoadingBackground() throws {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 36, height: 24),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: true
+        )
+        window.isOpaque = true
+        window.backgroundColor = .white
+        let contentView = try XCTUnwrap(window.contentView)
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = NSColor.white.cgColor
+
+        MenuBarStatusItemDriver.configureHostWindowForTransparency(window)
+
+        XCTAssertFalse(window.isOpaque)
+        XCTAssertEqual(window.backgroundColor?.alphaComponent ?? 1, 0, accuracy: 0.01)
+        XCTAssertEqual(contentView.layer?.backgroundColor?.alpha ?? 1, 0, accuracy: 0.01)
+    }
+
     func testStatusButtonDoesNotDrawItsOwnBackground() throws {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer { NSStatusBar.system.removeStatusItem(statusItem) }
