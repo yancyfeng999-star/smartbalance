@@ -2,7 +2,7 @@ import Foundation
 import Domain
 import CommonCrypto
 
-/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供 MiMo / MiniMax 一键导入。
+/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供 MiMo / MiniMax / apinebula 一键导入。
 ///
 /// - Important: 全部逻辑可重入后台线程；禁止在 MainActor 上同步调用。
 public enum BrowserSessionImporter: Sendable {
@@ -56,6 +56,7 @@ public enum BrowserSessionImporter: Sendable {
         switch kind {
         case .mimo: return try importMiMo()
         case .minimax: return try importMiniMax()
+        case .apinebula: return try importApinebula()
         default: throw ImportError.unsupportedKind
         }
     }
@@ -99,6 +100,33 @@ public enum BrowserSessionImporter: Sendable {
         }
         let secret = "_token=\(token); minimax_group_id_v2=\(groupId)"
         return Credential(secret: secret, userId: groupId, source: cookies.first?.browserName ?? "Chrome")
+    }
+
+    private static func importApinebula() throws -> Credential {
+        // 优先 .ai（与控制台一致），.com 作后备
+        let cookies = try loadCookies(
+            hostNeedles: ["apinebula.ai", "apinebula.com", "apinebula"],
+            names: ["session"]
+        )
+        // 优先 apinebula.ai 的 session
+        let session =
+            cookies.first(where: { $0.name == "session" && $0.host.contains("apinebula.ai") })?.value
+            ?? cookies.first(where: { $0.name == "session" })?.value
+        guard let session, !session.isEmpty else {
+            throw ImportError.cookieNotFound(
+                "未找到 apinebula 登录态。请先用 Chrome 打开并登录 https://apinebula.ai/zh/console/topup 后再导入"
+            )
+        }
+        guard let userId = SessionCookieParser.extractNewAPIUserId(fromSession: session), !userId.isEmpty else {
+            throw ImportError.cookieNotFound(
+                "已找到 session，但解析不到用户 ID。请在 Chrome 打开 apinebula 控制台刷新后再导入"
+            )
+        }
+        return Credential(
+            secret: session,
+            userId: userId,
+            source: cookies.first?.browserName ?? "Chrome"
+        )
     }
 
     // MARK: - Cookie load

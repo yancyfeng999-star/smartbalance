@@ -185,7 +185,7 @@ struct APIAccountsSection: View {
             if editAccountId == acc.id {
                 editEditor(for: acc)
                     .transition(AppMotion.expandContent)
-                if acc.kind == .mimo || acc.kind == .minimax {
+                if acc.kind.supportsBrowserSessionImport {
                     Button(model.browserImporting ? "导入中…" : "从 Chrome 重新导入登录态") {
                         model.importBrowserSession(intoAccountId: acc.id)
                         editAccountId = nil
@@ -412,7 +412,7 @@ struct APIAccountsSection: View {
             )
             .textFieldStyle(.roundedBorder)
 
-            if kind.needsUserId, kind != .mimo, kind != .minimax {
+            if kind.needsUserId, !kind.supportsBrowserSessionImport {
                 TextField(kind.userIdHintCN, text: $draftUserId)
                     .textFieldStyle(.roundedBorder)
             }
@@ -432,14 +432,14 @@ struct APIAccountsSection: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if kind == .mimo || kind == .minimax {
+            } else if kind.supportsBrowserSessionImport {
                 cookieProviderSetup(kind: kind)
             } else {
                 SecureField(kind.credentialHintCN, text: $draftSecret)
                     .textFieldStyle(.roundedBorder)
             }
 
-            if kind == .mimo || kind == .minimax {
+            if kind.supportsBrowserSessionImport {
                 Button(model.browserImporting ? "导入中…" : "从 Chrome 导入并添加") {
                     model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
                     // 导入在后台跑；成功后会 refresh，这里清草稿便于再添
@@ -466,28 +466,42 @@ struct APIAccountsSection: View {
         }
     }
 
-    /// MiMo / MiniMax 新用户引导：一键导入优先，手贴备选。
+    /// MiMo / MiniMax / apinebula：一键导入优先，手贴备选。
     @ViewBuilder
     private func cookieProviderSetup(kind: ProviderKind) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("新用户怎么接")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
-            Text(kind == .mimo
-                 ? "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
-                 : "1. 用 Chrome 打开并登录 platform.minimaxi.com 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面")
+            Text(cookieSetupGuide(kind))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            SecureField(kind.credentialHintCN, text: $draftSecret)
-                .textFieldStyle(.roundedBorder)
-            TextField(kind.userIdHintCN, text: $draftUserId)
-                .textFieldStyle(.roundedBorder)
-            Text("高级：也可整段 Cookie 粘进密钥框，会自动拆字段")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(SBTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            // apinebula 不展示密钥/UID 输入为主路径；高级折叠在「手动填写」
+            if kind != .apinebula {
+                SecureField(kind.credentialHintCN, text: $draftSecret)
+                    .textFieldStyle(.roundedBorder)
+                TextField(kind.userIdHintCN, text: $draftUserId)
+                    .textFieldStyle(.roundedBorder)
+                Text("高级：也可整段 Cookie 粘进密钥框，会自动拆字段")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(SBTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func cookieSetupGuide(_ kind: ProviderKind) -> String {
+        switch kind {
+        case .mimo:
+            return "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
+        case .minimax:
+            return "1. 用 Chrome 打开并登录 platform.minimaxi.com 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
+        case .apinebula:
+            return "1. 用 Chrome 打开并登录 https://apinebula.ai/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
+        default:
+            return "1. 用 Chrome 登录控制台\n2. 点「从 Chrome 导入并添加」"
         }
     }
 
@@ -502,8 +516,9 @@ struct APIAccountsSection: View {
             return draftAccessKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || draftSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-        // Cookie 平台：密钥非空即可（userId 可从 Cookie 自动拆）
-        if kind == .mimo || kind == .minimax {
+        // Cookie 平台：密钥非空即可（userId 可从 Cookie / session 自动拆）
+        if kind.supportsBrowserSessionImport {
+            // apinebula 主路径是 Chrome 导入，手动保存时才校验密钥框
             return draftSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return draftSecret.isEmpty

@@ -19,7 +19,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case mimo
     /// MiniMax：控制台 Cookie 查 API 钱包余额
     case minimax
-    /// apinebula：New-API 兼容，系统令牌或 session Cookie + 用户 ID
+    /// apinebula：Chrome 导入 session 自动查余额（New-API 兼容）
     case apinebula
 
     public var id: String { rawValue }
@@ -128,7 +128,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .volcengine: "Secret Access Key（访问控制 → 密钥管理）"
         case .mimo: "粘贴 serviceToken 或整段 Cookie"
         case .minimax: "粘贴 _token 与 group，或整段 Cookie"
-        case .apinebula: "系统访问令牌，或 session Cookie"
+        case .apinebula: "session Cookie（推荐从 Chrome 一键导入）"
         }
     }
 
@@ -148,10 +148,19 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
 
     public var needsUserId: Bool {
         switch self {
-        // New-API / DMXAPI / apinebula：/api/user/self 需系统令牌（或 session）+ 用户 ID 头
+        // New-API / DMXAPI：/api/user/self 需系统令牌 + 用户 ID 头
         // MiMo：控制台 Cookie 需 userId
-        // MiniMax：查询余额需 X-Group-Id（Cookie minimax_group_id_v2）
-        case .newapi, .dmxapi, .apinebula, .mimo, .minimax: true
+        // MiniMax：查询余额需 X-Group-Id
+        // apinebula：UID 从 session 自动解析，UI 不要求手填
+        case .newapi, .dmxapi, .mimo, .minimax: true
+        default: false
+        }
+    }
+
+    /// 支持从 Chrome 一键导入控制台登录态（不手填密钥）。
+    public var supportsBrowserSessionImport: Bool {
+        switch self {
+        case .mimo, .minimax, .apinebula: true
         default: false
         }
     }
@@ -160,7 +169,6 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         switch self {
         case .newapi: "用户 ID（个人中心，填 New-API-User）"
         case .dmxapi: "用户 ID（个人资料页）"
-        case .apinebula: "用户 ID（个人中心，填 New-Api-User）"
         case .mimo: "userId（Cookie 里的 userId）"
         case .minimax: "minimax_group_id_v2（Cookie 里的组织 ID）"
         default: "用户 ID"

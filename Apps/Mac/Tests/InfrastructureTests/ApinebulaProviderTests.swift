@@ -50,17 +50,17 @@ final class ApinebulaProviderTests: XCTestCase {
         XCTAssertTrue(snap.detail.contains("session"))
     }
 
-    func testMissingUserId() async {
+    func testMissingSessionFailsClearly() async {
         let http = MockHTTPClient(statusCode: 200, json: standardJSON)
         let provider = ApinebulaBalanceProvider(http: http)
         do {
             _ = try await provider.fetchBalance(
                 account: account(userId: nil),
-                credentials: ProviderCredentials(apiKey: "tok", userId: nil)
+                credentials: ProviderCredentials(apiKey: "", userId: nil)
             )
-            XCTFail("expected missingUserId")
-        } catch BalanceProviderError.missingUserId {
-            // ok
+            XCTFail("expected error")
+        } catch let BalanceProviderError.providerMessage(msg) {
+            XCTAssertTrue(msg.contains("Chrome") || msg.contains("导入"), msg)
         } catch {
             XCTFail("wrong error \(error)")
         }
@@ -69,7 +69,8 @@ final class ApinebulaProviderTests: XCTestCase {
     func testDisplayNameAndNotManual() {
         XCTAssertEqual(ProviderKind.apinebula.displayName, "apinebula")
         XCTAssertFalse(ProviderKind.apinebula.isManualEntry)
-        XCTAssertTrue(ProviderKind.apinebula.needsUserId)
+        XCTAssertFalse(ProviderKind.apinebula.needsUserId)
+        XCTAssertTrue(ProviderKind.apinebula.supportsBrowserSessionImport)
         XCTAssertEqual(ProviderKind.apinebula.defaultBaseURL, "https://apinebula.ai")
         XCTAssertEqual(ProviderKind.apinebula.defaultConsoleURL, "https://apinebula.ai/zh/console/topup")
         XCTAssertEqual(ProviderRegistry.provider(for: .apinebula).kind, .apinebula)
@@ -84,5 +85,34 @@ final class ApinebulaProviderTests: XCTestCase {
             ApinebulaBalanceProvider.resolveSessionCookie("session=abc; other=1"),
             "abc"
         )
+    }
+
+    func testExtractUserIdFromNestedSession() {
+        // 构造：outer = b64( "1|" + b64url(gob) + "|mac" )
+        // gob 含 "id" + int 12210 → 编码 uint 24420 = 0x5F64 → FE 5F 64
+        var gob = Data()
+        gob.append(contentsOf: [0x00])
+        gob.append(contentsOf: Array("id".utf8))
+        gob.append(contentsOf: [0x03])
+        gob.append(contentsOf: Array("int".utf8))
+        gob.append(contentsOf: [0x04, 0x04, 0x00, 0xFE, 0x5F, 0x64])
+        gob.append(contentsOf: Array("username".utf8))
+
+        let innerB64 = gob.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        let outerPlain = "1786273870|\(innerB64)|fakesig"
+        let outerB64 = Data(outerPlain.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+
+        XCTAssertEqual(SessionCookieParser.extractNewAPIUserId(fromSession: outerB64), "12210")
+    }
+
+    func testSupportsBrowserImport() {
+        XCTAssertTrue(ProviderKind.apinebula.supportsBrowserSessionImport)
+        XCTAssertFalse(ProviderKind.apinebula.needsUserId)
     }
 }

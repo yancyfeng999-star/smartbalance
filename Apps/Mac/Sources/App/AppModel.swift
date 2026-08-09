@@ -498,7 +498,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// MiMo / MiniMax：把整段 Cookie 拆成 token + userId 再入库。
+    /// MiMo / MiniMax / apinebula：把整段 Cookie 拆成 token + userId 再入库。
     private func normalizeSessionCredential(
         kind: ProviderKind,
         secret: String,
@@ -513,6 +513,9 @@ final class AppModel: ObservableObject {
             let groupId = SessionCookieParser.value(named: "minimax_group_id_v2", in: secret)
                 ?? userId?.trimmingCharacters(in: .whitespacesAndNewlines)
             return (token, (groupId?.isEmpty == false) ? groupId : nil)
+        case .apinebula:
+            let r = SessionCookieParser.resolveApinebula(secret: secret, userId: userId)
+            return (r.session, r.userId)
         default:
             return (secret.trimmingCharacters(in: .whitespacesAndNewlines), userId)
         }
@@ -520,7 +523,7 @@ final class AppModel: ObservableObject {
 
     /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（纯后台，绝不堵 UI）。
     func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") {
-        guard kind == .mimo || kind == .minimax else {
+        guard kind.supportsBrowserSessionImport else {
             banner = "该平台不支持浏览器导入"
             return
         }
@@ -558,7 +561,7 @@ final class AppModel: ObservableObject {
     /// 已有账号：从浏览器刷新会话 Cookie（纯后台）。
     func importBrowserSession(intoAccountId id: UUID) {
         guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
-        guard acc.kind == .mimo || acc.kind == .minimax else {
+        guard acc.kind.supportsBrowserSessionImport else {
             banner = "该平台不支持浏览器导入"
             return
         }

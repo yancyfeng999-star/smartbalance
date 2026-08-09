@@ -4,11 +4,10 @@ import Domain
 /// apinebula 余额（New-API 兼容站）。
 /// GET https://apinebula.ai/api/user/self
 ///
-/// 鉴权二选一（均需 New-Api-User / 用户 ID）：
-/// 1. 系统访问令牌：Authorization: Bearer <token>
-/// 2. 控制台 session Cookie：Cookie: session=<…>
+/// **推荐**：Chrome 一键导入 session（UID 从 session 自动解析，无需手填密钥）。
+/// 也可粘贴 session Cookie；系统访问令牌为高级备选。
 ///
-/// 额度：quota / 500000 ≈ CNY（站点 status.quota_display_type=CNY）。
+/// 额度：quota / 500000 ≈ CNY。
 public struct ApinebulaBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .apinebula
     private let http: any HTTPClient
@@ -20,10 +19,25 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
     }
 
     public func fetchBalance(account: BalanceAccount, credentials: ProviderCredentials) async throws -> BalanceSnapshot {
-        guard !credentials.apiKey.isEmpty else { throw BalanceProviderError.missingCredential }
-        let userId = (credentials.userId ?? account.userId ?? "")
+        guard !credentials.apiKey.isEmpty else {
+            throw BalanceProviderError.providerMessage("请先从 Chrome 导入 apinebula 登录态")
+        }
+
+        let secret = credentials.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolved = SessionCookieParser.resolveApinebula(
+            secret: secret,
+            userId: credentials.userId ?? account.userId
+        )
+        let sessionValue = Self.resolveSessionCookie(resolved.session) ?? Self.resolveSessionCookie(secret)
+        let useSession = sessionValue != nil
+
+        let userId = (resolved.userId ?? credentials.userId ?? account.userId ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !userId.isEmpty else { throw BalanceProviderError.missingUserId }
+        guard !userId.isEmpty else {
+            throw BalanceProviderError.providerMessage(
+                "无法从 session 解析用户 ID。请用 Chrome 打开 apinebula 控制台后重新导入"
+            )
+        }
 
         let base = (credentials.baseURL ?? account.baseURL ?? kind.defaultBaseURL ?? Self.defaultAPIBase)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -31,16 +45,17 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
             throw BalanceProviderError.invalidURL
         }
 
-        let secret = credentials.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sessionValue = Self.resolveSessionCookie(secret)
-        let useSession = sessionValue != nil
-
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(userId, forHTTPHeaderField: "New-Api-User")
         request.setValue(userId, forHTTPHeaderField: "New-API-User")
+        request.setValue(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+            forHTTPHeaderField: "User-Agent"
+        )
         request.setValue("https://apinebula.ai/zh/console/topup", forHTTPHeaderField: "Referer")
+        request.setValue("https://apinebula.ai", forHTTPHeaderField: "Origin")
         request.timeoutInterval = 20
 
         if let sessionValue {

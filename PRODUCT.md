@@ -13,8 +13,8 @@
 ### 余额
 
 1. **API 直查** — 各平台 Key / 系统令牌 / AK·SK  
-2. **控制台 Cookie** — MiMo / MiniMax 粘贴会话查 API 钱包余额  
-3. **系统令牌 / session** — apinebula（New-API 兼容）+ 用户 ID  
+2. **控制台 Cookie** — MiMo / MiniMax / **apinebula** 可从 Chrome 一键导入登录态自动查余额  
+3. **系统令牌** — New-API / DMXAPI 等仍可贴令牌 + 用户 ID  
 
 ### 报警
 
