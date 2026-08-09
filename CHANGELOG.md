@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.50 — 2026-08-09
+
+打开后台与发布页默认用 Google Chrome（未安装则回退系统浏览器）
+
+
 ## 0.2.49 — 2026-08-09
 
 apinebula 支持自动查余额：系统访问令牌或 session Cookie + 用户 ID，按人民币展示；默认控制台 https://apinebula.ai
