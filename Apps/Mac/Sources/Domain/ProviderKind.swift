@@ -15,9 +15,9 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case kimi
     /// 火山引擎费用中心（AK/SK · QueryBalanceAcct）
     case volcengine
-    /// 小米 MiMo：无公开余额 API → 手动录入 + 每日提醒
+    /// 小米 MiMo：控制台 Cookie 查 API 钱包余额
     case mimo
-    /// MiniMax：钱包无公开 API → 手动录入 + 每日提醒
+    /// MiniMax：控制台 Cookie 查 API 钱包余额
     case minimax
     /// Apinebula：无公开余额 API → 手动录入 + 每日提醒
     case apinebula
@@ -34,8 +34,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "DMXAPI"
         case .kimi: "Kimi（月之暗面）"
         case .volcengine: "火山引擎"
-        case .mimo: "小米 MiMo（手录）"
-        case .minimax: "MiniMax（手录）"
+        case .mimo: "小米 MiMo"
+        case .minimax: "MiniMax"
         case .apinebula: "Apinebula（手录）"
         }
     }
@@ -51,7 +51,9 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "https://www.dmxapi.cn"
         case .kimi: "https://api.moonshot.cn"
         case .volcengine: nil // 固定 billing.volcengineapi.com
-        case .mimo, .minimax, .apinebula: nil // 手录无 API
+        case .mimo: "https://platform.xiaomimimo.com"
+        case .minimax: "https://www.minimaxi.com"
+        case .apinebula: nil // 手录无 API
         }
     }
 
@@ -96,15 +98,15 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .kimi: "https://platform.kimi.com/console/api-keys"
         case .volcengine: "https://console.volcengine.com/finance/account-overview/"
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
-        case .minimax: "https://platform.minimaxi.com/user-center/payment/balance"
-        case .apinebula: "https://apinebula.com"
+        case .minimax: "https://platform.minimaxi.com/console/recharge-records"
+        case .apinebula: "https://apinebula.com/zh/console/topup"
         }
     }
 
     /// 无公开余额 API，靠用户手录 + 每日提醒。
     public var isManualEntry: Bool {
         switch self {
-        case .mimo, .minimax, .apinebula: true
+        case .apinebula: true
         default: false
         }
     }
@@ -129,7 +131,9 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "填写系统访问令牌（非模型 sk-）"
         case .kimi: "填写 Kimi / Moonshot API Key（sk-…）"
         case .volcengine: "Secret Access Key（访问控制 → 密钥管理）"
-        case .mimo, .minimax, .apinebula: "无需 Key · 每天提醒后手录金额"
+        case .mimo: "粘贴 serviceToken 或整段 Cookie"
+        case .minimax: "粘贴 _token（JWT）或整段 Cookie"
+        case .apinebula: "无需 Key · 每天提醒后手录金额"
         }
     }
 
@@ -150,7 +154,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     public var needsUserId: Bool {
         switch self {
         // New-API / DMXAPI：/api/user/self 需系统令牌 + 用户 ID 头
-        case .newapi, .dmxapi: true
+        // MiMo：控制台 Cookie 需 userId
+        case .newapi, .dmxapi, .mimo: true
         default: false
         }
     }
@@ -159,6 +164,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         switch self {
         case .newapi: "用户 ID（个人中心，填 New-API-User）"
         case .dmxapi: "用户 ID（个人资料页）"
+        case .mimo: "userId（Cookie 里的 userId）"
         default: "用户 ID"
         }
     }

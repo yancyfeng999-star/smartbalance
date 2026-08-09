@@ -12,8 +12,8 @@ public enum ProviderRegistry {
         case .dmxapi: DMXAPIBalanceProvider()
         case .kimi: KimiBalanceProvider()
         case .volcengine: VolcengineBalanceProvider()
-        case .mimo: ManualBalanceProvider(kind: .mimo)
-        case .minimax: ManualBalanceProvider(kind: .minimax)
+        case .mimo: MiMoBalanceProvider()
+        case .minimax: MiniMaxBalanceProvider()
         case .apinebula: ManualBalanceProvider(kind: .apinebula)
         }
     }

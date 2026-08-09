@@ -34,7 +34,7 @@ struct APIAccountsSection: View {
 
     private var nestedList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("点平台卡片展开，添加密钥或手录金额")
+            Text("点平台卡片展开，添加密钥 / Cookie 或手录金额")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -424,6 +424,12 @@ struct APIAccountsSection: View {
             } else {
                 SecureField(kind.credentialHintCN, text: $draftSecret)
                     .textFieldStyle(.roundedBorder)
+                if kind == .mimo || kind == .minimax {
+                    Text("在浏览器登录控制台后，DevTools → Application → Cookies 复制；也可整段 Cookie 粘贴")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {

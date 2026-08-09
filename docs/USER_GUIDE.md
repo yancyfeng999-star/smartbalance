@@ -27,7 +27,9 @@ open ~/Desktop/智余.app
 | New-API | Base URL + 用户 ID + 系统访问令牌 |
 | DMXAPI | 用户 ID + 系统访问令牌 |
 | 火山引擎 | Access Key ID + Secret Access Key |
-| MiMo / MiniMax / Apinebula | 手录金额（可选），默认每天提醒 |
+| 小米 MiMo | Cookie 里的 `api-platform_serviceToken` + `userId`（可整段粘贴） |
+| MiniMax | Cookie 里的 `_token`（JWT，可整段粘贴） |
+| Apinebula | 手录金额（可选），默认每天提醒 |
 
 回首页点 **刷新**。
 

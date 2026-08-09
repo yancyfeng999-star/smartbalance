@@ -44,6 +44,9 @@ struct MockHTTPClient: HTTPClient, Sendable {
         if let newAPIUser = request.value(forHTTPHeaderField: "New-API-User") {
             extras["New-API-User"] = newAPIUser
         }
+        if let cookie = request.value(forHTTPHeaderField: "Cookie") {
+            extras["Cookie"] = cookie
+        }
         let index = state.recordCall(authorization: auth, customHeaders: extras) - 1
         let code: Int
         let data: Data

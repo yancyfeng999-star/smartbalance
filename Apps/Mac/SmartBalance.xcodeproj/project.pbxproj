@@ -15,6 +15,7 @@
 		0B6178146159F40E7FEC142D /* SettingsExpandableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67797107671E28F484CA2F2 /* SettingsExpandableCard.swift */; };
 		0B9377EC164F3672E419D839 /* DMXAPIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1231E34AA6D3150E0F35241 /* DMXAPIProviderTests.swift */; };
 		0E9115E3FED9E36F635C7D25 /* VolcengineProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F59693BAE84A94FCAB471C3 /* VolcengineProviderTests.swift */; };
+		0F220079E772F8EF9043A268 /* MiMoProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000B5EAF785F837BF7846E6 /* MiMoProviderTests.swift */; };
 		0F9C5C27CE4AF3EC4E9142DF /* OpenRouterBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EACBEF49880E359E6C73B4 /* OpenRouterBalanceProvider.swift */; };
 		10AB940428A80FC7E6D8AEA7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFE355963892C82786059F4 /* Theme.swift */; };
 		13B3AEE24A30E624FA8815F3 /* BalanceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */; };
@@ -29,6 +30,7 @@
 		29B0D85E83F41F6F6DB21D59 /* NestedSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FBEF854F6CBD36CDD96164A /* NestedSettingsCard.swift */; };
 		2C5CE599258DD64465E17522 /* LaoZhangProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B5A932223E0B4A423D6950 /* LaoZhangProviderTests.swift */; };
 		2DF3BF0A55F38A3AE02060F2 /* EmailAlertSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53937A026F97A996CB2B4C5 /* EmailAlertSettings.swift */; };
+		2F2D90FB5C8D3D2DA2871D82 /* MenuBarStatusItemDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C21DCA1A2966B716A55E15 /* MenuBarStatusItemDriver.swift */; };
 		30C124ED4BE4AD7533880697 /* DeepSeekBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */; };
 		31B6677798723C88070A22A4 /* AlertChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */; };
 		331811AC02FB4901970E00FE /* BalanceAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */; };
@@ -37,16 +39,21 @@
 		38FD910AB0D1FE33446A6B66 /* BalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9627086E9C867E333AA891AA /* BalanceProvider.swift */; };
 		39D5E9D5A606C3EDEF337FE3 /* KimiProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CE4C39537DEE121B23206C /* KimiProviderTests.swift */; };
 		3BE8B92353DD1E25551F5BD3 /* LanguageSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14EEC0DBA2D4A5DB360FECA /* LanguageSettingsCard.swift */; };
+		3EBDB0905CB22903179191C2 /* TuistAssets+AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F5D58A9832B84E82134D05 /* TuistAssets+AppTests.swift */; };
 		3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */; };
 		3F4F6534B5564484A9ADEE4F /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */; };
 		433EA782CEF1F5085D7B8318 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 49C9281D2CD654099B754765 /* AppIcon.icns */; };
+		43BCB6863440CFC363B1A718 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9335C8DFE67FB1CBAF966549 /* Assets.xcassets */; };
 		43FA15EFD5C239EC1293B1AA /* LaoZhangBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */; };
 		48083B0B448C8941D61125DD /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3597F046B4FAC85DF2C83703 /* HomeView.swift */; };
 		4BAA0A8715D803A4967FA7CB /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
+		571AD238F266A7BED9532964 /* SessionCookieParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 063AE39863208258972989DD /* SessionCookieParser.swift */; };
 		5E40934CEE7455A0BCDF47D3 /* TuistAssets+SmartBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E74407DA5E51665BE993E53C /* TuistAssets+SmartBalance.swift */; };
 		5EA0691D6B1E3C6F2560DE04 /* TuistBundle+SmartBalance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */; };
+		64888127842C1932291B525D /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 49C9281D2CD654099B754765 /* AppIcon.icns */; };
 		65400FAC4FBCD13B396D562B /* AlertEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E8782D402683CD9D05DCD3 /* AlertEvent.swift */; };
 		677B39AF0161D48035607CB3 /* ManualBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F030FD6912B28D4CF8202858 /* ManualBalanceProvider.swift */; };
+		67AF1964A6042820EF0DF7ED /* MiMoBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480351C99EAE33EC8D12A3D1 /* MiMoBalanceProvider.swift */; };
 		6D4AF8B9FCAD3736E516DD59 /* MenuBarExtraAccess.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA9ACE02A8A0C9768B670F33 /* MenuBarExtraAccess.framework */; };
 		7079128490458FFAA6F3668D /* ProviderLogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3228372433F2ADCE983F36C /* ProviderLogoView.swift */; };
 		72D529F018D6AB152FCBFD25 /* DataSourceKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60576DDC7BB0B4190A050369 /* DataSourceKind.swift */; };
@@ -66,12 +73,15 @@
 		98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */; };
 		99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */; };
 		A2B0652DED11DF8B1706113F /* SMTPProtocolFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71A8BC1881287D18421CB6E /* SMTPProtocolFormattingTests.swift */; };
+		A2F5302BA6B63359FA3F6F59 /* MiniMaxProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */; };
 		A8FA5ADCF09D35D303D9085E /* AlertCooldownPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFCFBF55B0BEBE548954682 /* AlertCooldownPolicy.swift */; };
 		A9387960F89BD6A1A716DDF6 /* MenuBarStatusItemDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C21DCA1A2966B716A55E15 /* MenuBarStatusItemDriver.swift */; };
 		AAAD866D367B2FBAA75F22FC /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519D1E55589F026240054991 /* L10n.swift */; };
 		ADAF4835382D8D9EE56609B7 /* RefreshInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AD07EB3DE4787A4C2FB2C8 /* RefreshInterval.swift */; };
+		AEDC07174D7D3354AC55C76B /* MenuBarStatusItemDriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */; };
 		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
 		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		B920E4E0F76A20E95C77560B /* MiniMaxBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */; };
 		B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */; };
 		C1B13A2490B2E5937B432DE0 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD25801FF4237FC1E955A84 /* Brand.swift */; };
 		C219449F406EA8F47682EE1D /* MenuRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */; };
@@ -82,6 +92,7 @@
 		DAC24879E42C6658477B877C /* ReleaseDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */; };
 		DD64CD5BF5E6DADC4608EACD /* DeepSeekProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */; };
 		DEB257278157844EE997587C /* SettingsChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8870F539D14F573853FD8408 /* SettingsChrome.swift */; };
+		E019C035637318750622C4AC /* TuistBundle+AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF2E45DE4645D3FE9E0814 /* TuistBundle+AppTests.swift */; };
 		E2527499AD2C162A25D45195 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */; };
 		E30EFB57A9D82D64D408757F /* SecretMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF26DFD225E26801BD8B0EA /* SecretMask.swift */; };
 		E8D6FAB1FBD1EC0A81D4353B /* ViralTokProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CE1EF4B9D661D8E0EC1540 /* ViralTokProviderTests.swift */; };
@@ -190,6 +201,16 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9846D848CCD5ECFB97B298B8 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E8A665470EFEEC4F43F34F5E /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -204,6 +225,9 @@
 
 /* Begin PBXFileReference section */
 		02B6997794C0ABBBFEB02E2A /* DeepSeekProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekProviderTests.swift; sourceTree = "<group>"; };
+		05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxProviderTests.swift; sourceTree = "<group>"; };
+		060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBalanceProvider.swift; sourceTree = "<group>"; };
+		063AE39863208258972989DD /* SessionCookieParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCookieParser.swift; sourceTree = "<group>"; };
 		06998D7944A06D8515432118 /* DomainTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "DomainTests-Info.plist"; sourceTree = "<group>"; };
 		0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertThresholdTests.swift; sourceTree = "<group>"; };
 		0936C127D1AF75D376EEE61B /* BalanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceService.swift; sourceTree = "<group>"; };
@@ -212,6 +236,7 @@
 		152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIProviderTests.swift; sourceTree = "<group>"; };
 		1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaoZhangBalanceProvider.swift; sourceTree = "<group>"; };
 		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
+		1F1894175030E34C1224EE99 /* AppTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "AppTests-Info.plist"; sourceTree = "<group>"; };
 		1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRootView.swift; sourceTree = "<group>"; };
 		1FBEF854F6CBD36CDD96164A /* NestedSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedSettingsCard.swift; sourceTree = "<group>"; };
 		2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -221,6 +246,7 @@
 		36669B997FED5162C0E150BC /* ViralTokBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokBalanceProvider.swift; sourceTree = "<group>"; };
 		3EBB3C6351DCAC5328DC1176 /* AlertChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannel.swift; sourceTree = "<group>"; };
 		42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshot.swift; sourceTree = "<group>"; };
+		480351C99EAE33EC8D12A3D1 /* MiMoBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiMoBalanceProvider.swift; sourceTree = "<group>"; };
 		49C9281D2CD654099B754765 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
 		4C299590DA907A1C409B8818 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
@@ -242,7 +268,10 @@
 		714250D3631EFC7BA8A4D3D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		75AD07EB3DE4787A4C2FB2C8 /* RefreshInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshInterval.swift; sourceTree = "<group>"; };
 		7B4EC80094F1E74FEC790C5C /* DomainTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DomainTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7BDF2E45DE4645D3FE9E0814 /* TuistBundle+AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistBundle+AppTests.swift"; sourceTree = "<group>"; };
+		7E427F1E0D5217242359AD78 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshotTests.swift; sourceTree = "<group>"; };
+		8000B5EAF785F837BF7846E6 /* MiMoProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiMoProviderTests.swift; sourceTree = "<group>"; };
 		83F145D494EDCB4547269E57 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
 		874A99FADE042A0E1E3D8317 /* PinnedBalanceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedBalanceWindow.swift; sourceTree = "<group>"; };
 		8857AA516D28174E31AC2F95 /* 智余.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "智余.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -259,6 +288,7 @@
 		B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		BA9EE2F71455A98947D22665 /* InfrastructureTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "InfrastructureTests-Info.plist"; sourceTree = "<group>"; };
 		BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceAccount.swift; sourceTree = "<group>"; };
+		BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusItemDriverTests.swift; sourceTree = "<group>"; };
 		C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		C4CE1EF4B9D661D8E0EC1540 /* ViralTokProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokProviderTests.swift; sourceTree = "<group>"; };
 		C5AAE8EF719BC07AF237A54F /* SMTPSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPSection.swift; sourceTree = "<group>"; };
@@ -271,6 +301,7 @@
 		D5832C78D9AEEFF8EC10897E /* ReleaseDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseDownloader.swift; sourceTree = "<group>"; };
 		D67797107671E28F484CA2F2 /* SettingsExpandableCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsExpandableCard.swift; sourceTree = "<group>"; };
 		D87A480F96777DF6FE34FB61 /* ProviderKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderKind.swift; sourceTree = "<group>"; };
+		D9F5D58A9832B84E82134D05 /* TuistAssets+AppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistAssets+AppTests.swift"; sourceTree = "<group>"; };
 		DA1C4B11EB28B7088638D9A2 /* Domain.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Domain.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DB1A0C61D85FDE90DD43229F /* APIAccountsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIAccountsSection.swift; sourceTree = "<group>"; };
 		DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Infrastructure.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -337,6 +368,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F8C81BBDB747E008A2C5BCBE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -348,9 +386,12 @@
 				EA4601AEE6E22E8C68DA45B9 /* KimiBalanceProvider.swift */,
 				1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */,
 				F030FD6912B28D4CF8202858 /* ManualBalanceProvider.swift */,
+				480351C99EAE33EC8D12A3D1 /* MiMoBalanceProvider.swift */,
+				060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */,
 				4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */,
 				35EACBEF49880E359E6C73B4 /* OpenRouterBalanceProvider.swift */,
 				92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */,
+				063AE39863208258972989DD /* SessionCookieParser.swift */,
 				36669B997FED5162C0E150BC /* ViralTokBalanceProvider.swift */,
 				E25CDDCD9DA0711BE2EB4147 /* VolcengineBalanceProvider.swift */,
 				52E6BB535A3CCB48BCF86A90 /* VolcengineSigner.swift */,
@@ -379,6 +420,7 @@
 		0F999E20AA31141E6359410D /* InfoPlists */ = {
 			isa = PBXGroup;
 			children = (
+				1F1894175030E34C1224EE99 /* AppTests-Info.plist */,
 				3590E1788835BA90EC6C6A87 /* Domain-Info.plist */,
 				06998D7944A06D8515432118 /* DomainTests-Info.plist */,
 				D0BBDEA08A6FD9F2ABD5703F /* Infrastructure-Info.plist */,
@@ -390,7 +432,9 @@
 		12BEBCDB540392337FF16C13 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				D9F5D58A9832B84E82134D05 /* TuistAssets+AppTests.swift */,
 				E74407DA5E51665BE993E53C /* TuistAssets+SmartBalance.swift */,
+				7BDF2E45DE4645D3FE9E0814 /* TuistBundle+AppTests.swift */,
 				5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */,
 			);
 			path = Sources;
@@ -433,6 +477,8 @@
 				5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */,
 				A9CE4C39537DEE121B23206C /* KimiProviderTests.swift */,
 				52B5A932223E0B4A423D6950 /* LaoZhangProviderTests.swift */,
+				8000B5EAF785F837BF7846E6 /* MiMoProviderTests.swift */,
+				05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */,
 				152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */,
 				F14B6A6413BB5EA3C5A52AA7 /* OpenRouterProviderTests.swift */,
 				098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */,
@@ -468,6 +514,7 @@
 		49F06EC93D86EC4EC0F89839 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				ECE2C3986F90C207B8B67143 /* AppTests */,
 				7CA78A152D71EBCC17E30E5F /* DomainTests */,
 				3407E0B92C0B2FA36C306506 /* InfrastructureTests */,
 			);
@@ -514,6 +561,14 @@
 			path = DomainTests;
 			sourceTree = "<group>";
 		};
+		ECE2C3986F90C207B8B67143 /* AppTests */ = {
+			isa = PBXGroup;
+			children = (
+				BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */,
+			);
+			path = AppTests;
+			sourceTree = "<group>";
+		};
 		ED3362BA2D8C4A543E7286DA /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -543,6 +598,7 @@
 			isa = PBXGroup;
 			children = (
 				8857AA516D28174E31AC2F95 /* 智余.app */,
+				7E427F1E0D5217242359AD78 /* AppTests.xctest */,
 				DA1C4B11EB28B7088638D9A2 /* Domain.framework */,
 				7B4EC80094F1E74FEC790C5C /* DomainTests.xctest */,
 				DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */,
@@ -690,6 +746,26 @@
 			productReference = DA1C4B11EB28B7088638D9A2 /* Domain.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		F23D2001C002FE61F7F9783D /* AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B785E327E279EEDB9A9A67A /* Build configuration list for PBXNativeTarget "AppTests" */;
+			buildPhases = (
+				EAADEF4D8EB6F01F1052DAB8 /* Sources */,
+				A56EAED80812404CE4370A30 /* Resources */,
+				F8C81BBDB747E008A2C5BCBE /* Frameworks */,
+				9846D848CCD5ECFB97B298B8 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AppTests;
+			packageProductDependencies = (
+			);
+			productName = AppTests;
+			productReference = 7E427F1E0D5217242359AD78 /* AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -713,6 +789,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				F23D2001C002FE61F7F9783D /* AppTests */,
 				E57F25F94BD425DCC8066FB6 /* Domain */,
 				B348163E19B0F8B137F05945 /* DomainTests */,
 				7E593677A38220BD5DC453AD /* Infrastructure */,
@@ -753,6 +830,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A56EAED80812404CE4370A30 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				64888127842C1932291B525D /* AppIcon.icns in Resources */,
+				43BCB6863440CFC363B1A718 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C6DE3E1CA44C04BA6587AE79 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -772,6 +858,8 @@
 				B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */,
 				39D5E9D5A606C3EDEF337FE3 /* KimiProviderTests.swift in Sources */,
 				2C5CE599258DD64465E17522 /* LaoZhangProviderTests.swift in Sources */,
+				0F220079E772F8EF9043A268 /* MiMoProviderTests.swift in Sources */,
+				A2F5302BA6B63359FA3F6F59 /* MiniMaxProviderTests.swift in Sources */,
 				1BF6C674F693423CE0EE54FE /* NewAPIProviderTests.swift in Sources */,
 				EA65F5255DE4A15AD0445367 /* OpenRouterProviderTests.swift in Sources */,
 				3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */,
@@ -829,9 +917,12 @@
 				02610ACC217416C78DFBFD98 /* KimiBalanceProvider.swift in Sources */,
 				43FA15EFD5C239EC1293B1AA /* LaoZhangBalanceProvider.swift in Sources */,
 				677B39AF0161D48035607CB3 /* ManualBalanceProvider.swift in Sources */,
+				67AF1964A6042820EF0DF7ED /* MiMoBalanceProvider.swift in Sources */,
+				B920E4E0F76A20E95C77560B /* MiniMaxBalanceProvider.swift in Sources */,
 				99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */,
 				0F9C5C27CE4AF3EC4E9142DF /* OpenRouterBalanceProvider.swift in Sources */,
 				B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */,
+				571AD238F266A7BED9532964 /* SessionCookieParser.swift in Sources */,
 				8541753C4192F59AC907A724 /* ViralTokBalanceProvider.swift in Sources */,
 				EE31A900C3FA17FCB8997FCE /* VolcengineBalanceProvider.swift in Sources */,
 				1DBE74EAD98F03A728A60356 /* VolcengineSigner.swift in Sources */,
@@ -871,6 +962,17 @@
 			files = (
 				D7CC7D7BEB36002C15517110 /* AlertThresholdTests.swift in Sources */,
 				77335B024B0CF649A57E5FB7 /* BalanceSnapshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EAADEF4D8EB6F01F1052DAB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3EBDB0905CB22903179191C2 /* TuistAssets+AppTests.swift in Sources */,
+				E019C035637318750622C4AC /* TuistBundle+AppTests.swift in Sources */,
+				2F2D90FB5C8D3D2DA2871D82 /* MenuBarStatusItemDriver.swift in Sources */,
+				AEDC07174D7D3354AC55C76B /* MenuBarStatusItemDriverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -984,6 +1086,33 @@
 			};
 			name = Debug;
 		};
+		10EC3D68A22D39EA9763F4BB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/AppTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.app-tests";
+				PRODUCT_NAME = AppTests;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				SWIFT_COMPILATION_MODE = singlefile;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
 		19F6C457C4DE4748825A9F74 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1046,6 +1175,29 @@
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
+		};
+		219C786267BDC89DA59EB3EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				INFOPLIST_FILE = "Derived/InfoPlists/AppTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.smartbalance.app-tests";
+				PRODUCT_NAME = AppTests;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
 		};
 		2927BB97B467D016194AE5C9 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1348,6 +1500,15 @@
 			buildConfigurations = (
 				CB780967C41EFFFA10DFCCD4 /* Debug */,
 				EBE27533B972551CBCE4B336 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2B785E327E279EEDB9A9A67A /* Build configuration list for PBXNativeTarget "AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10EC3D68A22D39EA9763F4BB /* Debug */,
+				219C786267BDC89DA59EB3EE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

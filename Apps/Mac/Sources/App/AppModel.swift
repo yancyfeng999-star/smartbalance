@@ -392,20 +392,21 @@ final class AppModel: ObservableObject {
         secret: String,
         manualAmount: Double? = nil
     ) {
+        let normalized = normalizeSessionCredential(kind: kind, secret: secret, userId: userId)
         let account = BalanceAccount(
             kind: kind,
             displayName: displayName,
             baseURL: baseURL,
             consoleURL: consoleURL,
-            userId: userId,
+            userId: normalized.userId,
             manualAmount: kind.isManualEntry ? manualAmount : nil,
             manualUnit: kind.isManualEntry ? kind.defaultManualUnit : nil,
             manualUpdatedAt: (kind.isManualEntry && manualAmount != nil) ? Date() : nil,
             dailyReminderEnabled: kind.isManualEntry ? true : nil
         )
-        if kind.needsSecret, !secret.isEmpty {
+        if kind.needsSecret, !normalized.secret.isEmpty {
             do {
-                try secrets.set(secret, account: account.secretRef)
+                try secrets.set(normalized.secret, account: account.secretRef)
             } catch {
                 banner = "密钥保存失败：\(error.localizedDescription)"
                 return
@@ -450,19 +451,42 @@ final class AppModel: ObservableObject {
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
     func updateAccountSecret(id: UUID, secret: String) {
-        guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+        let acc = settings.accounts[idx]
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             banner = "密钥不能为空"
             return
         }
+        let normalized = normalizeSessionCredential(kind: acc.kind, secret: trimmed, userId: acc.userId)
         do {
-            try secrets.set(trimmed, account: acc.secretRef)
+            try secrets.set(normalized.secret, account: acc.secretRef)
+            if let uid = normalized.userId, !uid.isEmpty {
+                settings.accounts[idx].userId = uid
+                persist()
+            }
             banner = "已更新 \(acc.title) 的密钥"
             objectWillChange.send()
             refresh()
         } catch {
             banner = "密钥保存失败：\(error.localizedDescription)"
+        }
+    }
+
+    /// MiMo / MiniMax：把整段 Cookie 拆成 token + userId 再入库。
+    private func normalizeSessionCredential(
+        kind: ProviderKind,
+        secret: String,
+        userId: String?
+    ) -> (secret: String, userId: String?) {
+        switch kind {
+        case .mimo:
+            let r = SessionCookieParser.resolveMiMo(secret: secret, userId: userId)
+            return (r.token, r.userId)
+        case .minimax:
+            return (SessionCookieParser.resolveMiniMaxToken(secret: secret), userId)
+        default:
+            return (secret.trimmingCharacters(in: .whitespacesAndNewlines), userId)
         }
     }
 

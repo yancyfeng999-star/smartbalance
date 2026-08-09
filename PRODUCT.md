@@ -13,7 +13,8 @@
 ### 余额
 
 1. **API 直查** — 各平台 Key / 系统令牌 / AK·SK  
-2. **手录** — 无公开余额接口时（MiMo、MiniMax、Apinebula），用户录入 + 每天 10:00 提醒  
+2. **控制台 Cookie** — MiMo / MiniMax 粘贴会话查 API 钱包余额  
+3. **手录** — 无可用接口时（Apinebula），用户录入 + 每天 10:00 提醒  
 
 ### 报警
 
