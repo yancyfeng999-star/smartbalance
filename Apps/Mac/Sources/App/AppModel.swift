@@ -265,14 +265,14 @@ final class AppModel: ObservableObject {
         openDashboard(for: account)
     }
 
-    /// 打开指定账号的官网/后台。
+    /// 打开指定账号的官网/后台（优先 Google Chrome）。
     func openDashboard(for account: BalanceAccount) {
         guard let urlString = account.resolvedConsoleURL, let url = URL(string: urlString) else {
             banner = "请先在该账号填写官网/后台链接"
             selectedTab = .settings
             return
         }
-        NSWorkspace.shared.open(url)
+        BrowserLauncher.open(url)
     }
 
     // MARK: - Refresh
@@ -991,7 +991,7 @@ final class AppModel: ObservableObject {
             updateChecking = false
             updateMessage = (result.message) + "（无 zip，打开发布页）"
             if let page = result.openURL {
-                NSWorkspace.shared.open(page)
+                BrowserLauncher.open(page)
             }
             return
         }
@@ -999,7 +999,7 @@ final class AppModel: ObservableObject {
             updateChecking = false
             updateMessage = "下载地址必须为 HTTPS"
             if let page = result.openURL {
-                NSWorkspace.shared.open(page)
+                BrowserLauncher.open(page)
             }
             return
         }
@@ -1023,14 +1023,19 @@ final class AppModel: ObservableObject {
             updateDownloadProgress = nil
             updateMessage = "下载失败：\(error.localizedDescription)"
             if let page = result.openURL {
-                NSWorkspace.shared.open(page)
+                BrowserLauncher.open(page)
             }
         }
     }
 
     func openUpdateURL() {
         if let url = updateDownloadURL ?? updateOpenURL {
-            NSWorkspace.shared.open(url)
+            // 本地文件仍用系统打开；网页优先 Chrome
+            if url.isFileURL {
+                NSWorkspace.shared.open(url)
+            } else {
+                BrowserLauncher.open(url)
+            }
         }
     }
 
