@@ -51,6 +51,7 @@
 		7079128490458FFAA6F3668D /* ProviderLogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3228372433F2ADCE983F36C /* ProviderLogoView.swift */; };
 		72D529F018D6AB152FCBFD25 /* DataSourceKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60576DDC7BB0B4190A050369 /* DataSourceKind.swift */; };
 		74B4CBF8F02D3B3B5852876F /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D54145CDACB1B1247DD86DB /* AppModel.swift */; };
+		770DD6DE0217DB75050D1B4D /* DataBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640B5BC2F9F7EEA57161CE32 /* DataBackupService.swift */; };
 		77335B024B0CF649A57E5FB7 /* BalanceSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */; };
 		78717D74C908178226904FF3 /* MacNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF301DDD63AC22702F76913 /* MacNotificationService.swift */; };
 		7D14D3AB8FBC04D2879F7EA9 /* Infrastructure.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBEFD3F44F48273CDD717D90 /* Infrastructure.framework */; };
@@ -234,6 +235,7 @@
 		5E29D907B3D8CA9ED047AFD5 /* AppearanceSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsCard.swift; sourceTree = "<group>"; };
 		60145F6BD534C3FB05AA116B /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		60576DDC7BB0B4190A050369 /* DataSourceKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceKind.swift; sourceTree = "<group>"; };
+		640B5BC2F9F7EEA57161CE32 /* DataBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataBackupService.swift; sourceTree = "<group>"; };
 		6D54145CDACB1B1247DD86DB /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		6F59693BAE84A94FCAB471C3 /* VolcengineProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolcengineProviderTests.swift; sourceTree = "<group>"; };
 		7028B7D5A95EEC935637E12A /* InfrastructureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InfrastructureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -556,6 +558,7 @@
 				0723A1F9E5CEF28344BAE766 /* Providers */,
 				83F145D494EDCB4547269E57 /* AppLog.swift */,
 				0936C127D1AF75D376EEE61B /* BalanceService.swift */,
+				640B5BC2F9F7EEA57161CE32 /* DataBackupService.swift */,
 				4C299590DA907A1C409B8818 /* HTTPClient.swift */,
 				C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */,
 				0DBBCC57E67CE44781B7867D /* LocalSecretStore.swift */,
@@ -816,6 +819,7 @@
 			files = (
 				2770DF8C5D975AC370E66103 /* AppLog.swift in Sources */,
 				15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */,
+				770DD6DE0217DB75050D1B4D /* DataBackupService.swift in Sources */,
 				8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */,
 				3F4F6534B5564484A9ADEE4F /* LaunchAtLogin.swift in Sources */,
 				85590F0DDE8532CFF8C7C120 /* LocalSecretStore.swift in Sources */,

@@ -19,7 +19,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case mimo
     /// MiniMax：钱包无公开 API → 手动录入 + 每日提醒
     case minimax
-    /// API Nebula：无公开余额 API → 手动录入 + 每日提醒
+    /// Apinebula：无公开余额 API → 手动录入 + 每日提醒
     case apinebula
 
     public var id: String { rawValue }
@@ -36,7 +36,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .volcengine: "火山引擎"
         case .mimo: "小米 MiMo（手录）"
         case .minimax: "MiniMax（手录）"
-        case .apinebula: "API Nebula（手录）"
+        case .apinebula: "Apinebula（手录）"
         }
     }
 

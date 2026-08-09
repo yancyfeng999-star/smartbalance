@@ -178,7 +178,7 @@ MenuBarIcon 对齐智额：大图+dark，唤醒/外观自动刷新
 
 ## 0.2.7 — 2026-08-07
 
-- 新增手录平台：API Nebula（与 MiMo / MiniMax 相同：手录金额 + 每日 10:00 提醒）
+- 新增手录平台：Apinebula（与 MiMo / MiniMax 相同：手录金额 + 每日 10:00 提醒）
 - 默认官网 https://apinebula.com，可在账号里改后台链接
 
 

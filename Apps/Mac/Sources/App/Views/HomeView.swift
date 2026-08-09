@@ -231,7 +231,7 @@ struct HomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 4) {
                 Text("1. 设置 → API 账号 → 添加平台")
-                Text("2. 贴 Key 自动查，或选手录金额（MiMo / MiniMax / API Nebula）")
+                Text("2. 贴 Key 自动查，或选手录金额（MiMo / MiniMax / Apinebula）")
                 Text("3. 偏低时：Mac 通知 / 邮件报警")
                 Text("4. 长按卡片可调整顺序")
             }
