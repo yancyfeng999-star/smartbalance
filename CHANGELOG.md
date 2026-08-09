@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.42 — 2026-08-09
+
+MiMo/MiniMax 支持控制台 Cookie 自动查 API 余额
+
+
 ## 0.2.41 — 2026-08-09
 
 显示名：API Nebula → Apinebula
