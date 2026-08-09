@@ -47,6 +47,9 @@ struct MockHTTPClient: HTTPClient, Sendable {
         if let cookie = request.value(forHTTPHeaderField: "Cookie") {
             extras["Cookie"] = cookie
         }
+        if let groupId = request.value(forHTTPHeaderField: "X-Group-Id") {
+            extras["X-Group-Id"] = groupId
+        }
         let index = state.recordCall(authorization: auth, customHeaders: extras) - 1
         let code: Int
         let data: Data

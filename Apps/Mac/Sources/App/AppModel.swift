@@ -484,7 +484,10 @@ final class AppModel: ObservableObject {
             let r = SessionCookieParser.resolveMiMo(secret: secret, userId: userId)
             return (r.token, r.userId)
         case .minimax:
-            return (SessionCookieParser.resolveMiniMaxToken(secret: secret), userId)
+            let token = SessionCookieParser.resolveMiniMaxToken(secret: secret)
+            let groupId = SessionCookieParser.value(named: "minimax_group_id_v2", in: secret)
+                ?? userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (token, (groupId?.isEmpty == false) ? groupId : nil)
         default:
             return (secret.trimmingCharacters(in: .whitespacesAndNewlines), userId)
         }

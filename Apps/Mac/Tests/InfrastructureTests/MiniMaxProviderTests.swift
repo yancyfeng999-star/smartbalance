@@ -25,6 +25,17 @@ final class MiniMaxProviderTests: XCTestCase {
         XCTAssertTrue(cookie.contains("_token=eyJhbGciOiJIUzI1NiJ9.test"))
     }
 
+    func testSendsXGroupIdFromUserId() async throws {
+        let http = MockHTTPClient(statusCode: 200, json: fixtureJSON)
+        let provider = MiniMaxBalanceProvider(http: http)
+        let account = BalanceAccount(kind: .minimax, userId: "2028653292564783846")
+        _ = try await provider.fetchBalance(
+            account: account,
+            credentials: ProviderCredentials(apiKey: "jwt", userId: "2028653292564783846")
+        )
+        XCTAssertEqual(http.customHeaders["X-Group-Id"]?.first, "2028653292564783846")
+    }
+
     func testCookiePaste() async throws {
         let http = MockHTTPClient(statusCode: 200, json: fixtureJSON)
         let provider = MiniMaxBalanceProvider(http: http)
@@ -73,7 +84,7 @@ final class MiniMaxProviderTests: XCTestCase {
     func testRegistryAndKind() {
         XCTAssertEqual(ProviderRegistry.provider(for: .minimax).kind, .minimax)
         XCTAssertFalse(ProviderKind.minimax.isManualEntry)
-        XCTAssertFalse(ProviderKind.minimax.needsUserId)
+        XCTAssertTrue(ProviderKind.minimax.needsUserId)
         XCTAssertEqual(ProviderKind.minimax.displayName, "MiniMax")
         XCTAssertTrue(ProviderKind.apinebula.isManualEntry)
     }

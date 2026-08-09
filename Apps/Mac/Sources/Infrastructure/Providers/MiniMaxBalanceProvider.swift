@@ -16,6 +16,12 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
     public func fetchBalance(account: BalanceAccount, credentials: ProviderCredentials) async throws -> BalanceSnapshot {
         let token = SessionCookieParser.resolveMiniMaxToken(secret: credentials.apiKey)
         guard !token.isEmpty else { throw BalanceProviderError.missingCredential }
+        // 开放平台查询余额需要 X-Group-Id（可从 Cookie minimax_group_id_v2 或账号 userId 带入）
+        let groupId = (
+            SessionCookieParser.value(named: "minimax_group_id_v2", in: credentials.apiKey)
+                ?? credentials.userId
+                ?? account.userId
+        )?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let base = (credentials.baseURL ?? account.baseURL ?? kind.defaultBaseURL ?? "https://www.minimaxi.com")
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -29,6 +35,9 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
         request.setValue("https://platform.minimaxi.com", forHTTPHeaderField: "Origin")
         request.setValue("https://platform.minimaxi.com/console/recharge-records", forHTTPHeaderField: "Referer")
         request.setValue("_token=\(token)", forHTTPHeaderField: "Cookie")
+        if let groupId, !groupId.isEmpty {
+            request.setValue(groupId, forHTTPHeaderField: "X-Group-Id")
+        }
         request.timeoutInterval = 20
 
         let (data, response) = try await http.data(for: request)

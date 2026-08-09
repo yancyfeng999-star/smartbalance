@@ -132,7 +132,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .kimi: "填写 Kimi / Moonshot API Key（sk-…）"
         case .volcengine: "Secret Access Key（访问控制 → 密钥管理）"
         case .mimo: "粘贴 serviceToken 或整段 Cookie"
-        case .minimax: "粘贴 _token（JWT）或整段 Cookie"
+        case .minimax: "粘贴 _token 与 group，或整段 Cookie"
         case .apinebula: "无需 Key · 每天提醒后手录金额"
         }
     }
@@ -155,7 +155,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         switch self {
         // New-API / DMXAPI：/api/user/self 需系统令牌 + 用户 ID 头
         // MiMo：控制台 Cookie 需 userId
-        case .newapi, .dmxapi, .mimo: true
+        // MiniMax：查询余额需 X-Group-Id（Cookie minimax_group_id_v2）
+        case .newapi, .dmxapi, .mimo, .minimax: true
         default: false
         }
     }
@@ -165,6 +166,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .newapi: "用户 ID（个人中心，填 New-API-User）"
         case .dmxapi: "用户 ID（个人资料页）"
         case .mimo: "userId（Cookie 里的 userId）"
+        case .minimax: "minimax_group_id_v2（Cookie 里的组织 ID）"
         default: "用户 ID"
         }
     }
