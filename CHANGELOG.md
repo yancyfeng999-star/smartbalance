@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.45 — 2026-08-09
+
+新用户：MiMo/MiniMax 支持从 Chrome 一键导入登录态
+
+
 ## 0.2.44 — 2026-08-09
 
 修复 MiniMax 余额查询需 X-Group-Id；本机已可从浏览器写入会话
