@@ -11,7 +11,11 @@ final class AppModel: ObservableObject {
     @Published var recentAlerts: [AlertEvent] = []
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
-    @Published var banner: String?
+    @Published var banner: String? {
+        didSet { scheduleBannerAutoDismiss() }
+    }
+    /// 黄条提示自动消失任务（成功/失败提示约 3.5s；「正在…」不自动关）
+    private var bannerDismissTask: Task<Void, Never>?
     @Published var selectedTab: Tab = .home
     /// 首页当前选中的账号（高亮 +「打开后台」目标）；点卡片切换。
     @Published var selectedAccountId: UUID?
@@ -42,6 +46,25 @@ final class AppModel: ObservableObject {
     @Published var browserImporting = false
 
     private let updateChecker = UpdateChecker()
+
+    /// 非进度类 banner 数秒后自动清除。
+    private func scheduleBannerAutoDismiss() {
+        bannerDismissTask?.cancel()
+        bannerDismissTask = nil
+        guard let text = banner, !text.isEmpty else { return }
+        // 进行中的提示由后续成功/失败覆盖，不自动关
+        if text.contains("正在") || text.contains("请稍候") || text.contains("查询中") {
+            return
+        }
+        let snapshot = text
+        bannerDismissTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            guard !Task.isCancelled, let self else { return }
+            if self.banner == snapshot {
+                self.banner = nil
+            }
+        }
+    }
 
     /// 置顶窗是否打开（驱动图钉高亮；与磁盘标志解耦）
     @Published var pinWindowOpen = false
