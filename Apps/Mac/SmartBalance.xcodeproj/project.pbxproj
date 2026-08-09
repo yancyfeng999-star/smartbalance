@@ -10,6 +10,7 @@
 		02610ACC217416C78DFBFD98 /* KimiBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA4601AEE6E22E8C68DA45B9 /* KimiBalanceProvider.swift */; };
 		03DC753BA3A451F9726FF7A1 /* AppearanceSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E29D907B3D8CA9ED047AFD5 /* AppearanceSettingsCard.swift */; };
 		062469C0F777D8C8034128AE /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFC3513BBD6A6E55C80AB91 /* SettingsStore.swift */; };
+		07EBB58EB2A9F5560622232D /* BrowserSessionImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 170E43617CCB3F66A183F263 /* BrowserSessionImporter.swift */; };
 		0AEA4C40DCB52374868F67AD /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5F9141AAB18DF160ABCB945 /* AppDelegate.swift */; };
 		0B3AA4CB9581C6467F9C2C05 /* BalanceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F342A2116AC420D4A006039D /* BalanceCardView.swift */; };
 		0B6178146159F40E7FEC142D /* SettingsExpandableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67797107671E28F484CA2F2 /* SettingsExpandableCard.swift */; };
@@ -234,6 +235,7 @@
 		098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistryTests.swift; sourceTree = "<group>"; };
 		0DBBCC57E67CE44781B7867D /* LocalSecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSecretStore.swift; sourceTree = "<group>"; };
 		152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIProviderTests.swift; sourceTree = "<group>"; };
+		170E43617CCB3F66A183F263 /* BrowserSessionImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSessionImporter.swift; sourceTree = "<group>"; };
 		1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaoZhangBalanceProvider.swift; sourceTree = "<group>"; };
 		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
 		1F1894175030E34C1224EE99 /* AppTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "AppTests-Info.plist"; sourceTree = "<group>"; };
@@ -614,6 +616,7 @@
 				0723A1F9E5CEF28344BAE766 /* Providers */,
 				83F145D494EDCB4547269E57 /* AppLog.swift */,
 				0936C127D1AF75D376EEE61B /* BalanceService.swift */,
+				170E43617CCB3F66A183F263 /* BrowserSessionImporter.swift */,
 				640B5BC2F9F7EEA57161CE32 /* DataBackupService.swift */,
 				4C299590DA907A1C409B8818 /* HTTPClient.swift */,
 				C1457F2F6AF195F4853B3450 /* LaunchAtLogin.swift */,
@@ -907,6 +910,7 @@
 			files = (
 				2770DF8C5D975AC370E66103 /* AppLog.swift in Sources */,
 				15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */,
+				07EBB58EB2A9F5560622232D /* BrowserSessionImporter.swift in Sources */,
 				770DD6DE0217DB75050D1B4D /* DataBackupService.swift in Sources */,
 				8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */,
 				3F4F6534B5564484A9ADEE4F /* LaunchAtLogin.swift in Sources */,

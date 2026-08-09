@@ -185,6 +185,16 @@ struct APIAccountsSection: View {
             if editAccountId == acc.id {
                 editEditor(for: acc)
                     .transition(AppMotion.expandContent)
+                if acc.kind == .mimo || acc.kind == .minimax {
+                    Button("从 Chrome 重新导入登录态") {
+                        model.importBrowserSession(intoAccountId: acc.id)
+                        editAccountId = nil
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
+                    .padding(.top, 2)
+                }
             }
         }
         .padding(8)
@@ -401,7 +411,7 @@ struct APIAccountsSection: View {
             )
             .textFieldStyle(.roundedBorder)
 
-            if kind.needsUserId {
+            if kind.needsUserId, kind != .mimo, kind != .minimax {
                 TextField(kind.userIdHintCN, text: $draftUserId)
                     .textFieldStyle(.roundedBorder)
             }
@@ -421,22 +431,58 @@ struct APIAccountsSection: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if kind == .mimo || kind == .minimax {
+                cookieProviderSetup(kind: kind)
             } else {
                 SecureField(kind.credentialHintCN, text: $draftSecret)
                     .textFieldStyle(.roundedBorder)
-                if kind == .mimo || kind == .minimax {
-                    Text("在浏览器登录控制台后，DevTools → Application → Cookies 复制；也可整段 Cookie 粘贴")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(SBTheme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
 
-            Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {
-                submitAdd(kind: kind)
+            if kind == .mimo || kind == .minimax {
+                Button("从 Chrome 导入并添加") {
+                    model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
+                    resetDraft(for: kind)
+                }
+                .buttonStyle(SBButtonStyle(kind: .accent))
+                Button("手动填写后保存") {
+                    submitAdd(kind: kind)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(SBTheme.accent)
+                .disabled(addDisabled(kind))
+            } else {
+                Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {
+                    submitAdd(kind: kind)
+                }
+                .buttonStyle(SBButtonStyle(kind: .accent))
+                .disabled(addDisabled(kind))
             }
-            .buttonStyle(SBButtonStyle(kind: .accent))
-            .disabled(addDisabled(kind))
+        }
+    }
+
+    /// MiMo / MiniMax 新用户引导：一键导入优先，手贴备选。
+    @ViewBuilder
+    private func cookieProviderSetup(kind: ProviderKind) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("新用户怎么接")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(SBTheme.text)
+            Text(kind == .mimo
+                 ? "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
+                 : "1. 用 Chrome 打开并登录 platform.minimaxi.com 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            SecureField(kind.credentialHintCN, text: $draftSecret)
+                .textFieldStyle(.roundedBorder)
+            TextField(kind.userIdHintCN, text: $draftUserId)
+                .textFieldStyle(.roundedBorder)
+            Text("高级：也可整段 Cookie 粘进密钥框，会自动拆字段")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -450,6 +496,10 @@ struct APIAccountsSection: View {
         if kind.needsAccessKeyPair {
             return draftAccessKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || draftSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        // Cookie 平台：密钥非空即可（userId 可从 Cookie 自动拆）
+        if kind == .mimo || kind == .minimax {
+            return draftSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return draftSecret.isEmpty
             || (kind.needsBaseURL && draftBaseURL.isEmpty)

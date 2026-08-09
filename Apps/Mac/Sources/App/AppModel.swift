@@ -493,6 +493,49 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号。
+    func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") {
+        guard kind == .mimo || kind == .minimax else {
+            banner = "该平台不支持浏览器导入"
+            return
+        }
+        do {
+            let cred = try BrowserSessionImporter.importSession(for: kind)
+            addAccount(
+                kind: kind,
+                displayName: displayName,
+                baseURL: kind.defaultBaseURL,
+                consoleURL: kind.defaultConsoleURL,
+                userId: cred.userId,
+                secret: cred.secret
+            )
+            banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
+        } catch {
+            banner = error.localizedDescription
+            AppLog.error("Browser import failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// 已有账号：从浏览器刷新会话 Cookie。
+    func importBrowserSession(intoAccountId id: UUID) {
+        guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
+        guard acc.kind == .mimo || acc.kind == .minimax else {
+            banner = "该平台不支持浏览器导入"
+            return
+        }
+        do {
+            let cred = try BrowserSessionImporter.importSession(for: acc.kind)
+            updateAccountSecret(id: id, secret: cred.secret)
+            if let uid = cred.userId, !uid.isEmpty {
+                updateAccountUserId(id: id, userId: uid)
+            }
+            banner = "已从 \(cred.source) 更新 \(acc.title) 登录态"
+        } catch {
+            banner = error.localizedDescription
+            AppLog.error("Browser re-import failed: \(error.localizedDescription)")
+        }
+    }
+
     /// 补填 / 修改用户 ID（New-API、DMXAPI 等需要）。
     func updateAccountUserId(id: UUID, userId: String) {
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
