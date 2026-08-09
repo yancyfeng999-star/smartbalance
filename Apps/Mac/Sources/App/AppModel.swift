@@ -38,6 +38,8 @@ final class AppModel: ObservableObject {
     @Published var updateAvailable = false
     /// 0…1 下载进度；nil 表示未在下载
     @Published var updateDownloadProgress: Double?
+    /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
+    @Published var browserImporting = false
 
     private let updateChecker = UpdateChecker()
 
@@ -493,46 +495,71 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号。
+    /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（后台执行，不卡 UI）。
     func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") {
         guard kind == .mimo || kind == .minimax else {
             banner = "该平台不支持浏览器导入"
             return
         }
-        do {
-            let cred = try BrowserSessionImporter.importSession(for: kind)
-            addAccount(
-                kind: kind,
-                displayName: displayName,
-                baseURL: kind.defaultBaseURL,
-                consoleURL: kind.defaultConsoleURL,
-                userId: cred.userId,
-                secret: cred.secret
-            )
-            banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
-        } catch {
-            banner = error.localizedDescription
-            AppLog.error("Browser import failed: \(error.localizedDescription)")
+        guard !browserImporting else { return }
+        browserImporting = true
+        banner = "正在从 Chrome 读取登录态…"
+        let name = displayName
+        Task {
+            do {
+                let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
+                await MainActor.run {
+                    self.addAccount(
+                        kind: kind,
+                        displayName: name,
+                        baseURL: kind.defaultBaseURL,
+                        consoleURL: kind.defaultConsoleURL,
+                        userId: cred.userId,
+                        secret: cred.secret
+                    )
+                    self.browserImporting = false
+                    self.banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
+                }
+            } catch {
+                await MainActor.run {
+                    self.browserImporting = false
+                    self.banner = error.localizedDescription
+                }
+                AppLog.error("Browser import failed: \(error.localizedDescription)")
+            }
         }
     }
 
-    /// 已有账号：从浏览器刷新会话 Cookie。
+    /// 已有账号：从浏览器刷新会话 Cookie（后台执行）。
     func importBrowserSession(intoAccountId id: UUID) {
         guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
         guard acc.kind == .mimo || acc.kind == .minimax else {
             banner = "该平台不支持浏览器导入"
             return
         }
-        do {
-            let cred = try BrowserSessionImporter.importSession(for: acc.kind)
-            updateAccountSecret(id: id, secret: cred.secret)
-            if let uid = cred.userId, !uid.isEmpty {
-                updateAccountUserId(id: id, userId: uid)
+        guard !browserImporting else { return }
+        browserImporting = true
+        banner = "正在从 Chrome 更新登录态…"
+        let kind = acc.kind
+        let title = acc.title
+        Task {
+            do {
+                let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
+                await MainActor.run {
+                    self.updateAccountSecret(id: id, secret: cred.secret)
+                    if let uid = cred.userId, !uid.isEmpty {
+                        self.updateAccountUserId(id: id, userId: uid)
+                    }
+                    self.browserImporting = false
+                    self.banner = "已从 \(cred.source) 更新 \(title) 登录态"
+                }
+            } catch {
+                await MainActor.run {
+                    self.browserImporting = false
+                    self.banner = error.localizedDescription
+                }
+                AppLog.error("Browser re-import failed: \(error.localizedDescription)")
             }
-            banner = "已从 \(cred.source) 更新 \(acc.title) 登录态"
-        } catch {
-            banner = error.localizedDescription
-            AppLog.error("Browser re-import failed: \(error.localizedDescription)")
         }
     }
 

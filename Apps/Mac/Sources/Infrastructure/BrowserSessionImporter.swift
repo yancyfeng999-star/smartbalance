@@ -35,6 +35,7 @@ public enum BrowserSessionImporter: Sendable {
     }
 
     /// 按平台从本机浏览器取会话。
+    /// - Important: 必须在后台线程调用（钥匙串 / sqlite 会阻塞）。
     public static func importSession(for kind: ProviderKind) throws -> Credential {
         switch kind {
         case .mimo:
@@ -44,6 +45,13 @@ public enum BrowserSessionImporter: Sendable {
         default:
             throw ImportError.unsupportedKind
         }
+    }
+
+    /// 异步封装，避免卡住 UI。
+    public static func importSessionAsync(for kind: ProviderKind) async throws -> Credential {
+        try await Task.detached(priority: .userInitiated) {
+            try importSession(for: kind)
+        }.value
     }
 
     // MARK: - Platforms
@@ -123,19 +131,26 @@ public enum BrowserSessionImporter: Sendable {
         var all: [CookieRow] = []
         var sawDB = false
         var lastKeychainError: String?
+        var chromeKey: Data?
 
         for browser in browsers {
             guard FileManager.default.fileExists(atPath: browser.cookiesPath) else { continue }
             sawDB = true
+            // 同一浏览器只解一次钥匙串
             let key: Data
-            do {
-                key = try chromeEncryptionKey(
-                    service: browser.keychainService,
-                    account: browser.keychainAccount
-                )
-            } catch {
-                lastKeychainError = error.localizedDescription
-                continue
+            if browser.name == "Chrome", let chromeKey {
+                key = chromeKey
+            } else {
+                do {
+                    key = try chromeEncryptionKey(
+                        service: browser.keychainService,
+                        account: browser.keychainAccount
+                    )
+                    if browser.name == "Chrome" { chromeKey = key }
+                } catch {
+                    lastKeychainError = error.localizedDescription
+                    continue
+                }
             }
             do {
                 let rows = try readCookieDB(
@@ -145,6 +160,10 @@ public enum BrowserSessionImporter: Sendable {
                     browserName: browser.name
                 )
                 all.append(contentsOf: rows)
+                // Default 已够用就不再扫其它 Profile
+                if !rows.isEmpty, browser.cookiesPath.contains("/Default/") {
+                    break
+                }
             } catch {
                 AppLog.error("Cookie DB read failed \(browser.cookiesPath): \(error.localizedDescription)")
             }
@@ -171,36 +190,26 @@ public enum BrowserSessionImporter: Sendable {
         defer { try? FileManager.default.removeItem(at: tmp) }
         try FileManager.default.copyItem(atPath: path, toPath: tmp.path)
 
-        // 用 sqlite3 命令行，避免引入 SQLite.swift 依赖
-        let query = """
-        SELECT host_key, name, CAST(encrypted_value AS BLOB), value
-        FROM cookies;
+        // SQL 侧过滤 host，避免把整库 Cookie hex 进内存（主因卡死）
+        let likeClauses = hostContains
+            .map { "host_key LIKE '%\($0.replacingOccurrences(of: "'", with: "''"))%'" }
+            .joined(separator: " OR ")
+        let sql = """
+        SELECT host_key || char(1) || name || char(1) ||
+               hex(encrypted_value) || char(1) || IFNULL(value,'')
+        FROM cookies
+        WHERE \(likeClauses)
+          AND name IN (
+            'api-platform_serviceToken','userId','_token','minimax_group_id_v2'
+          );
         """
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-        // hex output for blob: use custom - not easy. Use Python-free: open with SQLite C via...
-        // Fall back to FileHandle + sqlite3 with quote mode is messy for binary.
-        // Use NSData from running a small inline approach via `sqlite3` and base64:
-        proc.arguments = [
-            tmp.path,
-            """
-            SELECT host_key || char(1) || name || char(1) ||
-                   hex(encrypted_value) || char(1) || IFNULL(value,'')
-            FROM cookies;
-            """,
-        ]
-        let out = Pipe()
-        let err = Pipe()
-        proc.standardOutput = out
-        proc.standardError = err
-        try proc.run()
-        proc.waitUntilExit()
-        let data = out.fileHandleForReading.readDataToEndOfFile()
+
+        let data = try runProcess(
+            executable: "/usr/bin/sqlite3",
+            arguments: [tmp.path, sql],
+            timeoutSeconds: 8
+        )
         let text = String(data: data, encoding: .utf8) ?? ""
-        if proc.terminationStatus != 0 {
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw ImportError.cookieNotFound("读取 Cookie 数据库失败：\(e)")
-        }
 
         var rows: [CookieRow] = []
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
@@ -210,8 +219,6 @@ public enum BrowserSessionImporter: Sendable {
             let name = String(parts[1])
             let hex = String(parts[2])
             let plainCol = String(parts[3])
-            let hostOK = hostContains.contains { host.localizedCaseInsensitiveContains($0) }
-            guard hostOK else { continue }
 
             let value: String
             if !plainCol.isEmpty {
@@ -228,28 +235,56 @@ public enum BrowserSessionImporter: Sendable {
         return rows
     }
 
-    // MARK: - Crypto
-
-    private static func chromeEncryptionKey(service: String, account: String) throws -> Data {
+    /// 带超时的外部进程，避免钥匙串/sqlite 永久卡住。
+    private static func runProcess(
+        executable: String,
+        arguments: [String],
+        timeoutSeconds: TimeInterval
+    ) throws -> Data {
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        proc.arguments = ["find-generic-password", "-w", "-s", service, "-a", account]
+        proc.executableURL = URL(fileURLWithPath: executable)
+        proc.arguments = arguments
         let out = Pipe()
         let err = Pipe()
         proc.standardOutput = out
         proc.standardError = err
-        do {
-            try proc.run()
+        try proc.run()
+
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
             proc.waitUntilExit()
+            group.leave()
+        }
+        let wait = group.wait(timeout: .now() + timeoutSeconds)
+        if wait == .timedOut {
+            proc.terminate()
+            throw ImportError.cookieNotFound("读取浏览器数据超时（\(Int(timeoutSeconds))s）。请完全退出 Chrome 后重试，或手动粘贴 Cookie")
+        }
+        if proc.terminationStatus != 0 {
+            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw ImportError.cookieNotFound("读取失败：\(e.isEmpty ? "exit \(proc.terminationStatus)" : e)")
+        }
+        return out.fileHandleForReading.readDataToEndOfFile()
+    }
+
+    // MARK: - Crypto
+
+    private static func chromeEncryptionKey(service: String, account: String) throws -> Data {
+        let data: Data
+        do {
+            data = try runProcess(
+                executable: "/usr/bin/security",
+                arguments: ["find-generic-password", "-w", "-s", service, "-a", account],
+                timeoutSeconds: 12
+            )
         } catch {
             throw ImportError.keychainDenied(error.localizedDescription)
         }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
         let password = String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if proc.terminationStatus != 0 || password.isEmpty {
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "denied"
-            throw ImportError.keychainDenied(e)
+        if password.isEmpty {
+            throw ImportError.keychainDenied("钥匙串无返回。若弹出权限请点「允许」后重试")
         }
         // PBKDF2-SHA1, salt "saltysalt", 1003 iters, 16 bytes
         let salt = Data("saltysalt".utf8)

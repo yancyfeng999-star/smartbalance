@@ -186,13 +186,14 @@ struct APIAccountsSection: View {
                 editEditor(for: acc)
                     .transition(AppMotion.expandContent)
                 if acc.kind == .mimo || acc.kind == .minimax {
-                    Button("从 Chrome 重新导入登录态") {
+                    Button(model.browserImporting ? "导入中…" : "从 Chrome 重新导入登录态") {
                         model.importBrowserSession(intoAccountId: acc.id)
                         editAccountId = nil
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(SBTheme.accent)
+                    .disabled(model.browserImporting)
                     .padding(.top, 2)
                 }
             }
@@ -439,18 +440,22 @@ struct APIAccountsSection: View {
             }
 
             if kind == .mimo || kind == .minimax {
-                Button("从 Chrome 导入并添加") {
+                Button(model.browserImporting ? "导入中…" : "从 Chrome 导入并添加") {
                     model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
-                    resetDraft(for: kind)
+                    // 导入在后台跑；成功后会 refresh，这里清草稿便于再添
+                    if !model.browserImporting {
+                        resetDraft(for: kind)
+                    }
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))
+                .disabled(model.browserImporting)
                 Button("手动填写后保存") {
                     submitAdd(kind: kind)
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(SBTheme.accent)
-                .disabled(addDisabled(kind))
+                .disabled(addDisabled(kind) || model.browserImporting)
             } else {
                 Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {
                     submitAdd(kind: kind)
