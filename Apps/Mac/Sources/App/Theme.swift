@@ -50,6 +50,7 @@ enum SBTheme {
     static let accent = Color(red: 0.157, green: 0.400, blue: 0.969)
     /// #7BA0FF
     static let accentSoft = Color(red: 0.482, green: 0.627, blue: 1.0)
+    static let usageSelection = Color(nsColor: .systemYellow)
 
     /// #30D158
     static let ok = Color(red: 0.188, green: 0.820, blue: 0.345)
