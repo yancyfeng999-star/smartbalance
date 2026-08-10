@@ -6,6 +6,7 @@ Apps/Mac/Tuist/.build/
 Apps/Mac/**/DerivedData/
 **/xcuserdata/
 **/.DS_Store
+.worktrees/
 
 # 本地构建缓存
 Apps/Mac/dist/
