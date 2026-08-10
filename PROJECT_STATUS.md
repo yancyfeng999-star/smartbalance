@@ -1,6 +1,6 @@
 # 项目状态
 
-**版本：** 0.2.18（build 39）  
+**版本：** 0.2.56（build 77）  
 **阶段：** 可安装使用；GitHub Releases 发版与应用内检查更新已通  
 **远程：** https://github.com/yancyfeng999-star/smartbalance  
 
