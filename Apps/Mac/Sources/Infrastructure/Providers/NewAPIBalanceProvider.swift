@@ -9,6 +9,7 @@ import Domain
 /// 注意：系统访问令牌 ≠ 模型 sk-；用户 ID 在个人中心 / 管理后台。
 public struct NewAPIBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .newapi
+    private static let quotaPerUSD: Double = 500_000
     private let http: any HTTPClient
 
     public init(http: any HTTPClient = URLSessionHTTPClient()) {
@@ -73,8 +74,10 @@ public struct NewAPIBalanceProvider: BalanceProvider {
         let amountUSD: Double? = {
             if isUnlimited { return nil }
             guard let quota else { return nil }
-            return quota / 500_000.0
+            return quota / Self.quotaPerUSD
         }()
+
+        let usedUSD = usedQuota.map { $0 / Self.quotaPerUSD }
 
         let remainingPercent: Double? = {
             if isUnlimited { return 100 }
@@ -110,8 +113,8 @@ public struct NewAPIBalanceProvider: BalanceProvider {
             source: .api,
             amount: amountUSD,
             unit: "USD",
-            used: isUnlimited ? nil : usedQuota,
-            total: (!isUnlimited && quota != nil && usedQuota != nil) ? (quota! + usedQuota!) : nil,
+            used: isUnlimited ? nil : usedUSD,
+            total: (!isUnlimited && amountUSD != nil && usedUSD != nil) ? (amountUSD! + usedUSD!) : nil,
             remainingPercent: remainingPercent,
             status: status,
             detail: detailParts.joined(separator: " · ")

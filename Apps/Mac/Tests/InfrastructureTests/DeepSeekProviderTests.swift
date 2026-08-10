@@ -21,6 +21,8 @@ final class DeepSeekProviderTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.amount, 18.5)
+        XCTAssertNil(snapshot.used)
+        XCTAssertNil(snapshot.total)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.source, .api)
         XCTAssertEqual(snapshot.providerKind, .deepseek)

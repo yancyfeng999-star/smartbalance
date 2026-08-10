@@ -20,6 +20,8 @@ final class MiMoProviderTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.amount!, 101.78, accuracy: 0.001)
+        XCTAssertNil(snapshot.used)
+        XCTAssertNil(snapshot.total)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .mimo)
         XCTAssertEqual(snapshot.status, .healthy)

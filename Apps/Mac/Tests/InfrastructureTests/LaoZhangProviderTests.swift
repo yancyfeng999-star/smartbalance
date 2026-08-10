@@ -36,6 +36,9 @@ final class LaoZhangProviderTests: XCTestCase {
         let usd = 24997909.0 / 500_000.0
         let cny = usd * LaoZhangBalanceProvider.cnyPerUSD
         XCTAssertEqual(snapshot.amount!, cny, accuracy: 0.01)
+        let expectedUsed = (10_027_091.0 / 500_000.0) * LaoZhangBalanceProvider.cnyPerUSD
+        XCTAssertEqual(snapshot.used!, expectedUsed, accuracy: 0.01)
+        XCTAssertEqual(snapshot.total!, snapshot.amount! + expectedUsed, accuracy: 0.01)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .laozhang)
         XCTAssertEqual(snapshot.source, .api)

@@ -30,6 +30,8 @@ final class DMXAPIProviderTests: XCTestCase {
 
         // 1000000 / 500000 = 2.0 CNY
         XCTAssertEqual(snapshot.amount!, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.used!, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.total!, 2.5, accuracy: 0.0001)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .dmxapi)
         XCTAssertEqual(snapshot.source, .api)

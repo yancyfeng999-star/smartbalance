@@ -99,6 +99,8 @@ final class VolcengineProviderTests: XCTestCase {
         let snap = try await provider.fetchBalance(account: account(), credentials: credentials())
 
         XCTAssertEqual(snap.amount, 77.01)
+        XCTAssertNil(snap.used)
+        XCTAssertNil(snap.total)
         XCTAssertEqual(snap.unit, "¥")
         XCTAssertEqual(snap.providerKind, .volcengine)
         XCTAssertEqual(snap.source, .api)

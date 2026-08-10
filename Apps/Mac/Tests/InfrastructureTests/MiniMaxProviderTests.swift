@@ -17,6 +17,8 @@ final class MiniMaxProviderTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.amount!, 251.20, accuracy: 0.001)
+        XCTAssertNil(snapshot.used)
+        XCTAssertNil(snapshot.total)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .minimax)
         XCTAssertEqual(snapshot.status, .healthy)

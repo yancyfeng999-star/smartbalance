@@ -48,8 +48,8 @@ final class NewAPIProviderTests: XCTestCase {
 
         XCTAssertEqual(snapshot.amount, 1.0)
         XCTAssertEqual(snapshot.unit, "USD")
-        XCTAssertEqual(snapshot.used, 100_000)
-        XCTAssertEqual(snapshot.total, 600_000)
+        XCTAssertEqual(snapshot.used, 0.2)
+        XCTAssertEqual(snapshot.total, 1.2)
         XCTAssertEqual(snapshot.source, .api)
         XCTAssertEqual(snapshot.providerKind, .newapi)
         // 状态由金额/百分比分档决定；$1 在默认分档下可非 healthy，此处不绑死
@@ -75,6 +75,8 @@ final class NewAPIProviderTests: XCTestCase {
         XCTAssertEqual(snapshot.source, .api)
         // amount nil + remainingPercent 100 so refreshAPI re-resolve cannot mark depleted
         XCTAssertNil(snapshot.amount)
+        XCTAssertNil(snapshot.used)
+        XCTAssertNil(snapshot.total)
         XCTAssertEqual(snapshot.remainingPercent, 100)
     }
 
@@ -108,7 +110,8 @@ final class NewAPIProviderTests: XCTestCase {
 
         XCTAssertEqual(snapshot.amount, 1.0)
         XCTAssertEqual(snapshot.unit, "USD")
-        XCTAssertEqual(snapshot.used, 100_000)
+        XCTAssertEqual(snapshot.used, 0.2)
+        XCTAssertEqual(snapshot.total, 1.2)
         XCTAssertTrue(snapshot.detail.contains("u-top"))
         XCTAssertEqual(snapshot.providerKind, .newapi)
     }

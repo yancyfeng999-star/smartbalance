@@ -30,6 +30,8 @@ final class KimiProviderTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.amount!, 49.58894, accuracy: 0.00001)
+        XCTAssertNil(snapshot.used)
+        XCTAssertNil(snapshot.total)
         XCTAssertEqual(snapshot.unit, "¥")
         XCTAssertEqual(snapshot.providerKind, .kimi)
         XCTAssertEqual(snapshot.source, .api)
