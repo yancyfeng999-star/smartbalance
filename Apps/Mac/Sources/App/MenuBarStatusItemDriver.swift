@@ -13,47 +13,23 @@ final class MenuBarStatusItemDriver {
     private var wakeObserver: NSObjectProtocol?
     private var appearanceObserver: NSObjectProtocol?
     private var lastImage: NSImage?
-    private var startupTransparencyTask: Task<Void, Never>?
-
-    /// 在 MenuBarExtraAccess 回调之前处理状态栏宿主窗口，避免启动加载阶段出现不透明背景。
-    func startStartupTransparencyBootstrap() {
-        guard startupTransparencyTask == nil else { return }
-
-        startupTransparencyTask = Task { @MainActor [weak self] in
-            defer { self?.startupTransparencyTask = nil }
-
-            // MenuBarExtraAccess 本身会等待状态栏窗口出现；这里保持略长的窗口，
-            // 覆盖它的发现延迟，同时避免永久轮询。
-            for _ in 0..<60 {
-                guard !Task.isCancelled, let self else { return }
-                self.configureDiscoveredHostWindows()
-
-                if self.statusItem?.button?.window != nil {
-                    return
-                }
-
-                try? await Task.sleep(nanoseconds: 50_000_000)
-            }
-
-            self?.configureDiscoveredHostWindows()
-        }
-    }
+    private var lastPreferDark: Bool?
 
     /// 对齐智额：`attach` 后即可；`onAppear`/`onDisappear` 再 `reassertPresentation`。
     func attach(_ statusItem: NSStatusItem) {
         guard self.statusItem !== statusItem else {
-            if statusItem.button?.window == nil {
-                startStartupTransparencyBootstrap()
-            }
             reassertPresentation()
             return
         }
         self.statusItem = statusItem
+        lastImage = nil
+        lastPreferDark = nil
 
-        // SwiftUI 开关菜单时会 wipe button.image；主线程抢回（不用 assumeIsolated）
+        // SwiftUI 开关菜单时会 wipe button.image；在同一个 runloop pass 内抢回，
+        // 避免异步 Task 留下一帧空白或默认背景。
         imageWipeObservation?.invalidate()
         imageWipeObservation = statusItem.button?.observe(\.image, options: [.new]) { [weak self] button, _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 guard let self, let owned = self.lastImage else { return }
                 if button.image !== owned {
                     button.image = owned
@@ -80,10 +56,6 @@ final class MenuBarStatusItemDriver {
                 Task { @MainActor in self?.reassertPresentation() }
             }
         }
-
-        if statusItem.button?.window == nil {
-            startStartupTransparencyBootstrap()
-        }
         reassertPresentation()
     }
 
@@ -92,62 +64,47 @@ final class MenuBarStatusItemDriver {
         render()
     }
 
-    /// 用于 `MenuBarExtra` 初始 label 的彩色图像；状态项尚未被回调绑定前也能显示品牌图。
-    static func makeCurrentBrandLogoImage(preferDark: Bool) -> NSImage {
-        guard let source = NSImage(named: "MenuBarIcon") else {
-            return symbolImage("gauge.with.dots.needle.67percent", color: .labelColor)
-        }
-        return makeCurrentBrandLogoImage(from: source, preferDark: preferDark)
-    }
-
-    static func makeCurrentBrandLogoImage(from source: NSImage, preferDark: Bool) -> NSImage {
-        makeAlphaBackedColorImage(
-            from: source,
-            pointSize: 18,
-            appearance: NSAppearance(named: preferDark ? .darkAqua : .aqua)
-        )
+    /// `NSStatusBarWindow` belongs to macOS's menu-bar compositor, not to the
+    /// app's content windows. Applying the product window background to it
+    /// creates a colored logo-sized tile behind a non-template status image.
+    static func isStatusBarHostWindow(_ window: NSWindow) -> Bool {
+        window.className.contains("NSStatusBarWindow")
     }
 
     private func render() {
         guard let button = statusItem?.button else { return }
 
-        // macOS 26's MenuBarExtraAccess host is an NSStatusBarWindow. Its
-        // default opaque content view paints a white slot behind non-template
-        // images even when the status button and image are transparent.
         if let window = button.window {
             Self.configureHostWindowForTransparency(window)
         }
 
         let preferDark = NSApp.effectiveAppearance
             .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        if let lastImage, lastPreferDark == preferDark, button.image === lastImage {
+            return
+        }
         let image = Self.brandLogoImage(preferDark: preferDark)
 
         if !button.title.isEmpty {
             button.title = ""
         }
         lastImage = image
+        lastPreferDark = preferDark
         button.image = image
         button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
-        button.isBordered = false
         button.isTransparent = true
-        button.wantsLayer = false
         button.toolTip = nil
     }
 
-    /// 清除 macOS 状态栏宿主窗口的默认底色，供启动期扫描和已绑定状态项共同使用。
+    /// The macOS 26 status-item host can retain a dynamic catalog background
+    /// behind a non-template image. Clear only this driver's host window; do
+    /// not scan or mutate unrelated application windows.
     static func configureHostWindowForTransparency(_ window: NSWindow) {
         window.isOpaque = false
         window.backgroundColor = .clear
         if let contentView = window.contentView {
             contentView.wantsLayer = true
             contentView.layer?.backgroundColor = NSColor.clear.cgColor
-        }
-    }
-
-    private func configureDiscoveredHostWindows() {
-        for window in NSApp.windows where window.className.contains("NSStatusBarWindow") {
-            Self.configureHostWindowForTransparency(window)
         }
     }
 

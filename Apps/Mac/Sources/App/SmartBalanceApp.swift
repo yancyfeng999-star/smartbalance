@@ -23,14 +23,8 @@ struct SmartBalanceApp: App {
                     MenuBarStatusItemDriver.shared.reassertPresentation()
                 }
         } label: {
-            // 先在 MenuBarExtra 初始 label 显示彩色 Logo；AppKit 回调绑定后仍会二次校正。
-            let preferDark = NSApp.effectiveAppearance
-                .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            Image(nsImage: MenuBarStatusItemDriver.makeCurrentBrandLogoImage(preferDark: preferDark))
-                .renderingMode(.original)
-                .interpolation(.high)
-                .resizable()
-                .frame(width: 18, height: 18)
+            // 只提供稳定占位；彩色像素由 MenuBarStatusItemDriver 写入 AppKit 状态项。
+            Image(systemName: "gauge.with.dots.needle.67percent")
                 .accessibilityLabel(Brand.nameCN)
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in

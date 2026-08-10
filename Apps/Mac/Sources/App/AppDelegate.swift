@@ -15,12 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         // 去掉 Finder 自定义 Icon（旧版 setIcon 残留会锁通知中心旧图；智额从不写自定义 Icon）
         Self.stripCustomFinderIconIfNeeded()
-
-        // 先处理 MenuBarExtraAccess 回调前已经创建的状态栏宿主窗口，
-        // 避免彩色 Logo 加载期间显示 macOS 默认背景。
-        Task { @MainActor in
-            MenuBarStatusItemDriver.shared.startStartupTransparencyBootstrap()
-        }
     }
 
     /// 只使用包内 AppIcon.icns / asset catalog，不写自定义 Icon。

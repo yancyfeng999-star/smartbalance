@@ -104,7 +104,7 @@ final class AppModel: ObservableObject {
         }
         // 应用级：动态 Color / 控件都会跟 effectiveAppearance 走
         NSApp.appearance = appearance
-        for window in NSApp.windows {
+        for window in NSApp.windows where !MenuBarStatusItemDriver.isStatusBarHostWindow(window) {
             window.appearance = appearance
             window.backgroundColor = SBTheme.windowNSBackground
             window.contentView?.layer?.backgroundColor = SBTheme.windowNSBackground.cgColor

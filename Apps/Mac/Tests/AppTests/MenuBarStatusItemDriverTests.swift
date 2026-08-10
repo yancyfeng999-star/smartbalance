@@ -3,57 +3,79 @@ import XCTest
 
 @MainActor
 final class MenuBarStatusItemDriverTests: XCTestCase {
-    func testDefaultMenuBarLabelImageIsColorfulBitmap() throws {
-        let source = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
-            NSColor.systemBlue.setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 8, dy: 8)).fill()
-            return true
-        }
-        let image = MenuBarStatusItemDriver.makeCurrentBrandLogoImage(from: source, preferDark: false)
-
-        XCTAssertFalse(image.isTemplate)
-        let bitmapRepresentation = try XCTUnwrap(
-            image.representations.compactMap { $0 as? NSBitmapImageRep }.first,
-            "The default menu bar label must use the color bitmap instead of an SF Symbol."
-        )
-        XCTAssertTrue(bitmapRepresentation.hasAlpha)
-    }
-
-    func testHostWindowTransparencyHelperClearsLoadingBackground() throws {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 36, height: 24),
-            styleMask: .borderless,
-            backing: .buffered,
-            defer: true
-        )
-        window.isOpaque = true
-        window.backgroundColor = .white
-        let contentView = try XCTUnwrap(window.contentView)
-        contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor.white.cgColor
-
-        MenuBarStatusItemDriver.configureHostWindowForTransparency(window)
-
-        XCTAssertFalse(window.isOpaque)
-        XCTAssertEqual(window.backgroundColor?.alphaComponent ?? 1, 0, accuracy: 0.01)
-        XCTAssertEqual(contentView.layer?.backgroundColor?.alpha ?? 1, 0, accuracy: 0.01)
-    }
-
-    func testStatusButtonDoesNotDrawItsOwnBackground() throws {
+    func testAttachedStatusButtonUsesNonTemplateImage() throws {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer { NSStatusBar.system.removeStatusItem(statusItem) }
 
         MenuBarStatusItemDriver().attach(statusItem)
 
         let button = try XCTUnwrap(statusItem.button)
+        let image = try XCTUnwrap(button.image)
+        XCTAssertFalse(image.isTemplate)
         XCTAssertTrue(button.isTransparent)
+        XCTAssertGreaterThan(image.size.width, 0)
+        XCTAssertGreaterThan(image.size.height, 0)
+    }
 
-        let hostWindow = try XCTUnwrap(button.window)
+    func testStatusButtonImageWipeIsRestoredSynchronously() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let driver = MenuBarStatusItemDriver()
+        driver.attach(statusItem)
+
+        let button = try XCTUnwrap(statusItem.button)
+        let ownedImage = try XCTUnwrap(button.image)
+        button.image = NSImage(size: NSSize(width: 1, height: 1))
+
+        XCTAssertTrue(button.image === ownedImage)
+    }
+
+    func testReassertPresentationPreservesOwnedImageWhenAppearanceIsUnchanged() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let driver = MenuBarStatusItemDriver()
+        driver.attach(statusItem)
+        let firstImage = try XCTUnwrap(statusItem.button?.image)
+
+        driver.reassertPresentation()
+
+        XCTAssertTrue(statusItem.button?.image === firstImage)
+    }
+
+    func testStatusItemHostWindowBackgroundIsCleared() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        MenuBarStatusItemDriver().attach(statusItem)
+
+        let hostWindow = try XCTUnwrap(statusItem.button?.window)
+        MenuBarStatusItemDriver.configureHostWindowForTransparency(hostWindow)
+
         XCTAssertFalse(hostWindow.isOpaque)
         XCTAssertEqual(hostWindow.backgroundColor?.alphaComponent ?? 1, 0, accuracy: 0.01)
+        XCTAssertEqual(
+            hostWindow.contentView?.layer?.backgroundColor?.alpha ?? 1,
+            0,
+            accuracy: 0.01
+        )
+    }
 
-        let contentView = try XCTUnwrap(hostWindow.contentView)
-        XCTAssertEqual(contentView.layer?.backgroundColor?.alpha ?? 1, 0, accuracy: 0.01)
+    func testProductAppearanceSkipsStatusBarHostWindow() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let hostWindow = try XCTUnwrap(statusItem.button?.window)
+        XCTAssertTrue(MenuBarStatusItemDriver.isStatusBarHostWindow(hostWindow))
+
+        let contentWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 20, height: 20),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: true
+        )
+        XCTAssertFalse(MenuBarStatusItemDriver.isStatusBarHostWindow(contentWindow))
     }
 
     func testColorLogoUsesAlphaBackedBitmapRepresentation() throws {
