@@ -11,6 +11,7 @@ final class AppModel: ObservableObject {
     @Published var recentAlerts: [AlertEvent] = []
     @Published private(set) var usageHistory = UsageHistoryDocument()
     @Published private(set) var usageDataError: String?
+    @Published private(set) var usageRecoveryNotice = false
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
     @Published var banner: String? {
@@ -35,6 +36,9 @@ final class AppModel: ObservableObject {
     private let service = BalanceService()
     private let usageStore = UsageHistoryStore.shared
     private var refreshTask: Task<Void, Never>?
+    private var activeRefreshTask: Task<Void, Never>?
+    private var usageBaselineResetTask: Task<Void, Never>?
+    private var pendingUsageBaselineResetIDs: Set<UUID> = []
     /// 刷新代数：避免慢请求后到覆盖新结果 / 新设置
     private var refreshGeneration: UInt64 = 0
 
@@ -158,7 +162,14 @@ final class AppModel: ObservableObject {
         startAutoRefreshIfNeeded()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.usageHistory = await self.usageStore.load()
+            do {
+                let result = try await self.usageStore.load()
+                self.usageHistory = result.document
+                self.usageRecoveryNotice = result.recovery == .corruptFileBackedUp
+            } catch {
+                self.usageDataError = "load"
+                AppLog.error("Usage history load failed: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -299,7 +310,11 @@ final class AppModel: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
-        guard !isRefreshing else { return }
+        guard pendingUsageBaselineResetIDs.isEmpty else {
+            resetPendingUsageBaselinesAndRefresh()
+            return
+        }
+        activeRefreshTask?.cancel()
         isRefreshing = true
         banner = nil
         refreshGeneration &+= 1
@@ -334,57 +349,112 @@ final class AppModel: ObservableObject {
         // 快照：只把「开始时」的设置交给 Service；返回后禁止整表覆盖
         let settingsSnapshot = settings
         AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) gen=\(generation)")
-        Task { @MainActor in
+        activeRefreshTask = Task { @MainActor in
             defer {
                 if generation == self.refreshGeneration {
                     self.isRefreshing = false
+                    self.activeRefreshTask = nil
                 }
             }
+            let result = await service.refreshAll(settings: settingsSnapshot)
+            guard !Task.isCancelled, generation == self.refreshGeneration else {
+                AppLog.info("Refresh stale gen=\(generation) discarded")
+                return
+            }
+            self.snapshots = orderedSnapshots(result.snapshots)
+            if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
+                self.snapshots = Self.placeholderSnapshots(from: self.settings)
+            }
             do {
-                let result = await service.refreshAll(settings: settingsSnapshot)
-                guard generation == self.refreshGeneration else {
-                    AppLog.info("Refresh stale gen=\(generation) discarded")
-                    return
+                let history = try await usageStore.record(
+                    snapshots: self.snapshots,
+                    knownAccountIDs: Set(settingsSnapshot.accounts.map(\.id)),
+                    now: Date(),
+                    calendar: .current
+                )
+                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                self.usageHistory = history
+                let loadResult = try await self.usageStore.load()
+                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                self.usageRecoveryNotice = self.usageRecoveryNotice
+                    || loadResult.recovery == .corruptFileBackedUp
+                self.usageDataError = nil
+            } catch is CancellationError {
+                return
+            } catch {
+                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                AppLog.error("Usage history save failed: \(error.localizedDescription)")
+            }
+            if !result.alerts.isEmpty {
+                self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
+                if let fail = result.alerts.first(where: {
+                    !$0.emailed && $0.message.hasPrefix("邮件发送失败")
+                }) {
+                    let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
+                    self.banner = firstLine
+                    AppLog.error(firstLine)
                 }
-                self.snapshots = orderedSnapshots(result.snapshots)
-                if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
-                    self.snapshots = Self.placeholderSnapshots(from: self.settings)
+                for a in result.alerts {
+                    AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
                 }
-                do {
-                    let history = try await usageStore.record(
-                        snapshots: self.snapshots,
-                        knownAccountIDs: Set(self.settings.accounts.map(\.id)),
-                        now: Date(),
-                        calendar: .current
-                    )
-                    self.usageHistory = history
-                    self.usageDataError = nil
-                } catch {
-                    self.usageDataError = "用量记录保存失败"
-                    AppLog.error("Usage history save failed: \(error.localizedDescription)")
-                }
-                if !result.alerts.isEmpty {
-                    self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
-                    if let fail = result.alerts.first(where: {
-                        !$0.emailed && $0.message.hasPrefix("邮件发送失败")
-                    }) {
-                        let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
-                        self.banner = firstLine
-                        AppLog.error(firstLine)
-                    }
-                    for a in result.alerts {
-                        AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
-                    }
-                }
-                // 只合并报警冷却时间戳，不回滚用户中途改的主题/账号/阈值
-                self.settings.lastAlertAtByAccount = result.settings.lastAlertAtByAccount
-                self.lastRefreshAt = Date()
-                try? store.save(self.settings)
-                AppLog.info("Refresh done · cards=\(self.snapshots.count) gen=\(generation)")
+            }
+            // 只合并报警冷却时间戳，不回滚用户中途改的主题/账号/阈值
+            self.settings.lastAlertAtByAccount = result.settings.lastAlertAtByAccount
+            self.lastRefreshAt = Date()
+            try? store.save(self.settings)
+            AppLog.info("Refresh done · cards=\(self.snapshots.count) gen=\(generation)")
+        }
+    }
+
+    private func invalidateActiveRefresh() {
+        refreshGeneration &+= 1
+        activeRefreshTask?.cancel()
+        activeRefreshTask = nil
+        isRefreshing = false
+    }
+
+    private func requestUsageBaselineResetAndRefresh(for accountIDs: Set<UUID>) {
+        guard !accountIDs.isEmpty else {
+            refresh()
+            return
+        }
+        pendingUsageBaselineResetIDs.formUnion(accountIDs)
+        resetPendingUsageBaselinesAndRefresh()
+    }
+
+    private func resetPendingUsageBaselinesAndRefresh() {
+        guard !pendingUsageBaselineResetIDs.isEmpty else {
+            refresh()
+            return
+        }
+        invalidateActiveRefresh()
+        usageBaselineResetTask?.cancel()
+        isRefreshing = true
+        let accountIDs = pendingUsageBaselineResetIDs
+        let generation = refreshGeneration
+        usageBaselineResetTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let history = try await self.usageStore.resetBaselines(for: accountIDs)
+                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                let loadResult = try await self.usageStore.load()
+                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                self.usageHistory = history
+                self.usageRecoveryNotice = self.usageRecoveryNotice
+                    || loadResult.recovery == .corruptFileBackedUp
+                self.usageDataError = nil
+                self.pendingUsageBaselineResetIDs.subtract(accountIDs)
+                self.usageBaselineResetTask = nil
+                self.isRefreshing = false
+                self.refresh()
+            } catch is CancellationError {
+                return
             } catch {
                 guard generation == self.refreshGeneration else { return }
-                self.banner = "刷新失败：\(error.localizedDescription)"
-                AppLog.error("Refresh crashed: \(error.localizedDescription)")
+                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                self.usageBaselineResetTask = nil
+                self.isRefreshing = false
+                AppLog.error("Usage baseline reset failed: \(error.localizedDescription)")
             }
         }
     }
@@ -431,11 +501,11 @@ final class AppModel: ObservableObject {
         let interval = settings.refreshIntervalSecs
         refreshTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 400_000_000)
-            await self?.refresh()
+            self?.refresh()
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
                 guard !Task.isCancelled else { break }
-                await self?.refresh()
+                self?.refresh()
             }
         }
     }
@@ -496,6 +566,7 @@ final class AppModel: ObservableObject {
     }
 
     func removeAccount(_ id: UUID) {
+        invalidateActiveRefresh()
         if let acc = settings.accounts.first(where: { $0.id == id }) {
             secrets.delete(account: acc.secretRef)
         }
@@ -506,6 +577,26 @@ final class AppModel: ObservableObject {
         }
         persist()
         rescheduleManualReminders()
+        let knownAccountIDs = Set(settings.accounts.map(\.id))
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let history = try await self.usageStore.record(
+                    snapshots: [],
+                    knownAccountIDs: knownAccountIDs,
+                    now: Date(),
+                    calendar: .current
+                )
+                self.usageHistory = history
+                let loadResult = try await self.usageStore.load()
+                self.usageRecoveryNotice = self.usageRecoveryNotice
+                    || loadResult.recovery == .corruptFileBackedUp
+                self.usageDataError = nil
+            } catch {
+                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                AppLog.error("Usage baseline cleanup failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
@@ -526,7 +617,7 @@ final class AppModel: ObservableObject {
             }
             banner = "已更新 \(acc.title) 的密钥"
             objectWillChange.send()
-            refresh()
+            requestUsageBaselineResetAndRefresh(for: [id])
         } catch {
             banner = "密钥保存失败：\(error.localizedDescription)"
         }
@@ -637,7 +728,7 @@ final class AppModel: ObservableObject {
         settings.accounts[idx].userId = trimmed
         persist()
         banner = "已更新 \(settings.accounts[idx].title) 的用户 ID"
-        refresh()
+        requestUsageBaselineResetAndRefresh(for: [id])
     }
 
     /// 修改官网 / 后台链接（「打开后台」跳转用）。
@@ -709,10 +800,10 @@ final class AppModel: ObservableObject {
                 )
             )
             snapshots = orderedSnapshots(snapshots)
-            refresh()
         }
         persist()
         rescheduleManualReminders()
+        refresh()
     }
 
     /// 每天 10:00 提醒手录账号打开网页核对并更新金额。
@@ -947,7 +1038,7 @@ final class AppModel: ObservableObject {
             banner = "数据已导入 · 正在刷新余额"
             presentAlert(title: "导入成功", message: msg)
             AppLog.info("Data backup imported · accounts=\(package.settings.accounts.count) secrets=\(package.secrets.count)")
-            refresh()
+            requestUsageBaselineResetAndRefresh(for: Set(package.settings.accounts.map(\.id)))
         } catch {
             banner = "导入失败：\(error.localizedDescription)"
             presentAlert(title: "导入失败", message: error.localizedDescription)
@@ -970,6 +1061,7 @@ final class AppModel: ObservableObject {
             throw error
         }
 
+        invalidateActiveRefresh()
         settings = next
         pinWindowOpen = false
         selectedAccountId = next.enabledAccounts.first?.id

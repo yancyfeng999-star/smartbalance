@@ -1,6 +1,6 @@
 # 智余 · SmartBalance
 
-macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac 通知 + 邮件报警**。
+macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **天 / 周 / 月**统计各渠道消费金额，偏低时 **Mac 通知 + 邮件报警**。
 
 | | |
 |--|--|
@@ -47,6 +47,18 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，偏低时 **Mac
 | 控制台 Cookie（Chrome 一键导入） | 小米 MiMo · MiniMax · apinebula |
 
 ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
+
+## 本地用量统计
+
+首页底栏点“用量”，可以查看：
+
+- 本地自然天、ISO 自然周（周一开始）和自然月的渠道金额，并向前查看最多 400 天；
+- 接口累计值的精确差额，以及无累计字段渠道的余额下降估算；
+- 按 CNY、USD 和未知单位分别生成的总额、趋势图和渠道明细。
+
+首次成功刷新只建立基线，因此不会补算安装前或启用前的历史消费。充值、累计值重置、密钥或用户 ID 变化、单位或统计方式变化会重建基线，不会产生负消费；跨日未刷新产生的差额统一归入后一次刷新日期并显示提示。
+
+所有统计只写入本机 `usage-history.json`。文件不保存密钥、Cookie、访问令牌、请求头或 Provider 响应正文。
 
 ---
 
@@ -109,6 +121,7 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
 | 密钥 | `…/secrets.vault`（0600，本机直读，无指纹） |
+| 用量历史 | `…/usage-history.json`（0600，本机记录，最多 400 天） |
 
 ---
 

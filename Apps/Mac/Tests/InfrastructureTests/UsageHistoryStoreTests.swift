@@ -20,12 +20,13 @@ final class UsageHistoryStoreTests: XCTestCase {
         directory = nil
     }
 
-    func testMissingFileLoadsEmptyDocument() async {
+    func testMissingFileLoadsEmptyDocument() async throws {
         let store = UsageHistoryStore(directory: directory)
 
-        let document = await store.load()
+        let result = try await store.load()
 
-        XCTAssertEqual(document, UsageHistoryDocument())
+        XCTAssertEqual(result.document, UsageHistoryDocument())
+        XCTAssertNil(result.recovery)
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL.path))
     }
 
@@ -46,7 +47,7 @@ final class UsageHistoryStoreTests: XCTestCase {
             calendar: calendar
         )
 
-        let reloaded = await UsageHistoryStore(directory: directory).load()
+        let reloaded = try await UsageHistoryStore(directory: directory).load().document
 
         XCTAssertEqual(reloaded, saved)
         XCTAssertEqual(reloaded.dailyRecords.first?.estimatedAmount, 3.5)
@@ -72,14 +73,43 @@ final class UsageHistoryStoreTests: XCTestCase {
         try Data("not-json".utf8).write(to: fileURL)
         let store = UsageHistoryStore(directory: directory)
 
-        let document = await store.load()
+        let result = try await store.load()
         let filenames = try FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
         ).map(\.lastPathComponent)
 
-        XCTAssertEqual(document, UsageHistoryDocument())
+        XCTAssertEqual(result.document, UsageHistoryDocument())
+        XCTAssertEqual(result.recovery, .corruptFileBackedUp)
         XCTAssertTrue(filenames.contains { $0.hasPrefix("usage-history.corrupt-") && $0.hasSuffix(".json") })
+    }
+
+    func testUnreadableExistingPathThrowsAndRecordDoesNotReplaceIt() async throws {
+        let store = UsageHistoryStore(directory: directory)
+        try FileManager.default.createDirectory(at: store.fileURL, withIntermediateDirectories: false)
+
+        do {
+            _ = try await store.load()
+            XCTFail("expected existing unreadable path to fail")
+        } catch {
+            // Expected.
+        }
+
+        do {
+            _ = try await store.record(
+                snapshots: [snapshot(amount: 100, fetchedAt: date(2026, 8, 10, 9))],
+                knownAccountIDs: [accountID],
+                now: date(2026, 8, 10, 9),
+                calendar: calendar
+            )
+            XCTFail("record must not overwrite history that failed to load")
+        } catch {
+            // Expected.
+        }
+
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL.path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
     }
 
     func testRecordCallsAreSerialized() async throws {
@@ -148,6 +178,32 @@ final class UsageHistoryStoreTests: XCTestCase {
         XCTAssertEqual(removed.dailyRecords[0].estimatedAmount, 2)
     }
 
+    func testResetBaselineForChangedCredentialKeepsDailyHistory() async throws {
+        let store = UsageHistoryStore(directory: directory)
+        let firstDate = date(2026, 8, 10, 9)
+        _ = try await store.record(
+            snapshots: [snapshot(amount: 100, fetchedAt: firstDate)],
+            knownAccountIDs: [accountID],
+            now: firstDate,
+            calendar: calendar
+        )
+        let secondDate = date(2026, 8, 10, 10)
+        _ = try await store.record(
+            snapshots: [snapshot(amount: 98, fetchedAt: secondDate)],
+            knownAccountIDs: [accountID],
+            now: secondDate,
+            calendar: calendar
+        )
+
+        let reset = try await store.resetBaselines(for: [accountID])
+        let reloaded = try await UsageHistoryStore(directory: directory).load().document
+
+        XCTAssertTrue(reset.baselines.isEmpty)
+        XCTAssertEqual(reset.dailyRecords.count, 1)
+        XCTAssertEqual(reset.dailyRecords[0].estimatedAmount, 2)
+        XCTAssertEqual(reloaded, reset)
+    }
+
     func testFailedSaveKeepsLastCommittedInMemoryDocument() async throws {
         let writer = FailAfterFirstWriter()
         let store = UsageHistoryStore(
@@ -162,6 +218,7 @@ final class UsageHistoryStoreTests: XCTestCase {
             now: firstDate,
             calendar: calendar
         )
+        let diskBeforeFailure = try Data(contentsOf: store.fileURL)
 
         do {
             _ = try await store.record(
@@ -176,8 +233,42 @@ final class UsageHistoryStoreTests: XCTestCase {
         }
 
         let current = await store.currentDocument()
+        let diskAfterFailure = try Data(contentsOf: store.fileURL)
         XCTAssertEqual(current, committed)
+        XCTAssertEqual(diskAfterFailure, diskBeforeFailure)
         XCTAssertTrue(current.dailyRecords.isEmpty)
+    }
+
+    func testCancelledRecordDoesNotWriteHistory() async throws {
+        let store = UsageHistoryStore(directory: directory)
+        let gate = CancellationGate()
+        let now = date(2026, 8, 10, 9)
+        let sample = snapshot(amount: 100, fetchedAt: now)
+        let accountID = accountID
+        let calendar = calendar
+        let task = Task {
+            await gate.wait()
+            return try await store.record(
+                snapshots: [sample],
+                knownAccountIDs: [accountID],
+                now: now,
+                calendar: calendar
+            )
+        }
+
+        while !(await gate.hasWaiter) {
+            await Task.yield()
+        }
+        task.cancel()
+        await gate.release()
+
+        do {
+            _ = try await task.value
+            XCTFail("cancelled record must not write")
+        } catch is CancellationError {
+            // Expected.
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL.path))
     }
 
     private var calendar: Calendar {
@@ -211,6 +302,23 @@ final class UsageHistoryStoreTests: XCTestCase {
             day: day,
             hour: hour
         ))!
+    }
+}
+
+private actor CancellationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    var hasWaiter: Bool { continuation != nil }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
     }
 }
 

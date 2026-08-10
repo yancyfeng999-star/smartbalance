@@ -6,7 +6,7 @@ public enum UsagePeriod: String, CaseIterable, Codable, Sendable {
     case month
 }
 
-public enum UsageMeasurementMethod: String, Codable, Sendable {
+public enum UsageMeasurementMethod: String, Codable, Sendable, Hashable {
     case providerCumulative
     case balanceDeltaEstimate
 }
@@ -24,6 +24,7 @@ public struct UsageBaseline: Codable, Equatable, Sendable {
     public var method: UsageMeasurementMethod
     public var value: Double
     public var sampledAt: Date
+    public var sampleCount: Int
 
     public init(
         accountId: UUID,
@@ -31,7 +32,8 @@ public struct UsageBaseline: Codable, Equatable, Sendable {
         unit: String,
         method: UsageMeasurementMethod,
         value: Double,
-        sampledAt: Date
+        sampledAt: Date,
+        sampleCount: Int = 1
     ) {
         self.accountId = accountId
         self.providerKind = providerKind
@@ -39,6 +41,39 @@ public struct UsageBaseline: Codable, Equatable, Sendable {
         self.method = method
         self.value = value
         self.sampledAt = sampledAt
+        self.sampleCount = sampleCount
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case accountId
+        case providerKind
+        case unit
+        case method
+        case value
+        case sampledAt
+        case sampleCount
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accountId = try container.decode(UUID.self, forKey: .accountId)
+        providerKind = try container.decode(ProviderKind.self, forKey: .providerKind)
+        unit = try container.decode(String.self, forKey: .unit)
+        method = try container.decode(UsageMeasurementMethod.self, forKey: .method)
+        value = try container.decode(Double.self, forKey: .value)
+        sampledAt = try container.decode(Date.self, forKey: .sampledAt)
+        sampleCount = try container.decodeIfPresent(Int.self, forKey: .sampleCount) ?? 1
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(accountId, forKey: .accountId)
+        try container.encode(providerKind, forKey: .providerKind)
+        try container.encode(unit, forKey: .unit)
+        try container.encode(method, forKey: .method)
+        try container.encode(value, forKey: .value)
+        try container.encode(sampledAt, forKey: .sampledAt)
+        try container.encode(sampleCount, forKey: .sampleCount)
     }
 }
 
@@ -127,15 +162,16 @@ public struct UsageDailyPoint: Identifiable, Equatable, Sendable {
     public var dayKey: String
     public var date: Date
     public var amount: Double
-    public var includesEstimate: Bool
+    public var quality: UsageQuality?
 
     public var id: String { dayKey }
+    public var includesEstimate: Bool { quality == .estimated || quality == .mixed }
 
-    public init(dayKey: String, date: Date, amount: Double, includesEstimate: Bool) {
+    public init(dayKey: String, date: Date, amount: Double, quality: UsageQuality?) {
         self.dayKey = dayKey
         self.date = date
         self.amount = amount
-        self.includesEstimate = includesEstimate
+        self.quality = quality
     }
 }
 
@@ -195,6 +231,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
     public var interval: DateInterval
     public var currencies: [UsageCurrencySummary]
     public var hasAnyBaseline: Bool
+    public var hasAnyFollowUpSample: Bool
     public var hasBoundaryGap: Bool
     public var earliestDayKey: String?
     public var updatedAt: Date?
@@ -204,6 +241,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
         interval: DateInterval,
         currencies: [UsageCurrencySummary],
         hasAnyBaseline: Bool,
+        hasAnyFollowUpSample: Bool,
         hasBoundaryGap: Bool,
         earliestDayKey: String?,
         updatedAt: Date?
@@ -212,6 +250,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
         self.interval = interval
         self.currencies = currencies
         self.hasAnyBaseline = hasAnyBaseline
+        self.hasAnyFollowUpSample = hasAnyFollowUpSample
         self.hasBoundaryGap = hasBoundaryGap
         self.earliestDayKey = earliestDayKey
         self.updatedAt = updatedAt

@@ -162,6 +162,99 @@ final class UsageSummaryBuilderTests: XCTestCase {
         XCTAssertEqual(points.first { $0.dayKey == "2026-08-12" }?.amount, 5)
     }
 
+    func testDailyPointQualityPreservesProviderEstimatedAndMixedStates() {
+        let summary = UsageSummaryBuilder.build(
+            document: history(records: [
+                record(dayKey: "2026-08-10", providerAmount: 2),
+                record(dayKey: "2026-08-11", estimatedAmount: 3),
+                record(dayKey: "2026-08-12", providerAmount: 4, estimatedAmount: 1),
+            ]),
+            period: .week,
+            anchor: date(2026, 8, 12),
+            calendar: calendar
+        )
+        let pointsByDay = Dictionary(
+            uniqueKeysWithValues: summary.currencies[0].dailyPoints.map { ($0.dayKey, $0.quality) }
+        )
+
+        XCTAssertEqual(pointsByDay["2026-08-10"], .provider)
+        XCTAssertEqual(pointsByDay["2026-08-11"], .estimated)
+        XCTAssertEqual(pointsByDay["2026-08-12"], .mixed)
+        XCTAssertNil(pointsByDay["2026-08-13"]!)
+    }
+
+    func testBaselineOnlySummaryHasNoFollowUpSample() {
+        let summary = UsageSummaryBuilder.build(
+            document: history(records: [], baselineSampleCount: 1),
+            period: .day,
+            anchor: date(2026, 8, 10),
+            calendar: calendar
+        )
+
+        XCTAssertTrue(summary.hasAnyBaseline)
+        XCTAssertFalse(summary.hasAnyFollowUpSample)
+    }
+
+    func testFollowUpZeroSpendBuildsZeroCurrencyCard() {
+        let summary = UsageSummaryBuilder.build(
+            document: history(records: [], baselineSampleCount: 2),
+            period: .day,
+            anchor: date(2026, 8, 10),
+            calendar: calendar
+        )
+
+        XCTAssertTrue(summary.hasAnyFollowUpSample)
+        XCTAssertEqual(summary.currencies.map(\.unit), ["CNY"])
+        XCTAssertEqual(summary.currencies[0].totalAmount, 0)
+        XCTAssertEqual(summary.currencies[0].providers.count, 1)
+        XCTAssertEqual(summary.currencies[0].providers[0].totalAmount, 0)
+        XCTAssertEqual(summary.currencies[0].providers[0].quality, .provider)
+    }
+
+    func testCurrentBaselineDoesNotContaminateHistoricalPeriod() {
+        let document = UsageHistoryDocument(
+            baselines: [UsageBaseline(
+                accountId: accountB,
+                providerKind: .deepseek,
+                unit: "CNY",
+                method: .balanceDeltaEstimate,
+                value: 50,
+                sampledAt: date(2026, 8, 10, 8),
+                sampleCount: 2
+            )],
+            dailyRecords: [
+                record(
+                    dayKey: "2026-07-15",
+                    accountID: accountA,
+                    provider: .deepseek,
+                    providerAmount: 3
+                ),
+            ]
+        )
+
+        let summary = UsageSummaryBuilder.build(
+            document: document,
+            period: .month,
+            anchor: date(2026, 7, 15),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(summary.currencies.map(\.unit), ["CNY"])
+        XCTAssertEqual(summary.currencies[0].providers[0].accountCount, 1)
+        XCTAssertEqual(summary.currencies[0].providers[0].quality, .provider)
+    }
+
+    func testCurrentBaselineDoesNotCreateEmptyHistoricalCurrency() {
+        let summary = UsageSummaryBuilder.build(
+            document: history(records: [], baselineSampleCount: 2),
+            period: .month,
+            anchor: date(2026, 7, 15),
+            calendar: calendar
+        )
+
+        XCTAssertTrue(summary.currencies.isEmpty)
+    }
+
     func testSummaryReportsBoundaryGapInSelectedPeriod() {
         var boundaryRecord = record(dayKey: "2026-08-10", providerAmount: 5)
         boundaryRecord.hasBoundaryGap = true
@@ -214,7 +307,10 @@ final class UsageSummaryBuilderTests: XCTestCase {
         )
     }
 
-    private func history(records: [UsageDailyRecord]) -> UsageHistoryDocument {
+    private func history(
+        records: [UsageDailyRecord],
+        baselineSampleCount: Int = 1
+    ) -> UsageHistoryDocument {
         UsageHistoryDocument(
             baselines: [UsageBaseline(
                 accountId: accountA,
@@ -222,7 +318,8 @@ final class UsageSummaryBuilderTests: XCTestCase {
                 unit: "CNY",
                 method: .providerCumulative,
                 value: 20,
-                sampledAt: date(2026, 8, 10, 8)
+                sampledAt: date(2026, 8, 10, 8),
+                sampleCount: baselineSampleCount
             )],
             dailyRecords: records,
             updatedAt: date(2026, 8, 10, 15)

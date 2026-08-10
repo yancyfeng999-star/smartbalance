@@ -58,11 +58,18 @@ public enum UsageSummaryBuilder {
             guard let date = date(for: record.dayKey, calendar: calendar) else { return false }
             return date >= selectedInterval.start && date < selectedInterval.end
         }
-        let units = Set(records.map { UsageUnit.normalize($0.unit) })
+        let baselines = document.baselines.filter {
+            $0.sampledAt >= selectedInterval.start && $0.sampledAt < selectedInterval.end
+        }
+        let units = Set(
+            records.map { UsageUnit.normalize($0.unit) }
+                + baselines.map { UsageUnit.normalize($0.unit) }
+        ).filter { !$0.isEmpty }
         let currencies = units.map { unit in
             currencySummary(
                 unit: unit,
                 records: records.filter { UsageUnit.normalize($0.unit) == unit },
+                baselines: baselines.filter { UsageUnit.normalize($0.unit) == unit },
                 interval: selectedInterval,
                 calendar: calendar
             )
@@ -73,6 +80,8 @@ public enum UsageSummaryBuilder {
             interval: selectedInterval,
             currencies: currencies,
             hasAnyBaseline: !document.baselines.isEmpty,
+            hasAnyFollowUpSample: document.baselines.contains { $0.sampleCount > 1 }
+                || !document.dailyRecords.isEmpty,
             hasBoundaryGap: records.contains(where: \.hasBoundaryGap),
             earliestDayKey: document.dailyRecords.map(\.dayKey).min(),
             updatedAt: document.updatedAt
@@ -109,21 +118,30 @@ public enum UsageSummaryBuilder {
     private static func currencySummary(
         unit: String,
         records: [UsageDailyRecord],
+        baselines: [UsageBaseline],
         interval: DateInterval,
         calendar: Calendar
     ) -> UsageCurrencySummary {
-        let providerGroups = Dictionary(grouping: records, by: \.providerKind)
-        let providers = providerGroups.map { providerKind, records in
-            let providerAmount = records.reduce(0) { $0 + $1.providerAmount }
-            let estimatedAmount = records.reduce(0) { $0 + $1.estimatedAmount }
+        let providerKinds = Set(records.map(\.providerKind) + baselines.map(\.providerKind))
+        let providers = providerKinds.map { providerKind in
+            let providerRecords = records.filter { $0.providerKind == providerKind }
+            let providerBaselines = baselines.filter { $0.providerKind == providerKind }
+            let providerAmount = providerRecords.reduce(0) { $0 + $1.providerAmount }
+            let estimatedAmount = providerRecords.reduce(0) { $0 + $1.estimatedAmount }
             return UsageProviderSummary(
                 providerKind: providerKind,
                 unit: unit,
                 totalAmount: providerAmount + estimatedAmount,
                 providerAmount: providerAmount,
                 estimatedAmount: estimatedAmount,
-                accountCount: Set(records.map(\.accountId)).count,
-                quality: quality(providerAmount: providerAmount, estimatedAmount: estimatedAmount)
+                accountCount: Set(
+                    providerRecords.map(\.accountId) + providerBaselines.map(\.accountId)
+                ).count,
+                quality: quality(
+                    providerAmount: providerAmount,
+                    estimatedAmount: estimatedAmount,
+                    baselineMethods: Set(providerBaselines.map(\.method))
+                )
             )
         }.sorted {
             if $0.totalAmount != $1.totalAmount { return $0.totalAmount > $1.totalAmount }
@@ -136,11 +154,21 @@ public enum UsageSummaryBuilder {
         while day < interval.end {
             let key = dayKey(for: day, calendar: calendar)
             let dayRecords = byDay[key] ?? []
+            let dayBaselines = baselines.filter { calendar.isDate($0.sampledAt, inSameDayAs: day) }
+            let providerAmount = dayRecords.reduce(0) { $0 + $1.providerAmount }
+            let estimatedAmount = dayRecords.reduce(0) { $0 + $1.estimatedAmount }
+            let dayQuality = dayRecords.isEmpty && dayBaselines.isEmpty
+                ? nil
+                : quality(
+                    providerAmount: providerAmount,
+                    estimatedAmount: estimatedAmount,
+                    baselineMethods: Set(dayBaselines.map(\.method))
+                )
             dailyPoints.append(UsageDailyPoint(
                 dayKey: key,
                 date: day,
-                amount: dayRecords.reduce(0) { $0 + $1.providerAmount + $1.estimatedAmount },
-                includesEstimate: dayRecords.contains { $0.estimatedAmount > 0 }
+                amount: providerAmount + estimatedAmount,
+                quality: dayQuality
             ))
             guard let next = calendar.date(byAdding: .day, value: 1, to: day), next > day else { break }
             day = next
@@ -154,9 +182,15 @@ public enum UsageSummaryBuilder {
         )
     }
 
-    private static func quality(providerAmount: Double, estimatedAmount: Double) -> UsageQuality {
-        if providerAmount > 0, estimatedAmount > 0 { return .mixed }
-        if estimatedAmount > 0 { return .estimated }
+    private static func quality(
+        providerAmount: Double,
+        estimatedAmount: Double,
+        baselineMethods: Set<UsageMeasurementMethod> = []
+    ) -> UsageQuality {
+        let hasProvider = providerAmount > 0 || baselineMethods.contains(.providerCumulative)
+        let hasEstimate = estimatedAmount > 0 || baselineMethods.contains(.balanceDeltaEstimate)
+        if hasProvider, hasEstimate { return .mixed }
+        if hasEstimate { return .estimated }
         return .provider
     }
 

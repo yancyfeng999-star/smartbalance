@@ -196,6 +196,21 @@ final class L10n: ObservableObject {
             .ru: "Не удалось сохранить историю расхода. Баланс отображается как обычно.", .ar: "تعذّر حفظ سجل الاستخدام. عرض الأرصدة لم يتأثر.", .fr: "Impossible d’enregistrer l’historique. Les soldes restent disponibles.", .de: "Der Nutzungsverlauf konnte nicht gespeichert werden. Salden sind nicht betroffen.",
             .es: "No se pudo guardar el historial. Los saldos no se ven afectados.", .pt: "Não foi possível salvar o histórico. Os saldos não foram afetados.",
         ],
+        "usage.load_failed": [
+            .zhHans: "无法读取用量历史。为保护已有数据，本次暂停记录。", .en: "Usage history could not be read. New samples are paused to protect existing data.", .ja: "使用履歴を読み込めません。既存データを保護するため記録を停止しました。", .ko: "사용 기록을 읽을 수 없습니다. 기존 데이터를 보호하기 위해 기록을 일시 중지했습니다.",
+            .ru: "Не удалось прочитать историю расхода. Новые записи приостановлены для защиты данных.", .ar: "تعذّرت قراءة سجل الاستخدام. أُوقف التسجيل مؤقتًا لحماية البيانات الحالية.", .fr: "Impossible de lire l’historique. Les nouveaux relevés sont suspendus pour protéger les données.", .de: "Der Nutzungsverlauf konnte nicht gelesen werden. Neue Erfassungen sind zum Schutz der Daten pausiert.",
+            .es: "No se pudo leer el historial. Las nuevas muestras están pausadas para proteger los datos.", .pt: "Não foi possível ler o histórico. Novos registros foram pausados para proteger os dados.",
+        ],
+        "usage.history_recovered": [
+            .zhHans: "用量历史已损坏并完成备份，现已重新开始记录。", .en: "Damaged usage history was backed up. Tracking has restarted.", .ja: "破損した使用履歴をバックアップし、記録を再開しました。", .ko: "손상된 사용 기록을 백업하고 기록을 다시 시작했습니다.",
+            .ru: "Повреждённая история сохранена в резервную копию. Учёт начат заново.", .ar: "تم نسخ سجل الاستخدام التالف احتياطيًا وبدأ التسجيل من جديد.", .fr: "L’historique endommagé a été sauvegardé. Le suivi a redémarré.", .de: "Der beschädigte Nutzungsverlauf wurde gesichert. Die Erfassung wurde neu gestartet.",
+            .es: "Se guardó una copia del historial dañado. El seguimiento se reinició.", .pt: "O histórico danificado foi copiado. O acompanhamento foi reiniciado.",
+        ],
+        "usage.points_count": [
+            .zhHans: "%d 个数据点", .en: "%d data points", .ja: "%d データ点", .ko: "%d개 데이터 포인트",
+            .ru: "Точек данных: %d", .ar: "%d نقاط بيانات", .fr: "%d points de données", .de: "%d Datenpunkte",
+            .es: "%d puntos de datos", .pt: "%d pontos de dados",
+        ],
         "usage.boundary_hint": [
             .zhHans: "包含跨日离线区间，金额归入后一次刷新日期", .en: "Includes an offline day boundary; the delta is assigned to the later refresh date.", .ja: "日付をまたぐ未更新区間を含み、差額は後の更新日に計上されます。", .ko: "날짜 경계를 넘긴 오프라인 구간이 포함되어 차액은 이후 새로고침 날짜에 반영됩니다.",
             .ru: "Есть офлайн-интервал через границу дня; разница отнесена к дате позднего обновления.", .ar: "تتضمن فترة دون اتصال عبر منتصف الليل؛ أُضيف الفرق إلى تاريخ التحديث اللاحق.", .fr: "Inclut une période hors ligne à cheval sur minuit ; l’écart est affecté à la date d’actualisation suivante.", .de: "Enthält eine Offline-Phase über Mitternacht; die Differenz zählt zum späteren Aktualisierungsdatum.",

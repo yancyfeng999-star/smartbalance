@@ -22,6 +22,22 @@ final class UsageAccumulatorTests: XCTestCase {
         XCTAssertEqual(next.baselines[0].method, .providerCumulative)
         XCTAssertEqual(next.baselines[0].unit, "CNY")
         XCTAssertEqual(next.baselines[0].sampledAt, sampledAt)
+        XCTAssertEqual(next.baselines[0].sampleCount, 1)
+        XCTAssertTrue(next.dailyRecords.isEmpty)
+    }
+
+    func testSecondUnchangedSampleMarksBaselineAsObservedTwice() {
+        let firstDate = date(2026, 8, 10, 9)
+        let first = ingest([
+            snapshot(amount: 100, fetchedAt: firstDate),
+        ], now: firstDate)
+        let secondDate = date(2026, 8, 10, 10)
+        let next = ingest([
+            snapshot(amount: 100, fetchedAt: secondDate),
+        ], document: first, now: secondDate)
+
+        XCTAssertEqual(next.baselines[0].sampleCount, 2)
+        XCTAssertEqual(next.baselines[0].sampledAt, secondDate)
         XCTAssertTrue(next.dailyRecords.isEmpty)
     }
 
@@ -117,6 +133,32 @@ final class UsageAccumulatorTests: XCTestCase {
 
         XCTAssertEqual(next.baselines, first.baselines)
         XCTAssertTrue(next.dailyRecords.isEmpty)
+    }
+
+    func testSnapshotWithErrorMessageOrEmptyUnitIsIgnored() {
+        let firstDate = date(2026, 8, 10, 9)
+        let first = ingest([
+            snapshot(amount: 100, fetchedAt: firstDate),
+        ], now: firstDate)
+        let next = ingest([
+            snapshot(amount: 90, errorMessage: "partial provider failure", fetchedAt: date(2026, 8, 10, 10)),
+            snapshot(amount: 80, unit: "   ", fetchedAt: date(2026, 8, 10, 11)),
+        ], document: first, now: date(2026, 8, 10, 11))
+
+        XCTAssertEqual(next.baselines, first.baselines)
+        XCTAssertEqual(next.updatedAt, first.updatedAt)
+        XCTAssertTrue(next.dailyRecords.isEmpty)
+    }
+
+    func testNoValidSnapshotsPreserveLastRecordedTime() {
+        let previousUpdate = date(2026, 8, 10, 9)
+        let document = UsageHistoryDocument(updatedAt: previousUpdate)
+
+        let next = ingest([
+            snapshot(amount: 90, status: .error, fetchedAt: date(2026, 8, 10, 10)),
+        ], document: document, now: date(2026, 8, 10, 10))
+
+        XCTAssertEqual(next.updatedAt, previousUpdate)
     }
 
     func testUnitProviderAndMethodChangesOnlyResetBaseline() {
@@ -233,6 +275,7 @@ final class UsageAccumulatorTests: XCTestCase {
         amount: Double? = nil,
         unit: String = "¥",
         status: BalanceStatus = .healthy,
+        errorMessage: String? = nil,
         fetchedAt: Date
     ) -> BalanceSnapshot {
         BalanceSnapshot(
@@ -244,7 +287,8 @@ final class UsageAccumulatorTests: XCTestCase {
             used: used,
             total: total,
             status: status,
-            fetchedAt: fetchedAt
+            fetchedAt: fetchedAt,
+            errorMessage: errorMessage
         )
     }
 

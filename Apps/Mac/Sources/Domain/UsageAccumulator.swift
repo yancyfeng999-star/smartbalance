@@ -13,18 +13,22 @@ public enum UsageAccumulator {
         next.schemaVersion = UsageHistoryDocument.currentSchemaVersion
         next.baselines.removeAll { !knownAccountIDs.contains($0.accountId) }
         pruneRecords(in: &next, now: now, calendar: calendar, retentionDays: retentionDays)
+        var acceptedSample = false
 
         for snapshot in snapshots.sorted(by: { $0.fetchedAt < $1.fetchedAt }) {
+            let unit = UsageUnit.normalize(snapshot.unit)
             guard knownAccountIDs.contains(snapshot.accountId),
+                  snapshot.errorMessage == nil,
                   ![BalanceStatus.error, .setup, .unknown].contains(snapshot.status),
                   let providerKind = snapshot.providerKind,
+                  !unit.isEmpty,
                   let measurement = measurement(for: snapshot)
             else {
                 continue
             }
+            acceptedSample = true
 
-            let unit = UsageUnit.normalize(snapshot.unit)
-            let baseline = UsageBaseline(
+            let firstBaseline = UsageBaseline(
                 accountId: snapshot.accountId,
                 providerKind: providerKind,
                 unit: unit,
@@ -34,19 +38,27 @@ public enum UsageAccumulator {
             )
 
             guard let baselineIndex = next.baselines.firstIndex(where: { $0.accountId == snapshot.accountId }) else {
-                next.baselines.append(baseline)
+                next.baselines.append(firstBaseline)
                 continue
             }
 
             let previous = next.baselines[baselineIndex]
-            next.baselines[baselineIndex] = baseline
-
-            guard previous.providerKind == providerKind,
-                  previous.unit == unit,
-                  previous.method == measurement.method
-            else {
+            let matchesPrevious = previous.providerKind == providerKind
+                && previous.unit == unit
+                && previous.method == measurement.method
+            guard matchesPrevious else {
+                next.baselines[baselineIndex] = firstBaseline
                 continue
             }
+            next.baselines[baselineIndex] = UsageBaseline(
+                accountId: snapshot.accountId,
+                providerKind: providerKind,
+                unit: unit,
+                method: measurement.method,
+                value: measurement.value,
+                sampledAt: snapshot.fetchedAt,
+                sampleCount: max(previous.sampleCount, 1) + 1
+            )
 
             let delta: Double
             switch measurement.method {
@@ -85,7 +97,9 @@ public enum UsageAccumulator {
             }
             return $0.unit < $1.unit
         }
-        next.updatedAt = now
+        if acceptedSample {
+            next.updatedAt = now
+        }
         return next
     }
 

@@ -18,6 +18,7 @@
 
 - 菜单栏弹层 380×580；外观浅/深/跟随系统（0.2.18 起 AppKit appearance 同步）
 - 多平台余额 + 手录 + 人民币折算报警
+- 完全本地的自然天 / ISO 周 / 月渠道用量统计；按币种分卡，历史保留 400 天
 - 首页卡片选中 +「打开后台」跟选中账号（0.2.17）
 - 本机 vault 密钥；Mac 通知 / SMTP 邮件报警
 - 多语言设置；平台 logo；GitHub 检查更新
@@ -38,6 +39,7 @@ AGENTS.md          # Agent 入口
 | 日志 | `~/Library/Logs/SmartBalance/app.log` |
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
 | 密钥 | `…/secrets.vault`（勿提交） |
+| 用量历史 | `…/usage-history.json`（0600，不含密钥） |
 
 ## 手工验收（可选）
 
@@ -46,4 +48,5 @@ AGENTS.md          # Agent 入口
 | `/Applications/智余.app` 运行 | 正式入口 |
 | 浅色/深色切换立即变色 | ≥ 0.2.18 |
 | 点第二张卡再「打开后台」 | ≥ 0.2.17 |
+| 齿轮 → 设置；底栏“用量” → 天/周/月 | 用量首次刷新只建基线 |
 | 检查更新拉到最新 Release | 需网络 |

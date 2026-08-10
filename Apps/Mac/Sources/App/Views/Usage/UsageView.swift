@@ -25,9 +25,16 @@ struct UsageView: View {
             periodNavigator(summary: currentSummary)
 
             if model.usageDataError != nil {
-                Label(l10n.t("usage.save_failed"), systemImage: "exclamationmark.triangle.fill")
+                Label(usageErrorText, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if model.usageRecoveryNotice {
+                Label(l10n.t("usage.history_recovered"), systemImage: "arrow.counterclockwise.circle.fill")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(SBTheme.warn)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -143,7 +150,7 @@ struct UsageView: View {
             ) {
                 model.selectedTab = .settings
             }
-        } else if !summary.hasAnyBaseline {
+        } else if !summary.hasAnyBaseline || !summary.hasAnyFollowUpSample {
             emptyState(
                 systemName: "gauge.with.dots.needle.0percent",
                 text: l10n.t("usage.baseline_only")
@@ -158,6 +165,12 @@ struct UsageView: View {
                 UsageCurrencyCard(summary: currency, period: period)
             }
         }
+    }
+
+    private var usageErrorText: String {
+        model.usageDataError == "load"
+            ? l10n.t("usage.load_failed")
+            : l10n.t("usage.save_failed")
     }
 
     private func emptyState(

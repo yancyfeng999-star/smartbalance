@@ -1,5 +1,34 @@
 import Foundation
+import Darwin
 import Domain
+
+public enum UsageHistoryRecovery: Equatable, Sendable {
+    case corruptFileBackedUp
+}
+
+public struct UsageHistoryLoadResult: Equatable, Sendable {
+    public var document: UsageHistoryDocument
+    public var recovery: UsageHistoryRecovery?
+
+    public init(document: UsageHistoryDocument, recovery: UsageHistoryRecovery? = nil) {
+        self.document = document
+        self.recovery = recovery
+    }
+}
+
+public enum UsageHistoryStoreError: LocalizedError, Sendable {
+    case readFailed(String)
+    case corruptBackupFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .readFailed(let detail):
+            "Unable to read usage history: \(detail)"
+        case .corruptBackupFailed(let detail):
+            "Unable to back up corrupt usage history: \(detail)"
+        }
+    }
+}
 
 public actor UsageHistoryStore {
     public static let shared = UsageHistoryStore()
@@ -11,6 +40,7 @@ public actor UsageHistoryStore {
     private let decoder: JSONDecoder
     private var cached = UsageHistoryDocument()
     private var hasLoaded = false
+    private var recovery: UsageHistoryRecovery?
 
     public init(
         filename: String = "usage-history.json",
@@ -22,9 +52,7 @@ public actor UsageHistoryStore {
             withIntermediateDirectories: true
         )
         fileURL = resolvedDirectory.appendingPathComponent(filename)
-        writer = { data, url in
-            try data.write(to: url, options: .atomic)
-        }
+        writer = Self.secureAtomicWrite
         encoder = Self.makeEncoder()
         decoder = Self.makeDecoder()
     }
@@ -44,11 +72,15 @@ public actor UsageHistoryStore {
         decoder = Self.makeDecoder()
     }
 
-    public func load() -> UsageHistoryDocument {
-        if hasLoaded { return cached }
-        cached = loadFromDisk()
+    public func load() throws -> UsageHistoryLoadResult {
+        if hasLoaded {
+            return UsageHistoryLoadResult(document: cached, recovery: recovery)
+        }
+        let result = try loadFromDisk()
+        cached = result.document
+        recovery = result.recovery
         hasLoaded = true
-        return cached
+        return result
     }
 
     public func record(
@@ -57,8 +89,11 @@ public actor UsageHistoryStore {
         now: Date = Date(),
         calendar: Calendar = .current
     ) throws -> UsageHistoryDocument {
+        try Task.checkCancellation()
         if !hasLoaded {
-            cached = loadFromDisk()
+            let result = try loadFromDisk()
+            cached = result.document
+            recovery = result.recovery
             hasLoaded = true
         }
 
@@ -70,15 +105,28 @@ public actor UsageHistoryStore {
             calendar: calendar
         )
         let data = try encoder.encode(next)
-        try FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
+        try Task.checkCancellation()
         try writer(data, fileURL)
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o600],
-            ofItemAtPath: fileURL.path
-        )
+        cached = next
+        return next
+    }
+
+    public func resetBaselines(for accountIDs: Set<UUID>) throws -> UsageHistoryDocument {
+        try Task.checkCancellation()
+        if !hasLoaded {
+            let result = try loadFromDisk()
+            cached = result.document
+            recovery = result.recovery
+            hasLoaded = true
+        }
+
+        var next = cached
+        next.baselines.removeAll { accountIDs.contains($0.accountId) }
+        guard next != cached else { return cached }
+
+        let data = try encoder.encode(next)
+        try Task.checkCancellation()
+        try writer(data, fileURL)
         cached = next
         return next
     }
@@ -87,30 +135,99 @@ public actor UsageHistoryStore {
         cached
     }
 
-    private func loadFromDisk() -> UsageHistoryDocument {
-        guard let data = try? Data(contentsOf: fileURL) else {
-            return UsageHistoryDocument()
+    private func loadFromDisk() throws -> UsageHistoryLoadResult {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return UsageHistoryLoadResult(document: UsageHistoryDocument())
+        }
+
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            throw UsageHistoryStoreError.readFailed(error.localizedDescription)
         }
         do {
-            return try decoder.decode(UsageHistoryDocument.self, from: data)
+            return UsageHistoryLoadResult(
+                document: try decoder.decode(UsageHistoryDocument.self, from: data)
+            )
         } catch {
             let backupURL = fileURL
                 .deletingPathExtension()
                 .appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970)).json")
             do {
-                try data.write(to: backupURL, options: .atomic)
-                try? FileManager.default.setAttributes(
-                    [.posixPermissions: 0o600],
-                    ofItemAtPath: backupURL.path
-                )
+                try Self.secureAtomicWrite(data, backupURL)
                 AppLog.error(
                     "usage-history.json 解码失败，已备份到 \(backupURL.lastPathComponent)：\(error.localizedDescription)"
                 )
-            } catch {
-                AppLog.error("usage-history.json 解码失败且备份失败：\(error.localizedDescription)")
+            } catch let backupError {
+                AppLog.error("usage-history.json 解码失败且备份失败：\(backupError.localizedDescription)")
+                throw UsageHistoryStoreError.corruptBackupFailed(backupError.localizedDescription)
             }
-            return UsageHistoryDocument()
+            return UsageHistoryLoadResult(
+                document: UsageHistoryDocument(),
+                recovery: .corruptFileBackedUp
+            )
         }
+    }
+
+    private nonisolated static func secureAtomicWrite(_ data: Data, _ url: URL) throws {
+        let fileManager = FileManager.default
+        let directory = url.deletingLastPathComponent()
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        var template = Array(
+            directory
+                .appendingPathComponent(".\(url.lastPathComponent).XXXXXX.tmp")
+                .path
+                .utf8CString
+        )
+        let descriptor = Darwin.mkstemps(&template, 4)
+        guard descriptor >= 0 else { throw currentPOSIXError() }
+
+        let temporaryPath = String(
+            decoding: template.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
+            as: UTF8.self
+        )
+        let temporaryURL = URL(fileURLWithPath: temporaryPath)
+        var descriptorIsOpen = true
+        defer {
+            if descriptorIsOpen { _ = Darwin.close(descriptor) }
+            try? fileManager.removeItem(at: temporaryURL)
+        }
+
+        guard Darwin.fchmod(descriptor, S_IRUSR | S_IWUSR) == 0 else {
+            throw currentPOSIXError()
+        }
+        try data.withUnsafeBytes { buffer in
+            guard var pointer = buffer.baseAddress else { return }
+            var remaining = buffer.count
+            while remaining > 0 {
+                let written = Darwin.write(descriptor, pointer, remaining)
+                if written < 0 {
+                    if errno == EINTR { continue }
+                    throw currentPOSIXError()
+                }
+                guard written > 0 else { throw POSIXError(.EIO) }
+                pointer = pointer.advanced(by: written)
+                remaining -= written
+            }
+        }
+        guard Darwin.fsync(descriptor) == 0 else { throw currentPOSIXError() }
+        let closeResult = Darwin.close(descriptor)
+        descriptorIsOpen = false
+        guard closeResult == 0 else { throw currentPOSIXError() }
+
+        let result = temporaryURL.path.withCString { sourcePath in
+            url.path.withCString { destinationPath in
+                Darwin.rename(sourcePath, destinationPath)
+            }
+        }
+        guard result == 0 else {
+            throw currentPOSIXError()
+        }
+    }
+
+    private nonisolated static func currentPOSIXError() -> POSIXError {
+        POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
     }
 
     private nonisolated static func defaultDirectory() -> URL {
