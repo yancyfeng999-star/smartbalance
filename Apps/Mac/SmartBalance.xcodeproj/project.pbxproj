@@ -76,6 +76,7 @@
 		95136C9195F18EC2B724C610 /* APIAccountsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1A0C61D85FDE90DD43229F /* APIAccountsSection.swift */; };
 		98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */; };
 		99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */; };
+		A12208D505B2676DB9B837A1 /* UsageAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EDD6950A81121363E8824EC /* UsageAccumulator.swift */; };
 		A2B0652DED11DF8B1706113F /* SMTPProtocolFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71A8BC1881287D18421CB6E /* SMTPProtocolFormattingTests.swift */; };
 		A2F5302BA6B63359FA3F6F59 /* MiniMaxProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */; };
 		A8FA5ADCF09D35D303D9085E /* AlertCooldownPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFCFBF55B0BEBE548954682 /* AlertCooldownPolicy.swift */; };
@@ -85,6 +86,8 @@
 		AEDC07174D7D3354AC55C76B /* MenuBarStatusItemDriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */; };
 		B16146F7DA60CD6B021F3168 /* ProviderRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92366B2C08F5A6E3BB58CFE7 /* ProviderRegistry.swift */; };
 		B282716E841ADC4D94E6A9EA /* Domain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
+		B40E32184C27C930F2C86394 /* UsageAccumulatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FC2759A6334CA0B67F9E86 /* UsageAccumulatorTests.swift */; };
+		B7D32851E60C1F4F109FC8DC /* UsageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BADD2F6A2FEB19D585E894D /* UsageModels.swift */; };
 		B7E4CF570B51C311571289BE /* ApinebulaBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361EDD733384688663DA5925 /* ApinebulaBalanceProvider.swift */; };
 		B920E4E0F76A20E95C77560B /* MiniMaxBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060CC7A7C5ECD0A6071C3E10 /* MiniMaxBalanceProvider.swift */; };
 		B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */; };
@@ -244,6 +247,7 @@
 		170E43617CCB3F66A183F263 /* BrowserSessionImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSessionImporter.swift; sourceTree = "<group>"; };
 		1B8840EBA5FA75BA7D47CC29 /* LaoZhangBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaoZhangBalanceProvider.swift; sourceTree = "<group>"; };
 		1C68225513ACAA3DD728D25E /* DeepSeekBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekBalanceProvider.swift; sourceTree = "<group>"; };
+		1EDD6950A81121363E8824EC /* UsageAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAccumulator.swift; sourceTree = "<group>"; };
 		1F1894175030E34C1224EE99 /* AppTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "AppTests-Info.plist"; sourceTree = "<group>"; };
 		1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRootView.swift; sourceTree = "<group>"; };
 		1FBEF854F6CBD36CDD96164A /* NestedSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedSettingsCard.swift; sourceTree = "<group>"; };
@@ -267,6 +271,7 @@
 		5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClientMock.swift; sourceTree = "<group>"; };
 		57E5CA0EAE0ACA963EBABA91 /* ThemeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeMode.swift; sourceTree = "<group>"; };
 		5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistBundle+SmartBalance.swift"; sourceTree = "<group>"; };
+		5BADD2F6A2FEB19D585E894D /* UsageModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageModels.swift; sourceTree = "<group>"; };
 		5E29D907B3D8CA9ED047AFD5 /* AppearanceSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsCard.swift; sourceTree = "<group>"; };
 		60145F6BD534C3FB05AA116B /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		60576DDC7BB0B4190A050369 /* DataSourceKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSourceKind.swift; sourceTree = "<group>"; };
@@ -282,6 +287,7 @@
 		7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceSnapshotTests.swift; sourceTree = "<group>"; };
 		8000B5EAF785F837BF7846E6 /* MiMoProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiMoProviderTests.swift; sourceTree = "<group>"; };
 		83F145D494EDCB4547269E57 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
+		84FC2759A6334CA0B67F9E86 /* UsageAccumulatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAccumulatorTests.swift; sourceTree = "<group>"; };
 		874A99FADE042A0E1E3D8317 /* PinnedBalanceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedBalanceWindow.swift; sourceTree = "<group>"; };
 		8857AA516D28174E31AC2F95 /* 智余.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "智余.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8870F539D14F573853FD8408 /* SettingsChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChrome.swift; sourceTree = "<group>"; };
@@ -555,6 +561,8 @@
 				75AD07EB3DE4787A4C2FB2C8 /* RefreshInterval.swift */,
 				CFF26DFD225E26801BD8B0EA /* SecretMask.swift */,
 				57E5CA0EAE0ACA963EBABA91 /* ThemeMode.swift */,
+				1EDD6950A81121363E8824EC /* UsageAccumulator.swift */,
+				5BADD2F6A2FEB19D585E894D /* UsageModels.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -572,6 +580,7 @@
 			children = (
 				0801A5A3F027D0D82C06323E /* AlertThresholdTests.swift */,
 				7FAA58DA22156D7AE9CC04AC /* BalanceSnapshotTests.swift */,
+				84FC2759A6334CA0B67F9E86 /* UsageAccumulatorTests.swift */,
 			);
 			path = DomainTests;
 			sourceTree = "<group>";
@@ -977,6 +986,8 @@
 				ADAF4835382D8D9EE56609B7 /* RefreshInterval.swift in Sources */,
 				E30EFB57A9D82D64D408757F /* SecretMask.swift in Sources */,
 				236D73C099F018E767F9D57E /* ThemeMode.swift in Sources */,
+				A12208D505B2676DB9B837A1 /* UsageAccumulator.swift in Sources */,
+				B7D32851E60C1F4F109FC8DC /* UsageModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -986,6 +997,7 @@
 			files = (
 				D7CC7D7BEB36002C15517110 /* AlertThresholdTests.swift in Sources */,
 				77335B024B0CF649A57E5FB7 /* BalanceSnapshotTests.swift in Sources */,
+				B40E32184C27C930F2C86394 /* UsageAccumulatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
