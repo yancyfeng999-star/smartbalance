@@ -122,3 +122,95 @@ public enum UsageUnit {
         }
     }
 }
+
+public struct UsageDailyPoint: Identifiable, Equatable, Sendable {
+    public var dayKey: String
+    public var date: Date
+    public var amount: Double
+    public var includesEstimate: Bool
+
+    public var id: String { dayKey }
+
+    public init(dayKey: String, date: Date, amount: Double, includesEstimate: Bool) {
+        self.dayKey = dayKey
+        self.date = date
+        self.amount = amount
+        self.includesEstimate = includesEstimate
+    }
+}
+
+public struct UsageProviderSummary: Identifiable, Equatable, Sendable {
+    public var providerKind: ProviderKind
+    public var unit: String
+    public var totalAmount: Double
+    public var providerAmount: Double
+    public var estimatedAmount: Double
+    public var accountCount: Int
+    public var quality: UsageQuality
+
+    public var id: String { "\(providerKind.rawValue)|\(unit)" }
+
+    public init(
+        providerKind: ProviderKind,
+        unit: String,
+        totalAmount: Double,
+        providerAmount: Double,
+        estimatedAmount: Double,
+        accountCount: Int,
+        quality: UsageQuality
+    ) {
+        self.providerKind = providerKind
+        self.unit = unit
+        self.totalAmount = totalAmount
+        self.providerAmount = providerAmount
+        self.estimatedAmount = estimatedAmount
+        self.accountCount = accountCount
+        self.quality = quality
+    }
+}
+
+public struct UsageCurrencySummary: Identifiable, Equatable, Sendable {
+    public var unit: String
+    public var totalAmount: Double
+    public var providers: [UsageProviderSummary]
+    public var dailyPoints: [UsageDailyPoint]
+
+    public var id: String { unit }
+
+    public init(
+        unit: String,
+        totalAmount: Double,
+        providers: [UsageProviderSummary],
+        dailyPoints: [UsageDailyPoint]
+    ) {
+        self.unit = unit
+        self.totalAmount = totalAmount
+        self.providers = providers
+        self.dailyPoints = dailyPoints
+    }
+}
+
+public struct UsageDashboardSummary: Equatable, Sendable {
+    public var period: UsagePeriod
+    public var interval: DateInterval
+    public var currencies: [UsageCurrencySummary]
+    public var hasAnyBaseline: Bool
+    public var earliestDayKey: String?
+    public var updatedAt: Date?
+
+    public init(
+        period: UsagePeriod,
+        interval: DateInterval,
+        currencies: [UsageCurrencySummary],
+        hasAnyBaseline: Bool,
+        earliestDayKey: String?,
+        updatedAt: Date?
+    ) {
+        self.period = period
+        self.interval = interval
+        self.currencies = currencies
+        self.hasAnyBaseline = hasAnyBaseline
+        self.earliestDayKey = earliestDayKey
+        self.updatedAt = updatedAt
+    }
+}
