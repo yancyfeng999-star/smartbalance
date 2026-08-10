@@ -3,6 +3,22 @@ import XCTest
 
 @MainActor
 final class MenuBarStatusItemDriverTests: XCTestCase {
+    func testDefaultMenuBarLabelImageIsColorfulBitmap() throws {
+        let source = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
+            NSColor.systemBlue.setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 8, dy: 8)).fill()
+            return true
+        }
+        let image = MenuBarStatusItemDriver.makeCurrentBrandLogoImage(from: source, preferDark: false)
+
+        XCTAssertFalse(image.isTemplate)
+        let bitmapRepresentation = try XCTUnwrap(
+            image.representations.compactMap { $0 as? NSBitmapImageRep }.first,
+            "The default menu bar label must use the color bitmap instead of an SF Symbol."
+        )
+        XCTAssertTrue(bitmapRepresentation.hasAlpha)
+    }
+
     func testHostWindowTransparencyHelperClearsLoadingBackground() throws {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 36, height: 24),

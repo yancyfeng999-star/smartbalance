@@ -92,6 +92,22 @@ final class MenuBarStatusItemDriver {
         render()
     }
 
+    /// 用于 `MenuBarExtra` 初始 label 的彩色图像；状态项尚未被回调绑定前也能显示品牌图。
+    static func makeCurrentBrandLogoImage(preferDark: Bool) -> NSImage {
+        guard let source = NSImage(named: "MenuBarIcon") else {
+            return symbolImage("gauge.with.dots.needle.67percent", color: .labelColor)
+        }
+        return makeCurrentBrandLogoImage(from: source, preferDark: preferDark)
+    }
+
+    static func makeCurrentBrandLogoImage(from source: NSImage, preferDark: Bool) -> NSImage {
+        makeAlphaBackedColorImage(
+            from: source,
+            pointSize: 18,
+            appearance: NSAppearance(named: preferDark ? .darkAqua : .aqua)
+        )
+    }
+
     private func render() {
         guard let button = statusItem?.button else { return }
 
@@ -143,11 +159,7 @@ final class MenuBarStatusItemDriver {
         }
 
         let appearance = NSAppearance(named: preferDark ? .darkAqua : .aqua)
-        return makeAlphaBackedColorImage(
-            from: source,
-            pointSize: pointSize,
-            appearance: appearance
-        )
+        return makeAlphaBackedColorImage(from: source, pointSize: pointSize, appearance: appearance)
     }
 
     static func makeAlphaBackedColorImage(

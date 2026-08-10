@@ -23,8 +23,15 @@ struct SmartBalanceApp: App {
                     MenuBarStatusItemDriver.shared.reassertPresentation()
                 }
         } label: {
-            // 对齐智额：Icon only — SF Symbol 占位，不在 label 里放真实 Logo
-            Image(systemName: "gauge.with.dots.needle.67percent")
+            // 先在 MenuBarExtra 初始 label 显示彩色 Logo；AppKit 回调绑定后仍会二次校正。
+            let preferDark = NSApp.effectiveAppearance
+                .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            Image(nsImage: MenuBarStatusItemDriver.makeCurrentBrandLogoImage(preferDark: preferDark))
+                .renderingMode(.original)
+                .interpolation(.high)
+                .resizable()
+                .frame(width: 18, height: 18)
+                .accessibilityLabel(Brand.nameCN)
         }
         .menuBarExtraAccess(isPresented: $isMenuPresented) { statusItem in
             MenuBarStatusItemDriver.shared.attach(statusItem)
