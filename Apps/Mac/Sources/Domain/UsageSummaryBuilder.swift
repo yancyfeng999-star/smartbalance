@@ -73,6 +73,7 @@ public enum UsageSummaryBuilder {
             interval: selectedInterval,
             currencies: currencies,
             hasAnyBaseline: !document.baselines.isEmpty,
+            hasBoundaryGap: records.contains(where: \.hasBoundaryGap),
             earliestDayKey: document.dailyRecords.map(\.dayKey).min(),
             updatedAt: document.updatedAt
         )

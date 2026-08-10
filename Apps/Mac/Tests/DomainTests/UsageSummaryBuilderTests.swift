@@ -162,6 +162,16 @@ final class UsageSummaryBuilderTests: XCTestCase {
         XCTAssertEqual(points.first { $0.dayKey == "2026-08-12" }?.amount, 5)
     }
 
+    func testSummaryReportsBoundaryGapInSelectedPeriod() {
+        var boundaryRecord = record(dayKey: "2026-08-10", providerAmount: 5)
+        boundaryRecord.hasBoundaryGap = true
+        let selected = build(records: [boundaryRecord])
+        let outside = build(records: [record(dayKey: "2026-08-09", providerAmount: 5)])
+
+        XCTAssertTrue(selected.hasBoundaryGap)
+        XCTAssertFalse(outside.hasBoundaryGap)
+    }
+
     func testHistoricalNavigationStopsAtEarliestDay() {
         let document = history(records: [record(dayKey: "2026-08-10", providerAmount: 5)])
         let earliestSummary = UsageSummaryBuilder.build(

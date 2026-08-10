@@ -21,6 +21,7 @@
 		10AB940428A80FC7E6D8AEA7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFE355963892C82786059F4 /* Theme.swift */; };
 		13B3AEE24A30E624FA8815F3 /* BalanceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0649B4E71FD6FE4A52F640C /* BalanceStatus.swift */; };
 		15C3C08533FDE9713C2EBA90 /* BalanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0936C127D1AF75D376EEE61B /* BalanceService.swift */; };
+		16722E38C4A0E98D1078E546 /* UsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 547C8869A4D564E0D74A6BA7 /* UsageView.swift */; };
 		1818A3A4E7418396BD2F8B1A /* SettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87D9F53CC0C671F1E816FFF /* SettingsRootView.swift */; };
 		189947535EEB147F21BBC9AA /* BackgroundSystemSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54068C0F70D0DB725981D35D /* BackgroundSystemSection.swift */; };
 		1BF6C674F693423CE0EE54FE /* NewAPIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 152276216B4BABECD8B59ECD /* NewAPIProviderTests.swift */; };
@@ -41,6 +42,7 @@
 		372CFF922762C1BF2DA48713 /* UsageHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40D9F72C4D978B3D2290C3C7 /* UsageHistoryStore.swift */; };
 		38FD910AB0D1FE33446A6B66 /* BalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9627086E9C867E333AA891AA /* BalanceProvider.swift */; };
 		39D5E9D5A606C3EDEF337FE3 /* KimiProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CE4C39537DEE121B23206C /* KimiProviderTests.swift */; };
+		3B19F45743CD3CB5F166A5F5 /* UsageProviderRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4590253646B35A20566409 /* UsageProviderRow.swift */; };
 		3BE8B92353DD1E25551F5BD3 /* LanguageSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14EEC0DBA2D4A5DB360FECA /* LanguageSettingsCard.swift */; };
 		3EBDB0905CB22903179191C2 /* TuistAssets+AppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F5D58A9832B84E82134D05 /* TuistAssets+AppTests.swift */; };
 		3F2EDADEF54805F8D0312B24 /* ProviderRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098DB837B8BCB02F7EF83AA0 /* ProviderRegistryTests.swift */; };
@@ -81,6 +83,7 @@
 		98782C024CF48DBB2D1D293A /* SmartBalanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98A7440BFE1BF9348E6D47F /* SmartBalanceApp.swift */; };
 		99AB8EFFCD4ECDF70BC7E02D /* NewAPIBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */; };
 		A12208D505B2676DB9B837A1 /* UsageAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EDD6950A81121363E8824EC /* UsageAccumulator.swift */; };
+		A1AF1847AD65047EBB4FC594 /* UsageCurrencyCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE06806A753645E3149671A4 /* UsageCurrencyCard.swift */; };
 		A2B0652DED11DF8B1706113F /* SMTPProtocolFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71A8BC1881287D18421CB6E /* SMTPProtocolFormattingTests.swift */; };
 		A2F5302BA6B63359FA3F6F59 /* MiniMaxProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B1716E385E5591813DC952 /* MiniMaxProviderTests.swift */; };
 		A8FA5ADCF09D35D303D9085E /* AlertCooldownPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFCFBF55B0BEBE548954682 /* AlertCooldownPolicy.swift */; };
@@ -269,11 +272,13 @@
 		49C9281D2CD654099B754765 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		4A45BEB35210C1E5C894D8CB /* NewAPIBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewAPIBalanceProvider.swift; sourceTree = "<group>"; };
 		4C299590DA907A1C409B8818 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
+		4D4590253646B35A20566409 /* UsageProviderRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageProviderRow.swift; sourceTree = "<group>"; };
 		519D1E55589F026240054991 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		51E8782D402683CD9D05DCD3 /* AlertEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertEvent.swift; sourceTree = "<group>"; };
 		52B5A932223E0B4A423D6950 /* LaoZhangProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaoZhangProviderTests.swift; sourceTree = "<group>"; };
 		52E6BB535A3CCB48BCF86A90 /* VolcengineSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolcengineSigner.swift; sourceTree = "<group>"; };
 		54068C0F70D0DB725981D35D /* BackgroundSystemSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSystemSection.swift; sourceTree = "<group>"; };
+		547C8869A4D564E0D74A6BA7 /* UsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageView.swift; sourceTree = "<group>"; };
 		5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClientMock.swift; sourceTree = "<group>"; };
 		57E5CA0EAE0ACA963EBABA91 /* ThemeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeMode.swift; sourceTree = "<group>"; };
 		5A5EAD2AACF92F7B11858ED3 /* TuistBundle+SmartBalance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TuistBundle+SmartBalance.swift"; sourceTree = "<group>"; };
@@ -340,6 +345,7 @@
 		EA4601AEE6E22E8C68DA45B9 /* KimiBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KimiBalanceProvider.swift; sourceTree = "<group>"; };
 		EAFE355963892C82786059F4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		EBD25801FF4237FC1E955A84 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		EE06806A753645E3149671A4 /* UsageCurrencyCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCurrencyCard.swift; sourceTree = "<group>"; };
 		F030FD6912B28D4CF8202858 /* ManualBalanceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualBalanceProvider.swift; sourceTree = "<group>"; };
 		F0C21DCA1A2966B716A55E15 /* MenuBarStatusItemDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusItemDriver.swift; sourceTree = "<group>"; };
 		F14B6A6413BB5EA3C5A52AA7 /* OpenRouterProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterProviderTests.swift; sourceTree = "<group>"; };
@@ -523,6 +529,7 @@
 			isa = PBXGroup;
 			children = (
 				ED3362BA2D8C4A543E7286DA /* Settings */,
+				6BB90E8BAA3085A78C5355CF /* Usage */,
 				F342A2116AC420D4A006039D /* BalanceCardView.swift */,
 				3597F046B4FAC85DF2C83703 /* HomeView.swift */,
 				1F4A673C6ED19EC89A6E61BA /* MenuRootView.swift */,
@@ -575,6 +582,16 @@
 				C179F3AEA1BCAF1A6FFF1060 /* UsageSummaryBuilder.swift */,
 			);
 			path = Domain;
+			sourceTree = "<group>";
+		};
+		6BB90E8BAA3085A78C5355CF /* Usage */ = {
+			isa = PBXGroup;
+			children = (
+				EE06806A753645E3149671A4 /* UsageCurrencyCard.swift */,
+				4D4590253646B35A20566409 /* UsageProviderRow.swift */,
+				547C8869A4D564E0D74A6BA7 /* UsageView.swift */,
+			);
+			path = Usage;
 			sourceTree = "<group>";
 		};
 		7AC388C0365E76E3D8DC7CDC /* Theme */ = {
@@ -940,6 +957,9 @@
 				DEB257278157844EE997587C /* SettingsChrome.swift in Sources */,
 				0B6178146159F40E7FEC142D /* SettingsExpandableCard.swift in Sources */,
 				1818A3A4E7418396BD2F8B1A /* SettingsRootView.swift in Sources */,
+				A1AF1847AD65047EBB4FC594 /* UsageCurrencyCard.swift in Sources */,
+				3B19F45743CD3CB5F166A5F5 /* UsageProviderRow.swift in Sources */,
+				16722E38C4A0E98D1078E546 /* UsageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

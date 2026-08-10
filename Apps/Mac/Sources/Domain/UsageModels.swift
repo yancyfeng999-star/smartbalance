@@ -195,6 +195,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
     public var interval: DateInterval
     public var currencies: [UsageCurrencySummary]
     public var hasAnyBaseline: Bool
+    public var hasBoundaryGap: Bool
     public var earliestDayKey: String?
     public var updatedAt: Date?
 
@@ -203,6 +204,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
         interval: DateInterval,
         currencies: [UsageCurrencySummary],
         hasAnyBaseline: Bool,
+        hasBoundaryGap: Bool,
         earliestDayKey: String?,
         updatedAt: Date?
     ) {
@@ -210,6 +212,7 @@ public struct UsageDashboardSummary: Equatable, Sendable {
         self.interval = interval
         self.currencies = currencies
         self.hasAnyBaseline = hasAnyBaseline
+        self.hasBoundaryGap = hasBoundaryGap
         self.earliestDayKey = earliestDayKey
         self.updatedAt = updatedAt
     }

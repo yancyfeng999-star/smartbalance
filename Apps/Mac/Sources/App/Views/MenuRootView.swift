@@ -3,7 +3,7 @@ import AppKit
 import Domain
 
 /// 菜单栏主壳：
-/// - 外层 **固定宽高**（Popover 380×580），主页 / 设置同一壳，切换不跳
+/// - 外层 **固定宽高**（Popover 380×580），主页 / 用量 / 设置同一壳，切换不跳
 /// - 置顶窗铺满宿主，中间滚动
 /// - 底栏三钮 / 设置右下角「完成」胶囊
 struct MenuRootView: View {
@@ -24,13 +24,18 @@ struct MenuRootView: View {
     var body: some View {
         let _ = l10n.revision
         ZStack {
-            // 同一尺寸壳内切换，避免 if/else 换根视图时 ideal size 抖动
-            if model.selectedTab == .settings {
-                settingsShell
+            // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
+            switch model.selectedTab {
+            case .home:
+                homeShell
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
-            } else {
-                homeShell
+            case .usage:
+                usageShell
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+            case .settings:
+                settingsShell
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
             }
@@ -63,6 +68,26 @@ struct MenuRootView: View {
                 PinnedBalanceWindowController.shared.ensureDefaultSize(force: false)
             }
         }
+    }
+
+    // MARK: - Usage shell
+
+    private var usageShell: some View {
+        VStack(spacing: 0) {
+            detailHeader(title: l10n.t("usage.title"))
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                UsageView(model: model)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Home shell
@@ -175,13 +200,34 @@ struct MenuRootView: View {
                     ? "取消置顶"
                     : "置顶常驻窗口（点其他应用不关闭）"
             )
+
+            Button {
+                model.selectedTab = .settings
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(SBTheme.text)
+                    .frame(width: 28, height: 26)
+            }
+            .buttonStyle(.plain)
+            .help(l10n.t("settings.title"))
+            .keyboardShortcut(",")
+            .accessibilityLabel(l10n.t("settings.title"))
         }
     }
 
     private var settingsHeader: some View {
+        detailHeader(title: l10n.t("settings.title"))
+    }
+
+    private func detailHeader(title: String) -> some View {
         HStack {
             Button {
-                model.selectedTab = .home
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    model.selectedTab = .home
+                }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
@@ -202,9 +248,10 @@ struct MenuRootView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(l10n.t("settings.back"))
 
             Spacer()
-            Text(l10n.t("settings.title"))
+            Text(title)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(SBTheme.text)
             Spacer()
@@ -223,15 +270,15 @@ struct MenuRootView: View {
             .keyboardShortcut("d")
             .help("打开当前选中账号对应平台控制台")
 
-            footerPill(title: l10n.t("home.settings"), systemName: "gearshape") {
+            footerPill(title: l10n.t("home.usage"), systemName: "chart.bar.xaxis") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖
                 var t = Transaction()
                 t.disablesAnimations = true
                 withTransaction(t) {
-                    model.selectedTab = .settings
+                    model.selectedTab = .usage
                 }
             }
-            .keyboardShortcut(",")
+            .keyboardShortcut("u")
 
             footerPill(title: l10n.t("home.quit"), systemName: "power") {
                 model.quit()
