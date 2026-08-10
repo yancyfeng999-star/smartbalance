@@ -9,6 +9,8 @@ final class AppModel: ObservableObject {
     @Published var settings: AppSettings
     @Published var snapshots: [BalanceSnapshot] = []
     @Published var recentAlerts: [AlertEvent] = []
+    @Published private(set) var usageHistory = UsageHistoryDocument()
+    @Published private(set) var usageDataError: String?
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
     @Published var banner: String? {
@@ -24,12 +26,14 @@ final class AppModel: ObservableObject {
 
     enum Tab: String {
         case home
+        case usage
         case settings
     }
 
     private let store = SettingsStore.shared
     private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
+    private let usageStore = UsageHistoryStore.shared
     private var refreshTask: Task<Void, Never>?
     /// 刷新代数：避免慢请求后到覆盖新结果 / 新设置
     private var refreshGeneration: UInt64 = 0
@@ -152,6 +156,10 @@ final class AppModel: ObservableObject {
             applyAppearancePreference()
         }
         startAutoRefreshIfNeeded()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.usageHistory = await self.usageStore.load()
+        }
     }
 
     /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
@@ -179,6 +187,19 @@ final class AppModel: ObservableObject {
             if ia != ib { return ia < ib }
             return a.displayName.localizedStandardCompare(b.displayName) == .orderedAscending
         }
+    }
+
+    func usageSummary(
+        period: UsagePeriod,
+        anchor: Date,
+        calendar: Calendar = .current
+    ) -> UsageDashboardSummary {
+        UsageSummaryBuilder.build(
+            document: usageHistory,
+            period: period,
+            anchor: anchor,
+            calendar: calendar
+        )
     }
 
     func enterReorderMode() {
@@ -328,6 +349,19 @@ final class AppModel: ObservableObject {
                 self.snapshots = orderedSnapshots(result.snapshots)
                 if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
                     self.snapshots = Self.placeholderSnapshots(from: self.settings)
+                }
+                do {
+                    let history = try await usageStore.record(
+                        snapshots: self.snapshots,
+                        knownAccountIDs: Set(self.settings.accounts.map(\.id)),
+                        now: Date(),
+                        calendar: .current
+                    )
+                    self.usageHistory = history
+                    self.usageDataError = nil
+                } catch {
+                    self.usageDataError = "用量记录保存失败"
+                    AppLog.error("Usage history save failed: \(error.localizedDescription)")
                 }
                 if !result.alerts.isEmpty {
                     self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
