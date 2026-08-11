@@ -14,10 +14,11 @@ public final class LocalSecretStore: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.smartbalance.secrets")
     private let service = "com.smartbalance.zhiyu"
     private var memory: [String: String] = [:]
-    private var memoryLoaded = false
     private var isAuthenticated = false
     /// 上次认证成功时间，用于缓存避免反复弹窗
     private var lastAuthTime: Date?
+    /// 认证成功的上下文，传给 Keychain，避免 Keychain 自己另弹登录钥匙串密码。
+    private var authenticationContext: LAContext?
     /// 认证缓存有效期（5分钟）
     private let authCacheDuration: TimeInterval = 300
 
@@ -25,48 +26,74 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     // MARK: - Authentication
 
-    /// 请求生物识别认证（成功后5分钟内不再弹窗）
+    /// 指纹优先；指纹不可用或验证失败后才允许设备登录密码。
+    static func authenticationPolicies(biometricsAvailable: Bool) -> [LAPolicy] {
+        if biometricsAvailable {
+            return [.deviceOwnerAuthenticationWithBiometrics, .deviceOwnerAuthentication]
+        }
+        return [.deviceOwnerAuthentication]
+    }
+
+    /// 请求 Touch ID；Touch ID 不可用或失败后回退到设备登录密码。
     public func authenticate() async -> Bool {
-        // 如果最近已认证过，直接返回成功
-        if isAuthenticated, let lastTime = lastAuthTime,
-           Date().timeIntervalSince(lastTime) < authCacheDuration {
+        if queue.sync(execute: { hasValidAuthenticationLocked() }) {
             return true
         }
 
-        let context = LAContext()
-        context.localizedReason = "解锁智余以访问 API 密钥"
-        context.localizedCancelTitle = "取消"
-
+        let biometricContext = LAContext()
+        biometricContext.localizedReason = "使用 Touch ID 解锁智余"
+        biometricContext.localizedCancelTitle = "取消"
+        biometricContext.localizedFallbackTitle = "使用密码"
         var error: NSError?
-        // 优先尝试生物识别，不可用则回退到密码
-        let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-            ? .deviceOwnerAuthenticationWithBiometrics
-            : .deviceOwnerAuthentication
+        let biometricsAvailable = biometricContext.canEvaluatePolicy(
+            .deviceOwnerAuthenticationWithBiometrics,
+            error: &error
+        )
 
-        guard context.canEvaluatePolicy(policy, error: &error) else {
-            AppLog.error("Authentication not available: \(error?.localizedDescription ?? "Unknown")")
-            return false
-        }
+        for (index, policy) in Self.authenticationPolicies(biometricsAvailable: biometricsAvailable).enumerated() {
+            let context: LAContext
+            if index == 0, policy == .deviceOwnerAuthenticationWithBiometrics {
+                context = biometricContext
+            } else {
+                context = LAContext()
+                context.localizedReason = "使用设备密码解锁智余"
+                context.localizedCancelTitle = "取消"
+                context.localizedFallbackTitle = "使用密码"
+            }
 
-        let success = await withCheckedContinuation { continuation in
-            context.evaluatePolicy(policy, localizedReason: "解锁智余以访问 API 密钥") { result, _ in
-                continuation.resume(returning: result)
+            var policyError: NSError?
+            guard context.canEvaluatePolicy(policy, error: &policyError) else {
+                continue
+            }
+
+            let success = await withCheckedContinuation { continuation in
+                context.evaluatePolicy(policy, localizedReason: context.localizedReason) { result, _ in
+                    continuation.resume(returning: result)
+                }
+            }
+
+            if success {
+                queue.sync {
+                    isAuthenticated = true
+                    lastAuthTime = Date()
+                    authenticationContext = context
+                }
+                return true
             }
         }
 
-        if success {
-            isAuthenticated = true
-            lastAuthTime = Date()
-        } else {
-            AppLog.error("Authentication failed")
-        }
-        return success
+        AppLog.error("Authentication failed")
+        return false
     }
 
     /// 重置认证状态（锁定后需重新认证）
     public func lock() {
-        isAuthenticated = false
-        lastAuthTime = nil
+        queue.sync {
+            isAuthenticated = false
+            lastAuthTime = nil
+            authenticationContext = nil
+            memory.removeAll()
+        }
     }
 
     // MARK: - CRUD
@@ -80,17 +107,18 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     public func get(account: String) -> String? {
         queue.sync {
-            if let value = loadFromKeychain(key: account) {
+            if let value = memory[account] {
                 return value
             }
-            return memory[account]
+            guard hasValidAuthenticationLocked() else { return nil }
+            guard let value = loadFromKeychain(key: account) else { return nil }
+            memory[account] = value
+            return value
         }
     }
 
     public func contains(account: String) -> Bool {
-        queue.sync {
-            return get(account: account) != nil
-        }
+        get(account: account) != nil
     }
 
     public func delete(account: String) {
@@ -114,7 +142,6 @@ public final class LocalSecretStore: @unchecked Sendable {
                 try saveToKeychain(key: key, value: value)
             }
             memory = dict
-            memoryLoaded = true
         }
     }
 
@@ -130,86 +157,102 @@ public final class LocalSecretStore: @unchecked Sendable {
             throw SecretStoreError.encodingFailed
         }
         
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            kSecValueData as String: data
         ]
-        
-        // 先删除旧条目
-        SecItemDelete(query as CFDictionary)
-        
+
+        guard let accessControl = makeAccessControl() else {
+            throw SecretStoreError.keychainFailed(errSecParam)
+        }
+        query[kSecAttrAccessControl as String] = accessControl
+        addAuthenticationContext(to: &query)
+
+        // 更新旧条目；不存在时再创建，避免先删除造成密钥短暂丢失。
+        let identity = identityQuery(key: key)
+        var updates: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessControl as String: accessControl
+        ]
+        let updateStatus = SecItemUpdate(identity as CFDictionary, updates as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return
+        }
+        guard updateStatus == errSecItemNotFound else {
+            throw SecretStoreError.keychainFailed(updateStatus)
+        }
+
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw SecretStoreError.keychainFailed(status)
         }
     }
-    
+
     private func loadFromKeychain(key: String) -> String? {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+        addAuthenticationContext(to: &query)
+
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
+
         guard status == errSecSuccess, let data = result as? Data else {
             return nil
         }
-        
+
         return String(data: data, encoding: .utf8)
     }
-    
+
     private func deleteFromKeychain(key: String) {
-        let query: [String: Any] = [
+        let query = identityQuery(key: key)
+        SecItemDelete(query as CFDictionary)
+    }
+
+    private func identityQuery(key: String) -> [String: Any] {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
-        
-        SecItemDelete(query as CFDictionary)
+        addAuthenticationContext(to: &query)
+        return query
     }
-    
-    private func ensureMemoryLoaded() {
-        guard !memoryLoaded else { return }
-        // 从 Keychain 加载所有条目
-        memory = loadAllFromKeychain()
-        memoryLoaded = true
+
+    private func makeAccessControl() -> SecAccessControl? {
+        var error: Unmanaged<CFError>?
+        return SecAccessControlCreateWithFlags(
+            kCFAllocatorDefault,
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            .userPresence,
+            &error
+        )
     }
-    
-    private func loadAllFromKeychain() -> [String: String] {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecReturnAttributes as String: true,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitAll
-        ]
-        
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
-        guard status == errSecSuccess, let items = result as? [[String: Any]] else {
-            return [:]
+
+    private func addAuthenticationContext(to query: inout [String: Any]) {
+        guard hasValidAuthenticationLocked(), let authenticationContext else { return }
+        query[kSecUseAuthenticationContext as String] = authenticationContext
+    }
+
+    private func hasValidAuthenticationLocked() -> Bool {
+        guard isAuthenticated,
+              let lastAuthTime,
+              authenticationContext != nil else {
+            return false
         }
-        
-        var dict: [String: String] = [:]
-        for item in items {
-            guard let key = item[kSecAttrAccount as String] as? String,
-                  let data = item[kSecValueData as String] as? Data,
-                  let value = String(data: data, encoding: .utf8) else {
-                continue
-            }
-            dict[key] = value
+        if Date().timeIntervalSince(lastAuthTime) >= authCacheDuration {
+            isAuthenticated = false
+            self.lastAuthTime = nil
+            authenticationContext = nil
+            return false
         }
-        
-        return dict
+        return true
     }
 
     public enum SecretStoreError: Error, LocalizedError {

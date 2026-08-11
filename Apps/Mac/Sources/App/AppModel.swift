@@ -162,8 +162,11 @@ final class AppModel: ObservableObject {
             applyAppearancePreference()
             // 请求生物识别认证
             await authenticateSecretStore()
+            // 认证完成后再启动余额刷新，避免刷新与认证并发访问 Keychain。
+            if self.isUnlocked {
+                self.startAutoRefreshIfNeeded()
+            }
         }
-        startAutoRefreshIfNeeded()
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
