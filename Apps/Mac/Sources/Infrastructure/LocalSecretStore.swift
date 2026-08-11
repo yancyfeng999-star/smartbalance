@@ -16,42 +16,57 @@ public final class LocalSecretStore: @unchecked Sendable {
     private var memory: [String: String] = [:]
     private var memoryLoaded = false
     private var isAuthenticated = false
+    /// 上次认证成功时间，用于缓存避免反复弹窗
+    private var lastAuthTime: Date?
+    /// 认证缓存有效期（5分钟）
+    private let authCacheDuration: TimeInterval = 300
 
     public init() {}
 
     // MARK: - Authentication
 
-    /// 请求生物识别认证
+    /// 请求生物识别认证（成功后5分钟内不再弹窗）
     public func authenticate() async -> Bool {
+        // 如果最近已认证过，直接返回成功
+        if isAuthenticated, let lastTime = lastAuthTime,
+           Date().timeIntervalSince(lastTime) < authCacheDuration {
+            return true
+        }
+
         let context = LAContext()
         context.localizedReason = "解锁智余以访问 API 密钥"
         context.localizedCancelTitle = "取消"
-        
+
         var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            // 如果生物识别不可用，回退到密码
-            guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-                AppLog.error("Authentication not available: \(error?.localizedDescription ?? "Unknown")")
-                return false
-            }
-            return await withCheckedContinuation { continuation in
-                context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "解锁智余以访问 API 密钥") { success, error in
-                    if !success {
-                        AppLog.error("Authentication failed: \(error?.localizedDescription ?? "Unknown")")
-                    }
-                    continuation.resume(returning: success)
-                }
+        // 优先尝试生物识别，不可用则回退到密码
+        let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+            ? .deviceOwnerAuthenticationWithBiometrics
+            : .deviceOwnerAuthentication
+
+        guard context.canEvaluatePolicy(policy, error: &error) else {
+            AppLog.error("Authentication not available: \(error?.localizedDescription ?? "Unknown")")
+            return false
+        }
+
+        let success = await withCheckedContinuation { continuation in
+            context.evaluatePolicy(policy, localizedReason: "解锁智余以访问 API 密钥") { result, _ in
+                continuation.resume(returning: result)
             }
         }
-        
-        return await withCheckedContinuation { continuation in
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "解锁智余以访问 API 密钥") { success, error in
-                if !success {
-                    AppLog.error("Biometric authentication failed: \(error?.localizedDescription ?? "Unknown")")
-                }
-                continuation.resume(returning: success)
-            }
+
+        if success {
+            isAuthenticated = true
+            lastAuthTime = Date()
+        } else {
+            AppLog.error("Authentication failed")
         }
+        return success
+    }
+
+    /// 重置认证状态（锁定后需重新认证）
+    public func lock() {
+        isAuthenticated = false
+        lastAuthTime = nil
     }
 
     // MARK: - CRUD
