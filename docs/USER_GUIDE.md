@@ -69,7 +69,7 @@ open ~/Desktop/智余.app
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（本机文件，权限 0600，启动即可读） |
+| 密钥 | macOS Keychain（普通条目，启动即可读） |
 | 用量历史 | `…/usage-history.json`（权限 0600，不含任何密钥或响应正文） |
 
 ---

@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.2.59 |
+| 版本 | 0.2.60 |
 
 ---
 
@@ -120,7 +120,7 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（0600，本机直读，无指纹） |
+| 密钥 | macOS Keychain（普通条目，不启用指纹/密码门禁） |
 | 用量历史 | `…/usage-history.json`（0600，本机记录，最多 400 天） |
 
 ---

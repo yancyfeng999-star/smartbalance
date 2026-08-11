@@ -52,9 +52,6 @@ final class AppModel: ObservableObject {
     @Published var updateDownloadProgress: Double?
     /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
     @Published var browserImporting = false
-    /// 密钥库是否已解锁
-    @Published var isUnlocked = false
-    
     private let updateChecker = UpdateChecker()
 
     /// 非进度类 banner 数秒后自动清除。
@@ -160,10 +157,9 @@ final class AppModel: ObservableObject {
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
-            // 请求生物识别认证
-            await authenticateSecretStore()
+            // 普通 Keychain 不需要启动解锁，直接开始后台刷新。
+            self.startAutoRefreshIfNeeded()
         }
-        startAutoRefreshIfNeeded()
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -177,15 +173,7 @@ final class AppModel: ObservableObject {
         }
     }
     
-    /// 请求生物识别认证
-    func authenticateSecretStore() async {
-        isUnlocked = await secrets.authenticate()
-        if !isUnlocked {
-            banner = "请使用 Touch ID 或密码解锁智余"
-        }
-    }
-
-    /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
+    /// 有账号时的占位卡（加载中），保证首页直接进卡片而不是「去添加账号」。
     /// 顺序与 `settings.accounts`（用户排序）一致。
     private static func placeholderSnapshots(from settings: AppSettings) -> [BalanceSnapshot] {
         settings.enabledAccounts.map { account in
@@ -533,14 +521,6 @@ final class AppModel: ObservableObject {
         secret: String,
         manualAmount: Double? = nil
     ) async {
-        if !isUnlocked {
-            let success = await secrets.authenticate()
-            if !success {
-                banner = "请先使用 Touch ID 或密码解锁"
-                return
-            }
-            isUnlocked = true
-        }
         let normalized = normalizeSessionCredential(kind: kind, secret: secret, userId: userId)
         let account = BalanceAccount(
             kind: kind,
@@ -621,14 +601,6 @@ final class AppModel: ObservableObject {
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
     func updateAccountSecret(id: UUID, secret: String) async {
-        if !isUnlocked {
-            let success = await secrets.authenticate()
-            if !success {
-                banner = "请先使用 Touch ID 或密码解锁"
-                return
-            }
-            isUnlocked = true
-        }
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
         let acc = settings.accounts[idx]
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1066,7 +1038,7 @@ final class AppModel: ObservableObject {
         next.windowPinned = false
         next.apiQueryEnabled = true
 
-        // 导入事务：settings 失败则回滚 vault
+        // 导入事务：settings 失败则回滚密钥库
         let vaultBefore = secrets.snapshot()
         try secrets.replaceAll(package.secrets)
         do {

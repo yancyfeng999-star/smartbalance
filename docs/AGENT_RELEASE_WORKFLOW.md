@@ -161,7 +161,7 @@ releases/Mac/vX.Y.Z/
 - [ ] 功能/修复已 commit，或将由 `release.sh` 一并纳入 Sources
 - [ ] Debug 或 Release 能编过
 - [ ] `NOTES` 写清楚用户能看懂的变更
-- [ ] 无密钥 / `settings.json` / `secrets.vault` 被 `git add`
+- [ ] 无密钥 / `settings.json` / 本机运行数据被 `git add`
 
 发版后：
 
