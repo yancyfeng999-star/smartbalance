@@ -4,11 +4,4 @@
    <FileRef
       location = "group:SmartBalance.xcodeproj">
    </FileRef>
-   <Group
-      location = "container:"
-      name = "Dependencies">
-      <FileRef
-         location = "group:Tuist/.build/tuist-derived/Projects/MenuBarExtraAccess/MenuBarExtraAccess.xcodeproj">
-      </FileRef>
-   </Group>
 </Workspace>
