@@ -93,7 +93,11 @@ if ! git remote get-url origin >/dev/null 2>&1; then
   echo "error: 无 origin remote，请先 gh repo create / git remote add" >&2
   exit 1
 fi
-git push -u origin HEAD
+
+# 创建 release 分支并推送到远程
+RELEASE_BRANCH="release/${VERSION}"
+git checkout -b "${RELEASE_BRANCH}"
+git push -u origin "${RELEASE_BRANCH}"
 
 # 删除同名 tag 重发（仅当本地强制）
 if git rev-parse "${TAG}" >/dev/null 2>&1; then
@@ -102,21 +106,15 @@ fi
 git tag -a "${TAG}" -m "智余 SmartBalance ${VERSION}"
 git push origin "${TAG}" --force
 
-echo "======== 5) GitHub Release ========"
-# 删旧 release（若存在）
-gh release delete "${TAG}" --yes 2>/dev/null || true
-
-NOTES_FILE="${STAGE}/RELEASE_NOTES.md"
-# 只上传英文名资产，避免中文文件名被截断
-gh release create "${TAG}" \
-  --title "智余 SmartBalance ${VERSION}" \
-  --notes-file "${NOTES_FILE}" \
-  "${STAGE}/SmartBalance-${VERSION}.dmg" \
-  "${STAGE}/SmartBalance-${VERSION}.pkg" \
-  "${STAGE}/SHA256SUMS.txt"
+echo "======== 5) 创建 Pull Request ========"
+gh pr create --title "release: ${VERSION} (build ${BUILD})" --body "发版 PR，包含版本 ${VERSION} 的变更" --base main --head "${RELEASE_BRANCH}"
 
 echo ""
-echo "========== 发版完成 =========="
+echo "========== 发版准备完成 =========="
 echo "版本: ${VERSION} (build ${BUILD})"
-echo "Release: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/${TAG}"
-echo "资产: SmartBalance-${VERSION}.dmg / .pkg（仅 GitHub，不放桌面）"
+echo "PR: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/pull/new/${RELEASE_BRANCH}"
+echo "资产: ${STAGE}/SmartBalance-${VERSION}.dmg / .pkg"
+echo ""
+echo "下一步："
+echo "1. 在 GitHub 上 Review 并 Merge PR"
+echo "2. 运行 ./scripts/publish-release.sh ${VERSION} 来创建 GitHub Release"

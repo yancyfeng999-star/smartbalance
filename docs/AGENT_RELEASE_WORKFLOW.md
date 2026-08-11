@@ -101,7 +101,7 @@ git commit -m "fix: 一句话说明"
 ```bash
 cd "/Users/yancyfeng/Desktop/Mac Dpxx项目/自研软件/智余/Apps/Mac"
 
-# 默认：patch 升版 + 打包 + push + GitHub Release
+# 默认：patch 升版 + 打包 + push + 创建 PR
 NOTES="修复……（中文，给用户看的）" ./scripts/release.sh
 
 # 次版本
@@ -121,12 +121,9 @@ SKIP_PUBLISH=1 NOTES="试包" ./scripts/release.sh
 2) package-release.sh  → Release 构建 → dmg/pkg → releases/Mac/vX.Y.Z/
 3) 更新 CHANGELOG.md 头段（用 NOTES）
 4) git commit "release: X.Y.Z (build N)"
-5) git push origin HEAD
+5) git push origin release/X.Y.Z
 6) git tag vX.Y.Z && push tag
-7) gh release create vX.Y.Z
-     + SmartBalance-X.Y.Z.dmg
-     + SmartBalance-X.Y.Z.pkg
-     + SHA256SUMS.txt
+7) gh pr create → 创建 PR 到 main
 ```
 
 ### 产物位置
@@ -142,6 +139,14 @@ releases/Mac/vX.Y.Z/
 ```
 
 默认**不复制到桌面**。正式安装路径：`/Applications/智余.app`。
+
+### 后续步骤
+
+```bash
+# 1. 在 GitHub 上 Review 并 Merge PR
+# 2. 运行 publish-release.sh 创建 GitHub Release
+./scripts/publish-release.sh <version>
+```
 
 ### 超时
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.57 — 2026-08-11
+
+安全升级：密钥存入 Keychain，支持指纹/密码解锁；发版流程改为 PR 工作流
+
+
 ## 0.2.56 — 2026-08-11
 
 新增本地按天、周、月统计各渠道用量
@@ -39,11 +44,6 @@ apinebula：Chrome 一键导入 session 自动查余额，无需手填密钥/用
 
 apinebula 支持自动查余额：系统访问令牌或 session Cookie + 用户 ID，按人民币展示；默认控制台 https://apinebula.ai
 
-
-## Unreleased
-
-- **apinebula**：可自动查余额（不再手录）。系统访问令牌或 session Cookie + 用户 ID；`quota/500000` → ¥；默认控制台 `https://apinebula.ai/zh/console/topup`
-- 显示名统一为 **apinebula**
 
 ## 0.2.48 — 2026-08-09
 
