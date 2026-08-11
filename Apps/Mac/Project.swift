@@ -55,7 +55,7 @@ let project = Project(
             bundleId: "com.smartbalance.zhiyu",
             deploymentTargets: .macOS("15.0"),
             infoPlist: .file(path: "Sources/App/Info.plist"),
-            sources: ["Sources/App/**"],
+            sources: ["Sources/App/**", "Tuist/.build/checkouts/MenuBarExtraAccess/Sources/MenuBarExtraAccess/**"],
             resources: [
                 "Sources/App/Resources/**",
             ],
