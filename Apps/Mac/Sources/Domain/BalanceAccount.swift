@@ -12,7 +12,7 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public var consoleURL: String?
     /// 部分平台管理接口需要的用户 ID（如 DMXAPI 的 Dmx-Api-User）；非密钥，可落盘。
     public var userId: String?
-    /// 密钥库引用键；真实密钥在 secrets.vault。
+    /// 密钥库引用键；真实密钥在本机 Keychain。
     public var secretRef: String
     public var enabled: Bool
     /// 货币金额阈值（低于则报警）；nil 表示用全局默认。
