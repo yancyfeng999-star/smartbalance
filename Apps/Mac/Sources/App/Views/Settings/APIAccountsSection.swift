@@ -187,7 +187,9 @@ struct APIAccountsSection: View {
                     .transition(AppMotion.expandContent)
                 if acc.kind.supportsBrowserSessionImport {
                     Button(model.browserImporting ? "导入中…" : "从 Chrome 重新导入登录态") {
-                        model.importBrowserSession(intoAccountId: acc.id)
+                        Task {
+                            await model.importBrowserSession(intoAccountId: acc.id)
+                        }
                         editAccountId = nil
                     }
                     .buttonStyle(.plain)
@@ -297,10 +299,12 @@ struct APIAccountsSection: View {
                         let ak = editAccessKey.trimmingCharacters(in: .whitespacesAndNewlines)
                         let sk = editField.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !ak.isEmpty, !sk.isEmpty {
-                            model.updateAccountSecret(
-                                id: acc.id,
-                                secret: VolcengineSigner.packCredentials(accessKeyId: ak, secretAccessKey: sk)
-                            )
+                            Task {
+                                await model.updateAccountSecret(
+                                    id: acc.id,
+                                    secret: VolcengineSigner.packCredentials(accessKeyId: ak, secretAccessKey: sk)
+                                )
+                            }
                         }
                         editAccountId = nil
                         editField = ""
@@ -349,7 +353,9 @@ struct APIAccountsSection: View {
                             model.updateAccountUserId(id: acc.id, userId: editUserId)
                         }
                         if hasSecret {
-                            model.updateAccountSecret(id: acc.id, secret: editField)
+                            Task {
+                                await model.updateAccountSecret(id: acc.id, secret: editField)
+                            }
                         }
                         if !hasUID && !hasSecret {
                             if acc.kind.needsUserId, (acc.userId ?? "").isEmpty {
@@ -441,7 +447,9 @@ struct APIAccountsSection: View {
 
             if kind.supportsBrowserSessionImport {
                 Button(model.browserImporting ? "导入中…" : "从 Chrome 导入并添加") {
-                    model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
+                    Task {
+                        await model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
+                    }
                     // 导入在后台跑；成功后会 refresh，这里清草稿便于再添
                     if !model.browserImporting {
                         resetDraft(for: kind)
@@ -450,7 +458,9 @@ struct APIAccountsSection: View {
                 .buttonStyle(SBButtonStyle(kind: .accent))
                 .disabled(model.browserImporting)
                 Button("手动填写后保存") {
-                    submitAdd(kind: kind)
+                    Task {
+                        await submitAdd(kind: kind)
+                    }
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .semibold))
@@ -458,7 +468,9 @@ struct APIAccountsSection: View {
                 .disabled(addDisabled(kind) || model.browserImporting)
             } else {
                 Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {
-                    submitAdd(kind: kind)
+                    Task {
+                        await submitAdd(kind: kind)
+                    }
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))
                 .disabled(addDisabled(kind))
@@ -526,7 +538,7 @@ struct APIAccountsSection: View {
             || (kind.needsUserId && draftUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    private func submitAdd(kind: ProviderKind) {
+    private func submitAdd(kind: ProviderKind) async {
         let amount = Double(
             draftManualAmount
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -542,7 +554,7 @@ struct APIAccountsSection: View {
             secret = draftSecret
         }
         let console = draftConsoleURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        model.addAccount(
+        await model.addAccount(
             kind: kind,
             displayName: draftName,
             baseURL: kind.needsBaseURL ? draftBaseURL : kind.defaultBaseURL,

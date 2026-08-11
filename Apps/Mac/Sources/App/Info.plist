@@ -39,5 +39,7 @@
 	<string>alert</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>余额偏低或收到平台报警邮件时，智余通过系统通知提醒您。</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>智余需要使用 Face ID 来解锁您的 API 密钥。</string>
 </dict>
 </plist>

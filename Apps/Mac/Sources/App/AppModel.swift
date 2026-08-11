@@ -52,7 +52,9 @@ final class AppModel: ObservableObject {
     @Published var updateDownloadProgress: Double?
     /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
     @Published var browserImporting = false
-
+    /// 密钥库是否已解锁
+    @Published var isUnlocked = false
+    
     private let updateChecker = UpdateChecker()
 
     /// 非进度类 banner 数秒后自动清除。
@@ -158,6 +160,8 @@ final class AppModel: ObservableObject {
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
+            // 请求生物识别认证
+            await authenticateSecretStore()
         }
         startAutoRefreshIfNeeded()
         Task { @MainActor [weak self] in
@@ -170,6 +174,14 @@ final class AppModel: ObservableObject {
                 self.usageDataError = "load"
                 AppLog.error("Usage history load failed: \(error.localizedDescription)")
             }
+        }
+    }
+    
+    /// 请求生物识别认证
+    func authenticateSecretStore() async {
+        isUnlocked = await secrets.authenticate()
+        if !isUnlocked {
+            banner = "请使用 Touch ID 或密码解锁智余"
         }
     }
 
@@ -520,7 +532,15 @@ final class AppModel: ObservableObject {
         userId: String? = nil,
         secret: String,
         manualAmount: Double? = nil
-    ) {
+    ) async {
+        if !isUnlocked {
+            let success = await secrets.authenticate()
+            if !success {
+                banner = "请先使用 Touch ID 或密码解锁"
+                return
+            }
+            isUnlocked = true
+        }
         let normalized = normalizeSessionCredential(kind: kind, secret: secret, userId: userId)
         let account = BalanceAccount(
             kind: kind,
@@ -600,7 +620,15 @@ final class AppModel: ObservableObject {
     }
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
-    func updateAccountSecret(id: UUID, secret: String) {
+    func updateAccountSecret(id: UUID, secret: String) async {
+        if !isUnlocked {
+            let success = await secrets.authenticate()
+            if !success {
+                banner = "请先使用 Touch ID 或密码解锁"
+                return
+            }
+            isUnlocked = true
+        }
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
         let acc = settings.accounts[idx]
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -647,7 +675,7 @@ final class AppModel: ObservableObject {
     }
 
     /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（纯后台，绝不堵 UI）。
-    func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") {
+    func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") async {
         guard kind.supportsBrowserSessionImport else {
             banner = "该平台不支持浏览器导入"
             return
@@ -656,35 +684,28 @@ final class AppModel: ObservableObject {
         browserImporting = true
         banner = "正在从 Chrome 读取登录态（请稍候，勿重复点击）…"
         let name = displayName
-        // 用 detached，避免 MainActor Task 继承导致钥匙串/进程仍卡界面
-        Task.detached(priority: .userInitiated) {
-            do {
-                let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
-                await MainActor.run {
-                    self.addAccount(
-                        kind: kind,
-                        displayName: name,
-                        baseURL: kind.defaultBaseURL,
-                        consoleURL: kind.defaultConsoleURL,
-                        userId: cred.userId,
-                        secret: cred.secret
-                    )
-                    self.browserImporting = false
-                    self.banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
-                }
-            } catch {
-                let msg = error.localizedDescription
-                await MainActor.run {
-                    self.browserImporting = false
-                    self.banner = msg
-                }
-                AppLog.error("Browser import failed: \(msg)")
-            }
+        do {
+            let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
+            await addAccount(
+                kind: kind,
+                displayName: name,
+                baseURL: kind.defaultBaseURL,
+                consoleURL: kind.defaultConsoleURL,
+                userId: cred.userId,
+                secret: cred.secret
+            )
+            browserImporting = false
+            banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
+        } catch {
+            let msg = error.localizedDescription
+            browserImporting = false
+            banner = msg
+            AppLog.error("Browser import failed: \(msg)")
         }
     }
 
     /// 已有账号：从浏览器刷新会话 Cookie（纯后台）。
-    func importBrowserSession(intoAccountId id: UUID) {
+    func importBrowserSession(intoAccountId id: UUID) async {
         guard let acc = settings.accounts.first(where: { $0.id == id }) else { return }
         guard acc.kind.supportsBrowserSessionImport else {
             banner = "该平台不支持浏览器导入"
@@ -695,25 +716,19 @@ final class AppModel: ObservableObject {
         banner = "正在从 Chrome 更新登录态（请稍候）…"
         let kind = acc.kind
         let title = acc.title
-        Task.detached(priority: .userInitiated) {
-            do {
-                let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
-                await MainActor.run {
-                    self.updateAccountSecret(id: id, secret: cred.secret)
-                    if let uid = cred.userId, !uid.isEmpty {
-                        self.updateAccountUserId(id: id, userId: uid)
-                    }
-                    self.browserImporting = false
-                    self.banner = "已从 \(cred.source) 更新 \(title) 登录态"
-                }
-            } catch {
-                let msg = error.localizedDescription
-                await MainActor.run {
-                    self.browserImporting = false
-                    self.banner = msg
-                }
-                AppLog.error("Browser re-import failed: \(msg)")
+        do {
+            let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
+            await updateAccountSecret(id: id, secret: cred.secret)
+            if let uid = cred.userId, !uid.isEmpty {
+                updateAccountUserId(id: id, userId: uid)
             }
+            browserImporting = false
+            banner = "已从 \(cred.source) 更新 \(title) 登录态"
+        } catch {
+            let msg = error.localizedDescription
+            browserImporting = false
+            banner = msg
+            AppLog.error("Browser re-import failed: \(msg)")
         }
     }
 
