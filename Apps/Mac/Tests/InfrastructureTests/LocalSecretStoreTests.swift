@@ -1,19 +1,15 @@
-import LocalAuthentication
 import XCTest
 @testable import Infrastructure
 
 final class LocalSecretStoreTests: XCTestCase {
-    func testBiometricsAreAttemptedBeforeDevicePasswordFallback() {
-        XCTAssertEqual(
-            LocalSecretStore.authenticationPolicies(biometricsAvailable: true).map(\.rawValue),
-            [LAPolicy.deviceOwnerAuthenticationWithBiometrics.rawValue, LAPolicy.deviceOwnerAuthentication.rawValue]
-        )
-    }
+    func testOrdinaryKeychainSecretCanBeReadByANewStoreInstance() throws {
+        let account = "test.ordinary-keychain.\(UUID().uuidString)"
+        let writer = LocalSecretStore()
+        defer { writer.delete(account: account) }
 
-    func testUnavailableBiometricsUsesDevicePasswordOnly() {
-        XCTAssertEqual(
-            LocalSecretStore.authenticationPolicies(biometricsAvailable: false).map(\.rawValue),
-            [LAPolicy.deviceOwnerAuthentication.rawValue]
-        )
+        try writer.set("test-secret", account: account)
+
+        let reader = LocalSecretStore()
+        XCTAssertEqual(reader.get(account: account), "test-secret")
     }
 }
