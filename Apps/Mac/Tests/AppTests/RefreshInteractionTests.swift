@@ -105,6 +105,11 @@ final class RefreshInteractionTests: XCTestCase {
         XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .windowClosed), .windowClosed)
         XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .willSleep), .sleepWake)
         XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .userCancel), .user)
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .didWake))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .menuAppear))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .windowPinned))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .pageSwitch))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .notificationStateChange))
     }
 
     func testSupersededTerminalMustNotClearBaselineResetLoading() {

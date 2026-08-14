@@ -313,6 +313,42 @@ final class RefreshCoordinatorTests: XCTestCase {
         )
     }
 
+    func testCancelledTaskCompletionDoesNotWriteAgainOrCountSuccess() async {
+        let gate = AsyncGate()
+        let usage = FakeUsageRecorder(gate: gate)
+        let provider = ControllableFakeProvider(
+            kind: .deepseek,
+            gate: gate,
+            snapshot: snapshot(id: accountA, amount: 64, status: .healthy)
+        )
+        var writes = 0
+        let metrics = PerformanceSample()
+        let coordinator = RefreshCoordinator(
+            clock: ControllableRefreshClock(clockStart),
+            fetcher: ProviderBackedRefreshFetcher(providers: [accountA: provider]),
+            usageRecorder: usage,
+            metrics: metrics
+        )
+        coordinator.seedAcceptedSnapshots([snapshot(id: accountA, amount: 3, status: .healthy)])
+        coordinator.onSnapshotsAccepted = { _ in writes += 1 }
+
+        XCTAssertEqual(
+            coordinator.request(.init(trigger: .manual), settings: settings([accountA])),
+            .started
+        )
+        await waitUntil { provider.callCount == 1 }
+        coordinator.cancel(reason: .sleepWake)
+        await gate.release()
+        _ = await coordinator.waitForCompletion()
+
+        XCTAssertEqual(writes, 0)
+        XCTAssertEqual(usage.calls, 0)
+        XCTAssertEqual(coordinator.acceptedSnapshots.first?.amount, 3)
+        XCTAssertEqual(metrics.snapshot().cancelCount, 1)
+        XCTAssertEqual(metrics.snapshot().successCount, 0)
+        XCTAssertEqual(coordinator.acceptedWriteCount, 0)
+    }
+
     func testNoAccountsDoesNotTouchProvidersOrHTTP() async {
         let http = MockHTTPClient(statusCode: 200, json: Self.deepSeekJSON)
         let provider = DeepSeekBalanceProvider(http: http)

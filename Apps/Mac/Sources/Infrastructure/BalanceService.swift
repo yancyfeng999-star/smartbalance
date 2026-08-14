@@ -11,6 +11,7 @@ public actor BalanceService {
     private let perAccountTimeout: Duration = .seconds(15)
     /// 邮件发送上限；超时只记失败，不挡余额展示。
     private let smtpTimeout: Duration = .seconds(10)
+    private let fetchLimiter = RefreshConcurrencyLimiter()
 
     public init(
         secrets: LocalSecretStore = .shared,
@@ -31,8 +32,10 @@ public actor BalanceService {
         await withTaskGroup(of: (UUID, BalanceSnapshot).self) { group in
             for account in accounts {
                 group.addTask {
-                    let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
-                    return (account.id, snap)
+                    await self.fetchLimiter.withPermit {
+                        let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
+                        return (account.id, snap)
+                    }
                 }
             }
             for await (id, snap) in group {

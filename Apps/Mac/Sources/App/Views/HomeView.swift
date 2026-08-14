@@ -117,7 +117,11 @@ struct HomeView: View {
     }
 
     private func cardAppearAnimation(index: Int) -> Animation? {
-        AppMotion.animation(AppMotion.appear.delay(Double(index) * 0.05), reduceMotion: reduceMotion)
+        AppMotion.appearAnimation(
+            forIndex: index,
+            itemCount: model.snapshots.count,
+            reduceMotion: reduceMotion
+        )
     }
 
     private func genericNoticeBanner(_ notice: String) -> some View {

@@ -34,6 +34,8 @@ public enum AppLog {
     nonisolated(unsafe) public static var maxFileSizeBytesOverride: Int64?
     nonisolated(unsafe) public static var maxRotatedFilesOverride: Int?
     nonisolated(unsafe) public static var fileIOThreadObserverForTests: (() -> Void)?
+    nonisolated(unsafe) public static var writeShouldFailForTests = false
+    public static let filePermission = 0o600
 
     public static var directoryURL: URL {
         if let directoryOverride {
@@ -86,6 +88,7 @@ public enum AppLog {
         let lineOut = "[\(ts)] [\(level)] [\(category.rawValue)] \(file):\(line)\(eventPart) \(redacted)\n"
         ioQueue.async {
             fileIOThreadObserverForTests?()
+            if writeShouldFailForTests { return }
             rotateIfNeededOnQueue()
             appendOnQueue(lineOut)
         }
@@ -106,6 +109,7 @@ public enum AppLog {
         maxFileSizeBytesOverride = nil
         maxRotatedFilesOverride = nil
         fileIOThreadObserverForTests = nil
+        writeShouldFailForTests = false
     }
 
     public static func flushForTests() {
@@ -152,6 +156,10 @@ public enum AppLog {
         let first = dir.appendingPathComponent("app.log.1")
         try? fm.removeItem(at: first)
         try? fm.moveItem(at: url, to: first)
+        applyFilePermissions(first)
+        for index in 1...maxRotated {
+            applyFilePermissions(dir.appendingPathComponent("app.log.\(index)"))
+        }
     }
 
     private static func appendOnQueue(_ lineOut: String) {
@@ -161,11 +169,28 @@ public enum AppLog {
             if let handle = try? FileHandle(forWritingTo: url) {
                 defer { try? handle.close() }
                 _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: data)
+                do {
+                    try handle.write(contentsOf: data)
+                } catch {
+                    return
+                }
             }
         } else {
-            try? data.write(to: url, options: .atomic)
+            do {
+                try data.write(to: url, options: .atomic)
+            } catch {
+                return
+            }
         }
+        applyFilePermissions(url)
+    }
+
+    private static func applyFilePermissions(_ url: URL) {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: filePermission],
+            ofItemAtPath: url.path
+        )
     }
 
     private static func tailLinesOnQueue(from url: URL, maxLines: Int, maxBytes: Int) -> [String] {

@@ -176,6 +176,12 @@ public enum RefreshLifecycleEvent: Sendable, Equatable {
     case applicationDidResignActive
     case themeIdentityRebuild
     case willSleep
+    case didWake
+    case menuAppear
+    case windowPinned
+    case pageSwitch
+    case notificationStateChange
+    case intervalTick
 }
 
 public enum RefreshLifecyclePolicy: Sendable {
@@ -187,10 +193,37 @@ public enum RefreshLifecyclePolicy: Sendable {
             return .windowClosed
         case .willSleep:
             return .sleepWake
-        case .applicationDidResignActive, .themeIdentityRebuild:
+        case .applicationDidResignActive, .themeIdentityRebuild,
+             .didWake, .menuAppear, .windowPinned, .pageSwitch,
+             .notificationStateChange, .intervalTick:
             return nil
         }
     }
+
+    public static func createsIndependentRefreshTimer(for event: RefreshLifecycleEvent) -> Bool {
+        false
+    }
+
+    public static func shouldScheduleRefresh(for event: RefreshLifecycleEvent) -> Bool {
+        switch event {
+        case .didWake, .menuAppear, .intervalTick:
+            return true
+        case .userCancel, .windowClosed, .applicationDidResignActive,
+             .themeIdentityRebuild, .willSleep, .windowPinned, .pageSwitch,
+             .notificationStateChange:
+            return false
+        }
+    }
+}
+
+public enum RefreshFetchLimits: Sendable {
+    public static let maxConcurrentAccounts = 4
+    public static let maxRetainedRecentAlerts = 20
+    public static let largeAccountBenchmarkCount = 20
+    public static let thirtyMinuteBenchmarkSeconds: TimeInterval = 1_800
+    public static let thirtyMinuteMinRefreshes = 2
+    public static let thirtyMinuteMaxRefreshes = 3
+    public static let maxMetricsSamples = 8
 }
 
 public enum RefreshSnapshotClassification: Sendable {

@@ -6,7 +6,7 @@ import Domain
 import Infrastructure
 
 @MainActor
-final class AppModel: ObservableObject {
+final class AppModel: ObservableObject, AppSleepWakeHandling {
     @Published var settings: AppSettings
     @Published var snapshots: [BalanceSnapshot] = []
     @Published var recentAlerts: [AlertEvent] = []
@@ -83,7 +83,8 @@ final class AppModel: ObservableObject {
     private let restoreCoordinator: RestoreCoordinator
     private let crashRecovery: CrashRecoveryStore
     private var pendingOpenSettingsAfterOnboarding = false
-    private var refreshTask: Task<Void, Never>?
+    private let refreshScheduler = TaskRefreshScheduler()
+    private let refreshLifecycle: RefreshLifecycleCoordinator
     private let refreshCoordinator: RefreshCoordinator
     private var usageBaselineResetTask: Task<Void, Never>?
     private var pendingUsageBaselineResetIDs: Set<UUID> = []
@@ -210,6 +211,18 @@ final class AppModel: ObservableObject {
             usageRecorder: UsageHistoryRefreshRecorder(store: usageStore)
         )
         self.refreshCoordinator = coordinator
+        let lifecycle = RefreshLifecycleCoordinator(
+            scheduler: refreshScheduler,
+            allowsRefresh: false,
+            intervalSecs: loaded.refreshIntervalSecs
+        )
+        self.refreshLifecycle = lifecycle
+        lifecycle.onScheduleRefresh = { [weak self] trigger in
+            self?.refresh(trigger: trigger)
+        }
+        lifecycle.onCancelInFlight = { [weak self] reason in
+            self?.cancelRefresh(reason: reason)
+        }
         L10n.shared.setLanguage(loaded.resolvedLanguage)
         // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
         self.snapshots = Self.placeholderSnapshots(from: loaded)
@@ -493,7 +506,7 @@ final class AppModel: ObservableObject {
             snapshots = Self.placeholderSnapshots(from: settings)
         }
         if !outcome.alerts.isEmpty {
-            recentAlerts = Array((outcome.alerts + recentAlerts).prefix(20))
+            recentAlerts = Array((outcome.alerts + recentAlerts).prefix(RefreshFetchLimits.maxRetainedRecentAlerts))
             if let fail = outcome.alerts.first(where: {
                 !$0.emailed && $0.message.hasPrefix("邮件发送失败")
             }) {
@@ -556,16 +569,38 @@ final class AppModel: ObservableObject {
     }
 
     private func registerRefreshLifecycleObservers() {
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.willSleepNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let reason = RefreshLifecyclePolicy.cancelReason(for: .willSleep) else { return }
-                self?.cancelRefresh(reason: reason)
-            }
+        AppLifecycleCenter.shared.handler = self
+        MacNotificationService.shared.authorizationTouchHandler = { [weak self] in
+            self?.noteNotificationStateChange()
         }
+    }
+
+    func handleSystemWillSleep() {
+        refreshLifecycle.handle(.willSleep)
+    }
+
+    func handleSystemDidWake() {
+        refreshLifecycle.handle(.didWake)
+    }
+
+    func noteMenuAppeared() {
+        let needsCatchUp = sessionRoute == .home
+            && !isRefreshing
+            && (snapshots.isEmpty || snapshots.allSatisfy { $0.status == .unknown && $0.amount == nil })
+        refreshLifecycle.handle(.menuAppear, prefersRefresh: needsCatchUp)
+    }
+
+    func noteWindowPinned() {
+        refreshLifecycle.handle(.windowPinned)
+    }
+
+    func notePageSwitch() {
+        refreshLifecycle.handle(.pageSwitch)
+    }
+
+    func noteNotificationStateChange() {
+        refreshLifecycle.handle(.notificationStateChange)
+        Task { await refreshNotificationStatus() }
     }
 
     private func invalidateActiveRefresh() {
@@ -654,27 +689,15 @@ final class AppModel: ObservableObject {
     }
 
     func startAutoRefreshIfNeeded() {
-        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else {
-            refreshTask?.cancel()
-            return
-        }
-        refreshTask?.cancel()
-        guard settings.refreshIntervalSecs > 0 else {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                self?.refresh(trigger: .interval)
-            }
-            return
-        }
-        let interval = settings.refreshIntervalSecs
-        refreshTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            self?.refresh(trigger: .interval)
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
-                guard !Task.isCancelled else { break }
-                self?.refresh(trigger: .interval)
-            }
+        let allowed = RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute)
+        refreshLifecycle.updatePolicy(
+            allowsRefresh: allowed,
+            intervalSecs: settings.refreshIntervalSecs
+        )
+        if allowed {
+            refreshLifecycle.start()
+        } else {
+            refreshLifecycle.stop()
         }
     }
 
@@ -983,11 +1006,11 @@ final class AppModel: ObservableObject {
     func setMacNotificationEnabled(_ on: Bool) {
         settings.alertChannels.macNotificationEnabled = on
         persist()
+        noteNotificationStateChange()
         if on {
             Task {
                 guard RecoveryLaunchPolicy.allowsNotificationAuthorization(route: sessionRoute) else { return }
                 _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
-                await refreshNotificationStatus()
                 rescheduleManualReminders()
             }
         }

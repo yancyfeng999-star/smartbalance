@@ -148,6 +148,27 @@ final class RefreshModelsTests: XCTestCase {
         )
     }
 
+    func testLifecycleUIEventsDoNotCreateTimersAndWakeDoesNotCancel() {
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .didWake))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .menuAppear))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .windowPinned))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .pageSwitch))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .notificationStateChange))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .intervalTick))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .menuAppear))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .windowPinned))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .pageSwitch))
+        XCTAssertFalse(RefreshLifecyclePolicy.createsIndependentRefreshTimer(for: .notificationStateChange))
+        XCTAssertTrue(RefreshLifecyclePolicy.shouldScheduleRefresh(for: .didWake))
+        XCTAssertTrue(RefreshLifecyclePolicy.shouldScheduleRefresh(for: .intervalTick))
+        XCTAssertFalse(RefreshLifecyclePolicy.shouldScheduleRefresh(for: .windowPinned))
+        XCTAssertFalse(RefreshLifecyclePolicy.shouldScheduleRefresh(for: .pageSwitch))
+        XCTAssertFalse(RefreshLifecyclePolicy.shouldScheduleRefresh(for: .notificationStateChange))
+        XCTAssertEqual(RefreshFetchLimits.maxConcurrentAccounts, 4)
+        XCTAssertEqual(RefreshFetchLimits.largeAccountBenchmarkCount, 20)
+        XCTAssertEqual(RefreshFetchLimits.thirtyMinuteBenchmarkSeconds, 1_800)
+    }
+
     func testCancelAfterAcceptedSnapshotsDoesNotUseKeptLastCopy() {
         XCTAssertEqual(
             RefreshCancelPresentation.messageKey(reason: .user, didAcceptSnapshots: false),

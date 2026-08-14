@@ -9,6 +9,8 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
 
     private let center = UNUserNotificationCenter.current()
     private var didInstallDelegate = false
+    /// Status-only. Must not start a refresh timer.
+    public var authorizationTouchHandler: (@MainActor () -> Void)?
 
     public override init() {
         super.init()
@@ -33,9 +35,12 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
             return false
         case .notDetermined:
             do {
-                return try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                authorizationTouchHandler?()
+                return granted
             } catch {
                 AppLog.error("Notification auth error: \(error.localizedDescription)")
+                authorizationTouchHandler?()
                 return false
             }
         }

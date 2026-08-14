@@ -92,4 +92,17 @@ enum AppMotion {
             withAnimation(selection, body)
         }
     }
+
+    /// Skip staggered appear work for large account lists so menu open stays cheap.
+    static let largeListStaggerCap = 8
+    static let maxAppearStagger: TimeInterval = 0.2
+
+    static func appearDelay(forIndex index: Int, itemCount: Int, reduceMotion: Bool) -> TimeInterval {
+        if reduceMotion || itemCount >= largeListStaggerCap { return 0 }
+        return min(maxAppearStagger, Double(index) * 0.05)
+    }
+
+    static func appearAnimation(forIndex index: Int, itemCount: Int, reduceMotion: Bool) -> Animation? {
+        animation(appear.delay(appearDelay(forIndex: index, itemCount: itemCount, reduceMotion: reduceMotion)), reduceMotion: reduceMotion)
+    }
 }

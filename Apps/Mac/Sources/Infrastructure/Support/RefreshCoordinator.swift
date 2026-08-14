@@ -81,6 +81,9 @@ public final class RefreshCoordinator {
     public private(set) var generation: UInt64 = 0
     public private(set) var acceptedSnapshots: [BalanceSnapshot] = []
     public private(set) var lastAcceptedOutcome: RefreshOutcome?
+    public private(set) var acceptedWriteCount = 0
+    public let metrics: PerformanceSample
+    public let maxConcurrentAccounts: Int
 
     public var onSnapshotsAccepted: ((RefreshOutcome) -> Void)?
     public var onTerminal: ((RefreshOutcome?) -> Void)?
@@ -95,11 +98,15 @@ public final class RefreshCoordinator {
     public init(
         clock: any RefreshClock = SystemRefreshClock(),
         fetcher: any RefreshBalanceFetching,
-        usageRecorder: any RefreshUsageRecording = NoOpRefreshUsageRecorder()
+        usageRecorder: any RefreshUsageRecording = NoOpRefreshUsageRecorder(),
+        metrics: PerformanceSample = PerformanceSample(),
+        maxConcurrentAccounts: Int = RefreshFetchLimits.maxConcurrentAccounts
     ) {
         self.clock = clock
         self.fetcher = fetcher
         self.usageRecorder = usageRecorder
+        self.metrics = metrics
+        self.maxConcurrentAccounts = max(1, maxConcurrentAccounts)
     }
 
     public func seedAcceptedSnapshots(_ snapshots: [BalanceSnapshot]) {
@@ -138,7 +145,8 @@ public final class RefreshCoordinator {
         let gen = generation
         hasAcceptedCurrentGeneration = false
         activeRequest = request
-        state = .running(scope: request.scope, startedAt: clock.now)
+        let startedAt = clock.now
+        state = .running(scope: request.scope, startedAt: startedAt)
         let knownIDs = Set(settings.accounts.map(\.id))
 
         activeTask = Task { [weak self] in
@@ -158,6 +166,8 @@ public final class RefreshCoordinator {
             self.acceptedSnapshots = payload.snapshots
             self.lastAcceptedOutcome = outcome
             self.hasAcceptedCurrentGeneration = true
+            self.acceptedWriteCount += 1
+            self.recordMetrics(for: outcome, startedAt: startedAt)
             self.onSnapshotsAccepted?(outcome)
 
             let persist = await self.usageRecorder.recordUsage(
@@ -194,7 +204,7 @@ public final class RefreshCoordinator {
     }
 
     public func cancel(reason: RefreshCancelReason) {
-        guard case .running(let scope, _) = state else { return }
+        guard case .running(let scope, let startedAt) = state else { return }
         let trigger = activeRequest?.trigger ?? .manual
         let didAccept = hasAcceptedCurrentGeneration
         let accepted = lastAcceptedOutcome
@@ -219,6 +229,7 @@ public final class RefreshCoordinator {
                     snapshots: kept,
                     now: self.clock.now
                 )
+                self.recordCancel(startedAt: startedAt)
                 self.state = outcome.state
                 self.activeTask = nil
                 self.activeRequest = nil
@@ -242,5 +253,30 @@ public final class RefreshCoordinator {
 
     public func waitForCompletion() async -> RefreshOutcome? {
         await activeTask?.value
+    }
+
+    private func recordMetrics(for outcome: RefreshOutcome, startedAt: Date) {
+        let duration = max(0, clock.now.timeIntervalSince(startedAt))
+        let result: PerformanceSampleResult
+        switch outcome.state {
+        case .failed:
+            result = .failure
+        case .idle, .running, .cancelling, .succeeded, .partiallyFailed:
+            result = .success
+        }
+        metrics.record(
+            duration: duration,
+            result: result,
+            accountSuccesses: outcome.succeededCount,
+            accountFailures: outcome.failedCount
+        )
+        metrics.recordConcurrency(min(maxConcurrentAccounts, outcome.snapshots.count))
+    }
+
+    private func recordCancel(startedAt: Date) {
+        metrics.record(
+            duration: max(0, clock.now.timeIntervalSince(startedAt)),
+            result: .cancel
+        )
     }
 }
