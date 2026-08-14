@@ -74,6 +74,12 @@ struct HomeView: View {
             ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: kind)) { action in
                 model.performErrorAction(action, kind: kind)
             }
+        } else if model.credentialReentryCount > 0, !model.isReorderMode {
+            ActionableErrorView(
+                presentation: ActionableErrorPolicy.presentation(for: .credentialsMissing)
+            ) { action in
+                model.performErrorAction(action, kind: .credentialsMissing)
+            }
         } else if let notice = homeNoticeText, !model.isReorderMode {
             genericNoticeBanner(notice)
         }

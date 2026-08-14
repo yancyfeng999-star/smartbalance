@@ -52,6 +52,9 @@ struct SettingsRootView: View {
     private var apiSubtitle: String {
         let n = model.settings.accounts.count
         if n == 0 { return "先在这里添加 DeepSeek / Kimi / 手录…" }
+        if model.credentialReentryCount > 0 {
+            return "已添加 \(n) 个 · \(model.credentialReentryCount) 个需要重新填写密钥"
+        }
         return "已添加 \(n) 个 · 主页会显示余额卡"
     }
 

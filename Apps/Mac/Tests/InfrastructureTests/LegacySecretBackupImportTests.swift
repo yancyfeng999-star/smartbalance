@@ -41,7 +41,18 @@ final class LegacySecretBackupImportTests: XCTestCase {
         XCTAssertNotEqual(preview.settings.email.passwordRef, "smtp-password")
     }
 
-    func testDefaultRestoreDoesNotImportLegacyOrWriteSecrets() async throws {
+    func testConfirmedLegacyImportCarriesCredentialsForKeychainWrite() throws {
+        let imported = try DataBackupService.importSettings(
+            from: fixture("legacy-secret-backup-v1.json"),
+            allowLegacyNonSensitive: true
+        )
+
+        XCTAssertEqual(imported.secrets.count, 2)
+        XCTAssertTrue(imported.secrets.keys.contains(imported.settings.accounts[0].secretRef))
+        XCTAssertTrue(imported.secrets.keys.contains(imported.settings.email.passwordRef))
+    }
+
+    func testDefaultRestoreOmitsLegacySecretsUntilConfirmed() async throws {
         let sourceURL = directory.appendingPathComponent("legacy-secret-backup-v1.json")
         let data = try fixture("legacy-secret-backup-v1.json")
         try data.write(to: sourceURL)
@@ -61,7 +72,8 @@ final class LegacySecretBackupImportTests: XCTestCase {
             settingsStore: settingsStore,
             usageStore: UsageHistoryStore(directory: directory),
             backupManager: BackupManager(directory: directory),
-            outcomes: DiagnosticOutcomeStore(directory: directory)
+            outcomes: DiagnosticOutcomeStore(directory: directory),
+            secretStore: secrets
         )
         let denied = await coordinator.restore(
             from: data,
@@ -84,11 +96,17 @@ final class LegacySecretBackupImportTests: XCTestCase {
             allowLegacyNonSensitive: true
         )
         XCTAssertEqual(allowed.status, .succeeded)
-        XCTAssertTrue(allowed.credentialsNeedReentry)
+        XCTAssertFalse(allowed.credentialsNeedReentry)
         let imported = SettingsStore(directory: directory).load()
         XCTAssertEqual(imported.accounts.first?.displayName, "Fixture OpenRouter")
-        XCTAssertEqual(secrets.credentialPresence(for: imported.accounts[0].secretRef), .missing)
-        XCTAssertNotEqual(secrets.get(account: imported.accounts[0].secretRef), "REDACTED_TEST_TOKEN")
+        let importedAccountRef = imported.accounts[0].secretRef
+        let importedPasswordRef = imported.email.passwordRef
+        defer {
+            secrets.delete(account: importedAccountRef)
+            secrets.delete(account: importedPasswordRef)
+        }
+        XCTAssertEqual(secrets.credentialPresence(for: importedAccountRef), .present)
+        XCTAssertEqual(secrets.credentialPresence(for: importedPasswordRef), .present)
         XCTAssertEqual(secrets.get(account: probe), "pre-existing-value")
         XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path))
         let disk = try String(contentsOf: settingsStore.fileURL, encoding: .utf8)
@@ -104,7 +122,7 @@ final class LegacySecretBackupImportTests: XCTestCase {
             XCTAssertEqual(error as? DataBackupService.BackupError, .legacyImportNotConfirmed)
         }
         let imported = try DataBackupService.importSettings(from: data, allowLegacyNonSensitive: true)
-        XCTAssertTrue(imported.credentialsNeedReentry)
+        XCTAssertFalse(imported.credentialsNeedReentry)
         XCTAssertNotEqual(
             imported.settings.accounts[0].secretRef,
             "66666666-6666-4666-8666-666666666666"

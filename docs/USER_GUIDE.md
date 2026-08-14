@@ -76,7 +76,7 @@ open ~/Desktop/智余.app
 
 - 不要把 `settings.json`、Keychain 导出、`app.log` 或旧版备份文件上传到 Issue、聊天或公开网盘。
 - API Key、Cookie、SMTP 密码和系统令牌不会写入用量历史；提交问题前请删除凭据、邮箱地址和原始响应。
-- 当前历史备份格式可能含有明文密钥，必须按敏感文件保管；需要迁移时先阅读仓库的 [数据与隐私说明](./DATA_AND_PRIVACY.md)。
+- 新设置迁移包和本机备份不含密钥；旧版 v1 数据备份可能含明文密钥。恢复预览中明确确认后，智余才会把它们写入普通 Keychain，不会弹出生物识别/系统密码框，也不会删除原文件。需要迁移时先阅读仓库的 [数据与隐私说明](./DATA_AND_PRIVACY.md)。
 - 智余源代码采用 [Apache License 2.0（Apache-2.0）](../LICENSE)；贡献或报告安全问题请阅读 [CONTRIBUTING.md](../CONTRIBUTING.md) 和 [SECURITY.md](../SECURITY.md)。
 
 ---

@@ -36,7 +36,27 @@ public struct LegacySecretBackupWarning: Equatable, Sendable {
     }
 }
 
-/// 默认导出非敏感 `smartbalance.portable-settings` v2；v1 只识别、警告、不导入 secrets。
+/// In-memory result of importing a backup.
+///
+/// `secrets` is never serialized or logged. It is only handed to the restore
+/// coordinator after the user explicitly confirms an old plaintext backup.
+public struct DataBackupImportResult: Sendable {
+    public var settings: AppSettings
+    public var secrets: [String: String]
+    public var credentialsNeedReentry: Bool
+
+    public init(
+        settings: AppSettings,
+        secrets: [String: String] = [:],
+        credentialsNeedReentry: Bool
+    ) {
+        self.settings = settings
+        self.secrets = secrets
+        self.credentialsNeedReentry = credentialsNeedReentry
+    }
+}
+
+/// 默认导出非敏感 `smartbalance.portable-settings` v2；旧版 v1 仅在用户确认后导入 secrets。
 public enum DataBackupService {
     public static let legacyFormatID = "smartbalance.backup"
     public static let portableFormatID = PortableSettings.formatID
@@ -186,18 +206,92 @@ public enum DataBackupService {
     public static func importSettings(
         from data: Data,
         allowLegacyNonSensitive: Bool = false
-    ) throws -> PortableImportResult {
+    ) throws -> DataBackupImportResult {
         switch try inspect(data) {
         case .portable(let portable):
-            return portable.importAsSettings()
+            return makeImportResult(portable.importAsSettings())
         case .localRestore(let package):
-            return package.asPortableSettings.importAsSettings()
+            return makeImportResult(package.asPortableSettings.importAsSettings())
         case .legacySecret(let warning):
             guard allowLegacyNonSensitive else {
                 throw BackupError.legacyImportNotConfirmed
             }
-            return warning.preview.importAsSettings()
+            let imported = warning.preview.importAsSettings()
+            let package = try decodeLegacyPackage(from: data)
+            let secrets = remapLegacySecrets(
+                sourceSettings: package.settings,
+                importedSettings: imported.settings,
+                sourceSecrets: package.secrets
+            )
+            return makeImportResult(imported, secrets: secrets)
         }
+    }
+
+    private static func makeImportResult(
+        _ imported: PortableImportResult,
+        secrets: [String: String] = [:]
+    ) -> DataBackupImportResult {
+        DataBackupImportResult(
+            settings: imported.settings,
+            secrets: secrets,
+            credentialsNeedReentry: credentialsNeedReentry(
+                for: imported.settings,
+                importedSecrets: secrets
+            )
+        )
+    }
+
+    private static func decodeLegacyPackage(from data: Data) throws -> LegacyDataBackupPackage {
+        do {
+            return try SettingsDocument.makeDecoder().decode(LegacyDataBackupPackage.self, from: data)
+        } catch {
+            throw BackupError.decodeFailed(error.localizedDescription)
+        }
+    }
+
+    /// v1 used the old account/password refs. Portable settings intentionally
+    /// mint new refs, so map the old values by stable account ID before the
+    /// restore coordinator writes them to the new ordinary Keychain service.
+    private static func remapLegacySecrets(
+        sourceSettings: AppSettings,
+        importedSettings: AppSettings,
+        sourceSecrets: [String: String]
+    ) -> [String: String] {
+        var importedSecretRefsByID: [UUID: String] = [:]
+        for account in importedSettings.accounts {
+            importedSecretRefsByID[account.id] = account.secretRef
+        }
+
+        var remapped: [String: String] = [:]
+        for sourceAccount in sourceSettings.accounts {
+            guard let sourceSecret = sourceSecrets[sourceAccount.secretRef],
+                  !sourceSecret.isEmpty,
+                  let importedRef = importedSecretRefsByID[sourceAccount.id]
+            else { continue }
+            remapped[importedRef] = sourceSecret
+        }
+
+        if let smtpSecret = sourceSecrets[sourceSettings.email.passwordRef],
+           !smtpSecret.isEmpty {
+            remapped[importedSettings.email.passwordRef] = smtpSecret
+        }
+        return remapped
+    }
+
+    private static func credentialsNeedReentry(
+        for settings: AppSettings,
+        importedSecrets: [String: String]
+    ) -> Bool {
+        if settings.accounts.contains(where: {
+            $0.kind.needsSecret && importedSecrets[$0.secretRef] == nil
+        }) {
+            return true
+        }
+
+        let emailNeedsPassword = settings.email.enabled
+            || settings.email.isConfigured
+            || !settings.email.smtpHost.isEmpty
+        return emailNeedsPassword && importedSecrets[settings.email.passwordRef] == nil
     }
 
     public static func write(_ package: PortableSettings, to url: URL) throws {

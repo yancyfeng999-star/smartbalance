@@ -137,7 +137,7 @@ xcodebuild build -workspace SmartBalance.xcworkspace -scheme SmartBalance \
 | 导出 v2 | 隔离服务 | `format=smartbalance.portable-settings` / v2；无 `secrets` / `secretRef` / `passwordRef` / Bearer / api_key；文件 0600 |
 | 本机恢复包 | 隔离服务 | `format=smartbalance.local-restore` / v2；无 `secrets` / `secretRef` / `passwordRef` |
 | 导入恢复 | 隔离服务 | `RestoreOutcome.succeeded`，`credentialsNeedReentry=true`，新 `secretRef` ≠ 旧 fixture 引用 |
-| 旧 v1 明文备份 | 隔离服务 | 识别为 legacy；默认 `cancelled`，不导入 secrets |
+| 旧 v1 明文备份 | 隔离服务 | 识别为 legacy；默认 `cancelled`；用户明确确认后按账号 ID 写入普通 Keychain，原文件保留 |
 | 诊断 JSON/TXT/ZIP | 隔离服务 | 0600；Keychain 只报 `available`；providers 仅 kind/enabled/hasCredentialRef |
 | Safe mode | 隔离服务 | 两次 unclean 后 `enterSafeMode`；refresh / 凭据读 / 通知授权 / SMTP / 更新安装全部 false；continue 保留 ledger |
 | 取消刷新 | 隔离服务 | 假延迟 fetcher（无 Provider 网络）；取消后仍保留 amount=15 |

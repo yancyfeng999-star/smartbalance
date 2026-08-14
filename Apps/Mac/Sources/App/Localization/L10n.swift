@@ -1112,7 +1112,7 @@ final class L10n: ObservableObject {
             .zhHans: "只迁移账号类型、名称、报警与外观等非敏感配置。", .en: "Transfers providers, names, alerts, and appearance only.",
         ],
         "settings.transfer.no_secrets": [
-            .zhHans: "不会导出 Keychain、密码或 Cookie。导入后必须重新填写凭据。", .en: "Keychain, passwords, and cookies are not exported. Re-enter credentials after import.",
+            .zhHans: "新导出的设置包不会包含 Keychain、密码或 Cookie。旧版数据备份需在预览页明确确认后才写入密钥。", .en: "New settings packages omit Keychain items, passwords, and cookies. A legacy data backup writes secrets only after explicit confirmation.",
         ],
         "settings.transfer.export": [
             .zhHans: "导出设置", .en: "Export settings", .ja: "設定を書き出す", .ko: "설정 내보내기",
@@ -1134,7 +1134,7 @@ final class L10n: ObservableObject {
             .zhHans: "导入设置", .en: "Import settings",
         ],
         "settings.transfer.import_message": [
-            .zhHans: "选择设置迁移包。导入前会预览，默认不会写入。", .en: "Choose a settings file. Preview first; nothing is written yet.",
+            .zhHans: "选择设置迁移包或旧版数据备份。导入前会预览；旧版明文密钥只有确认后才写入本机普通钥匙串。", .en: "Choose a settings file or a legacy data backup. Preview first; legacy plaintext secrets are written to the ordinary local Keychain only after confirmation.",
         ],
         "settings.transfer.export_ok": [
             .zhHans: "设置已导出（不含密钥）", .en: "Settings exported (no secrets)",
@@ -1165,7 +1165,7 @@ final class L10n: ObservableObject {
             .zhHans: "包含聚合用量历史", .en: "Include aggregated usage history",
         ],
         "settings.backup.no_secrets": [
-            .zhHans: "恢复前会先快照当前数据。失败会自动回滚。密钥不会被删除或导入。", .en: "A snapshot is taken first. Failures roll back. Keychain is never imported or deleted.",
+            .zhHans: "恢复前会先快照当前数据。失败会自动回滚。新备份不含密钥；旧版数据备份只有确认后才写入普通钥匙串。", .en: "A snapshot is taken first. Failures roll back. New backups omit secrets; legacy data backups write them only after confirmation.",
         ],
         "settings.backup.export": [
             .zhHans: "导出本机备份", .en: "Export local backup",
@@ -1210,7 +1210,7 @@ final class L10n: ObservableObject {
             .zhHans: "需重新填写凭据", .en: "Credentials to re-enter",
         ],
         "restore.preview.reentry_none": [
-            .zhHans: "无（仍不会导入密钥）", .en: "None (secrets still not imported)",
+            .zhHans: "无", .en: "None",
         ],
         "restore.preview.coverage": [
             .zhHans: "将覆盖", .en: "Will replace",
@@ -1240,13 +1240,13 @@ final class L10n: ObservableObject {
             .zhHans: "聚合用量", .en: "Aggregated usage",
         ],
         "restore.legacy.warning": [
-            .zhHans: "该文件可能包含旧版明文密钥，智余不会导入或写入其中的密钥。", .en: "This file may contain legacy plaintext secrets. Zhiyu will not import or write those secrets.",
+            .zhHans: "该文件包含旧版明文密钥。确认后，智余会把密钥写入本机普通钥匙串，不会写回设置文件，也不会删除原文件。", .en: "This file contains legacy plaintext secrets. After confirmation, Zhiyu writes them to the ordinary local Keychain, never back to settings files, and does not delete the original file.",
         ],
         "restore.legacy.ack": [
-            .zhHans: "我知道只会导入非敏感设置，且不会自动删除该文件", .en: "I understand only non-secret fields are imported and the file is not deleted",
+            .zhHans: "我确认把该文件中的明文密钥写入本机普通钥匙串，并保留原文件", .en: "I confirm writing the plaintext secrets from this file to the ordinary local Keychain and keeping the original file",
         ],
         "restore.result.ok": [
-            .zhHans: "恢复成功，请重新填写凭据", .en: "Restore succeeded. Re-enter credentials.",
+            .zhHans: "恢复成功", .en: "Restore succeeded.",
         ],
         "restore.result.failed": [
             .zhHans: "恢复失败，已保留原数据", .en: "Restore failed. Original data was kept.",
@@ -1255,7 +1255,7 @@ final class L10n: ObservableObject {
             .zhHans: "已取消，未改动设置", .en: "Cancelled. Settings were not changed.",
         ],
         "restore.result.reentry": [
-            .zhHans: "账号还在，但密码和密钥需要在设置里重新填写。", .en: "Accounts remain, but passwords and keys must be entered again.",
+            .zhHans: "账号设置已恢复，但未包含的密码和密钥需要在设置里重新填写。", .en: "Account settings were restored, but omitted passwords and keys must be entered again.",
         ],
         "restore.result.open_backups": [
             .zhHans: "打开备份目录", .en: "Open backup folder",

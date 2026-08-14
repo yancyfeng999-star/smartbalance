@@ -25,4 +25,19 @@ final class RestoreApplyPolicyTests: XCTestCase {
             RestoreFailureReason.settingsWriteFailed.localizationKey
         )
     }
+
+    func testCredentialReentryCountOnlyIncludesMissingRecognizedAccounts() {
+        let settings = AppSettings(accounts: [
+            BalanceAccount(kind: .deepseek, secretRef: "missing"),
+            BalanceAccount(kind: .openrouter, secretRef: "present"),
+            BalanceAccount(kind: .unsupported, secretRef: "unsupported"),
+        ])
+
+        let count = CredentialReentryPolicy.missingAccountCredentialCount(
+            settings: settings,
+            presence: { $0 == "present" ? .present : .missing }
+        )
+
+        XCTAssertEqual(count, 1)
+    }
 }

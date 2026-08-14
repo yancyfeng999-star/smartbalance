@@ -269,12 +269,12 @@ public enum LocalizationCatalog: Sendable {
         ),
         "help.topic.backupRestore.title": zhEn("备份与恢复", "Backup and restore"),
         "help.topic.backupRestore.body1": zhEn(
-            "本机备份不含密码。恢复后需要重新填写凭据。",
-            "Local backups omit passwords. Re-enter credentials after restore."
+            "新本机备份不含密码；恢复旧版数据备份时，只有你明确确认后才会把其中的密钥写入本机普通钥匙串。",
+            "New local backups omit passwords. When restoring a legacy data backup, its secrets are written to the ordinary local Keychain only after your explicit confirmation."
         ),
         "help.topic.backupRestore.body2": zhEn(
-            "旧版备份若含明文密钥，智余不会导入这些密钥。",
-            "If a legacy backup contains plaintext secrets, Zhiyu will not import those secrets."
+            "原始备份文件不会被删除，密钥不会写回设置文件，也不会触发生物识别或系统密码弹窗。",
+            "The original backup is not deleted, secrets are not written back to settings files, and no biometric or system-password prompt is used."
         ),
         "help.topic.updates.title": zhEn("检查更新", "Check for updates"),
         "help.topic.updates.body1": zhEn(

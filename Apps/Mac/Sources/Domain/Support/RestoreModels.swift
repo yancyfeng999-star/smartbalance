@@ -61,7 +61,7 @@ public struct TransferPreview: Equatable, Sendable {
     public static let defaultExcludedFields = DiagnosticReport.defaultExcludedFields
 
     public static let legacyPlaintextWarning =
-        "该文件可能包含旧版明文密钥，智余不会导入或写入其中的密钥"
+        "该文件包含旧版明文密钥；只有明确确认后才会写入本机普通钥匙串，原文件不会被删除"
 
     public init(
         format: String,

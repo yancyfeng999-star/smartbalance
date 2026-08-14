@@ -38,6 +38,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     @Published private(set) var diagnosticReport: DiagnosticReport?
     @Published private(set) var isCollectingDiagnostics = false
     @Published var preferExpandAPIAccounts = false
+    @Published private(set) var credentialReentryCount = 0
     @Published var helpPage: HelpPage?
     @Published var settingsSupportPage: SettingsSupportPage?
     @Published var restorePreview: TransferPreview?
@@ -237,6 +238,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         }
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         prepareLaunchSession()
+        refreshCredentialReentryState(expandSettingsIfNeeded: true)
         registerRefreshLifecycleObservers()
         // 对齐智额：通知图标只跟包内白底 AppIcon 走；不 setIcon（会写自定义 Icon 锁死旧图）
         Task { @MainActor in
@@ -738,6 +740,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
             selectedAccountId = account.id
         }
         persist()
+        refreshCredentialReentryState()
         // 立刻出现在首页
         if !snapshots.contains(where: { $0.accountId == account.id }) {
             snapshots.append(
@@ -768,6 +771,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
             selectedAccountId = settings.enabledAccounts.first?.id
         }
         persist()
+        refreshCredentialReentryState()
         rescheduleManualReminders()
         let knownAccountIDs = Set(settings.accounts.map(\.id))
         Task { @MainActor [weak self] in
@@ -809,6 +813,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
                 settings.accounts[idx].userId = uid
                 persist()
             }
+            refreshCredentialReentryState()
             banner = "已更新 \(acc.title) 的密钥"
             objectWillChange.send()
             requestUsageBaselineResetAndRefresh(for: [id])
@@ -1415,28 +1420,49 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         restoreBusy = true
         let includeUsage = pendingRestoreMode == .backup && restoreIncludeUsage
         let allowLegacy = preview?.isLegacySecretBackup == true && restoreLegacyAcknowledged
-        var prepared = preview
-        prepared?.settings.windowPinned = false
-        prepared?.settings.apiQueryEnabled = true
         let token = restoreSession.begin()
         restoreTask?.cancel()
         restoreTask = Task { @MainActor [weak self] in
             guard let self else { return }
             let outcome: RestoreOutcome
-            if let prepared {
-                outcome = await self.restoreCoordinator.restore(
-                    preview: prepared,
-                    confirmed: true,
-                    includeUsage: includeUsage,
-                    allowLegacyNonSensitive: allowLegacy
-                )
-            } else {
-                outcome = await self.restoreCoordinator.restore(
-                    from: data,
-                    confirmed: true,
-                    includeUsage: includeUsage,
-                    allowLegacyNonSensitive: allowLegacy
-                )
+            do {
+                let imported = allowLegacy
+                    ? try DataBackupService.importSettings(
+                        from: data,
+                        allowLegacyNonSensitive: true
+                    )
+                    : nil
+                if let prepared = preview {
+                    var prepared = prepared
+                    if let imported, prepared.isLegacySecretBackup {
+                        // Keep the preview metadata, but use the same
+                        // materialized refs that produced the imported secrets.
+                        prepared.settings = imported.settings
+                        prepared.credentialsNeedReentry = imported.credentialsNeedReentry
+                    }
+                    prepared.settings.windowPinned = false
+                    prepared.settings.apiQueryEnabled = true
+                    outcome = await self.restoreCoordinator.restore(
+                        preview: prepared,
+                        confirmed: true,
+                        includeUsage: includeUsage,
+                        allowLegacyNonSensitive: allowLegacy,
+                        importedSecrets: imported?.secrets ?? [:]
+                    )
+                } else {
+                    outcome = await self.restoreCoordinator.restore(
+                        from: data,
+                        confirmed: true,
+                        includeUsage: includeUsage,
+                        allowLegacyNonSensitive: allowLegacy
+                    )
+                }
+            } catch {
+                self.restoreBusy = false
+                self.restoreTask = nil
+                self.restoreOutcome = .failed(.formatMismatch)
+                self.presentLocalizedBanner("restore.error.format")
+                return
             }
             guard self.restoreSession.isCurrent(token), !Task.isCancelled else { return }
             self.restoreBusy = false
@@ -1470,6 +1496,18 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
 
     func isCredentialMissing(for account: BalanceAccount) -> Bool {
         secrets.credentialPresence(for: account.secretRef) == .missing
+    }
+
+    /// Refresh non-sensitive credential status without reading or logging
+    /// secret values. The plain Keychain query never shows a system prompt.
+    private func refreshCredentialReentryState(expandSettingsIfNeeded: Bool = false) {
+        credentialReentryCount = CredentialReentryPolicy.missingAccountCredentialCount(
+            settings: settings,
+            presence: { secrets.credentialPresence(for: $0) }
+        )
+        if expandSettingsIfNeeded, credentialReentryCount > 0 {
+            preferExpandAPIAccounts = true
+        }
     }
 
     private func pickRestoreFile(mode: SettingsSupportPage) {
@@ -1532,7 +1570,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
             applyUsageHealth(lastError: nil, recovered: false)
         }
         if RecoveryLaunchPolicy.allowsProviderCredentialRead(route: sessionRoute) {
-            preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
+            refreshCredentialReentryState(expandSettingsIfNeeded: true)
         }
         objectWillChange.send()
         guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else { return }

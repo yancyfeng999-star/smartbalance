@@ -449,8 +449,8 @@ flowchart LR
 
 **Legacy v1 处理:**
 
-- 识别 `smartbalance.backup` v1 并在 UI 显示“该文件可能包含旧版明文密钥，智余不会导入或写入其中的密钥”。
-- 允许用户仅提取并预览非敏感设置字段；默认不导入，不把 `secrets` 传给 `LocalSecretStore.replaceAll`。
+- 识别 `smartbalance.backup` v1 并在 UI 显示明文密钥风险。
+- 默认不导入；用户明确确认后，按稳定账号 ID 把 `secrets` 映射到新 ref 并写入普通 Keychain，失败时回滚设置与凭据。
 - 不自动删除用户选择的旧文件；建议用户在确认后手动安全删除，日志只记录文件格式和结果，不记录路径中的隐私信息。
 
 **TDD steps:**
