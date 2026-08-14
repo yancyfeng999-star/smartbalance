@@ -21,6 +21,7 @@ struct SettingsRootView: View {
             apiCard
             alertCard
             compatibilityCard
+            diagnosticsCard
             BackgroundSystemSection(model: model)
         }
         .onAppear {
@@ -104,6 +105,56 @@ struct SettingsRootView: View {
         return report.hasBlockingIssue
             ? l10n.t("settings.compatibility_sub.blocked")
             : l10n.t("settings.compatibility_sub.ok")
+    }
+
+    private var diagnosticsCard: some View {
+        Button {
+            model.openDiagnosticsCenter()
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.35, green: 0.45, blue: 0.85),
+                                    Color(red: 0.22, green: 0.30, blue: 0.70),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "stethoscope")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l10n.t("settings.diagnostics"))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SBTheme.text)
+                    Text(l10n.t("settings.diagnostics_sub"))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.muted)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                    .fill(SBTheme.panel)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                            .stroke(SBTheme.cardStroke, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(l10n.t("settings.diagnostics"))
     }
 
     private func sectionLabel(_ text: String) -> some View {

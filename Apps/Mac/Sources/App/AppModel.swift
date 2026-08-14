@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import Domain
 import Infrastructure
 
@@ -28,12 +29,16 @@ final class AppModel: ObservableObject {
     @Published private(set) var sessionRoute: SessionRoute = .home
     @Published var onboardingStep: OnboardingStep = .privacy
     @Published private(set) var compatibilityReport: CompatibilityReport?
+    @Published private(set) var diagnosticReport: DiagnosticReport?
+    @Published private(set) var isCollectingDiagnostics = false
     @Published var preferExpandAPIAccounts = false
+    private var diagnosticsReturnTab: Tab = .home
 
     enum Tab: String {
         case home
         case usage
         case settings
+        case diagnostics
     }
 
     private let store = SettingsStore.shared
@@ -191,7 +196,7 @@ final class AppModel: ObservableObject {
                 self.usageRecoveryNotice = result.recovery == .corruptFileBackedUp
             } catch {
                 self.usageDataError = "load"
-                AppLog.error("Usage history load failed: \(error.localizedDescription)")
+                AppLog.error("Usage history load failed", category: .usage, event: "usage_load_failed")
             }
         }
     }
@@ -462,7 +467,7 @@ final class AppModel: ObservableObject {
             usageDataError = warning == .loadFailed ? "load" : "save"
             refreshNoticeKey = warning.messageKey
             banner = L10n.shared.t(warning.messageKey)
-            AppLog.error("Usage history persist failed · \(warning.rawValue)")
+            AppLog.error("Usage history persist failed", category: .usage, event: "usage_persist_failed")
         } else if let document = outcome?.usageDocument {
             usageHistory = document
             usageDataError = nil
@@ -1034,6 +1039,93 @@ final class AppModel: ObservableObject {
     func openLogs() {
         AppLog.info("User opened logs folder")
         AppLog.revealInFinder()
+    }
+
+    func openDiagnosticsCenter() {
+        if selectedTab != .diagnostics {
+            diagnosticsReturnTab = selectedTab
+        }
+        selectedTab = .diagnostics
+        Task { await refreshDiagnostics() }
+    }
+
+    func closeDiagnosticsCenter() {
+        selectedTab = diagnosticsReturnTab == .diagnostics ? .home : diagnosticsReturnTab
+    }
+
+    func openSettingsFromDiagnostics() {
+        selectedTab = .settings
+    }
+
+    func refreshDiagnostics() async {
+        guard !isCollectingDiagnostics else { return }
+        isCollectingDiagnostics = true
+        defer { isCollectingDiagnostics = false }
+        let notification = await MacNotificationService.shared.authorizationState()
+        let refreshSummary = DiagnosticRefreshSummary(
+            refreshState: refreshCoordinator.state,
+            lastRefreshAt: lastRefreshAt,
+            succeededCount: refreshCoordinator.lastAcceptedOutcome?.succeededCount ?? 0,
+            failedCount: refreshCoordinator.lastAcceptedOutcome?.failedCount ?? 0
+        )
+        let snapshotSettings = settings
+        let snapshotUsage = usageHistory
+        let usageError = usageDataError
+        let version = appVersion
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        let settingsURL = store.fileURL
+        let usageURL = usageStore.fileURL
+        let report = await Task.detached(priority: .userInitiated) {
+            let keychain = LocalSecretStore.shared.availabilityStatus()
+            let context = DiagnosticsService.makeLiveContext(
+                settings: snapshotSettings,
+                usage: snapshotUsage,
+                usageSaveError: usageError,
+                refresh: refreshSummary,
+                keychainStatus: keychain,
+                notificationAuthorization: notification,
+                appVersion: version,
+                build: build,
+                settingsFileURL: settingsURL,
+                usageHistoryFileURL: usageURL
+            )
+            return DiagnosticsService().collect(context)
+        }.value
+        diagnosticReport = report
+    }
+
+    func copyDiagnosticsSummary() {
+        guard let report = diagnosticReport else { return }
+        let text = PrivacyRedactor.redact(DiagnosticArchiveWriter.textSummary(report))
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        banner = L10n.shared.t("diagnostics.copied")
+    }
+
+    func exportDiagnostics() {
+        guard let report = diagnosticReport else { return }
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("diagnostics.export.title")
+        panel.nameFieldStringValue = "smartbalance-diagnostics.zip"
+        panel.allowedContentTypes = [.zip]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try DiagnosticArchiveWriter().writeZip(report, to: url)
+            banner = L10n.shared.t("diagnostics.export.success")
+            AppLog.info("Diagnostic archive exported")
+        } catch {
+            banner = L10n.shared.t("diagnostics.export.failed")
+            AppLog.error("Diagnostic export failed", category: .filesystem, event: "diagnostics_export_failed")
+        }
+    }
+
+    func openDiagnosticsHelp() {
+        if let url = URL(string: "https://github.com/yancyfeng999-star/smartbalance/blob/main/docs/USER_GUIDE.md") {
+            BrowserLauncher.open(url)
+        }
     }
 
     // MARK: - 数据导出 / 导入

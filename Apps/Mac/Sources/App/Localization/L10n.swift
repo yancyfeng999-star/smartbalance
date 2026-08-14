@@ -673,5 +673,357 @@ final class L10n: ObservableObject {
             .ru: "Не удалось определить схему настроек.", .ar: "تعذّر تحديد مخطط الإعدادات.", .fr: "Impossible de déterminer le schéma des réglages.", .de: "Das Einstellungsschema konnte nicht bestimmt werden.",
             .es: "No se pudo determinar el esquema de ajustes.", .pt: "Não foi possível determinar o esquema de definições.",
         ],
+        "diagnostics.title": [
+            .zhHans: "诊断中心", .en: "Diagnostics", .ja: "診断", .ko: "진단",
+            .ru: "Диагностика", .ar: "التشخيص", .fr: "Diagnostic", .de: "Diagnose",
+            .es: "Diagnóstico", .pt: "Diagnóstico",
+        ],
+        "diagnostics.subtitle": [
+            .zhHans: "本机检查，不含密钥或渠道原始响应。", .en: "Local checks only. No secrets or raw provider responses.", .ja: "ローカル検査のみ。秘密情報や生の応答は含みません。", .ko: "로컬 검사만 합니다. 비밀 값이나 원본 응답은 없습니다.",
+            .ru: "Только локальные проверки. Без секретов и сырых ответов.", .ar: "فحوصات محلية فقط. بلا أسرار أو استجابات خام.", .fr: "Contrôles locaux uniquement. Pas de secrets ni de réponses brutes.", .de: "Nur lokale Prüfungen. Keine Geheimnisse oder Rohantworten.",
+            .es: "Solo comprobaciones locales. Sin secretos ni respuestas crudas.", .pt: "Apenas verificações locais. Sem segredos nem respostas em bruto.",
+        ],
+        "diagnostics.loading": [
+            .zhHans: "正在收集本机诊断…", .en: "Collecting local diagnostics…", .ja: "ローカル診断を収集中…", .ko: "로컬 진단을 수집하는 중…",
+            .ru: "Сбор локальной диагностики…", .ar: "جارٍ جمع التشخيص المحلي…", .fr: "Collecte du diagnostic local…", .de: "Lokale Diagnose wird erfasst…",
+            .es: "Recogiendo diagnóstico local…", .pt: "A recolher diagnóstico local…",
+        ],
+        "diagnostics.recheck": [
+            .zhHans: "重新检查", .en: "Recheck", .ja: "再チェック", .ko: "다시 확인",
+            .ru: "Проверить снова", .ar: "إعادة الفحص", .fr: "Revérifier", .de: "Erneut prüfen",
+            .es: "Volver a comprobar", .pt: "Verificar de novo",
+        ],
+        "diagnostics.copy": [
+            .zhHans: "复制摘要", .en: "Copy summary", .ja: "要約をコピー", .ko: "요약 복사",
+            .ru: "Копировать сводку", .ar: "نسخ الملخص", .fr: "Copier le résumé", .de: "Kurzfassung kopieren",
+            .es: "Copiar resumen", .pt: "Copiar resumo",
+        ],
+        "diagnostics.copied": [
+            .zhHans: "诊断摘要已复制", .en: "Diagnostics summary copied", .ja: "診断要約をコピーしました", .ko: "진단 요약을 복사했습니다",
+            .ru: "Сводка диагностики скопирована", .ar: "تم نسخ ملخص التشخيص", .fr: "Résumé du diagnostic copié", .de: "Diagnose-Kurzfassung kopiert",
+            .es: "Resumen de diagnóstico copiado", .pt: "Resumo de diagnóstico copiado",
+        ],
+        "diagnostics.export": [
+            .zhHans: "导出诊断", .en: "Export diagnostics", .ja: "診断を書き出す", .ko: "진단 내보내기",
+            .ru: "Экспорт диагностики", .ar: "تصدير التشخيص", .fr: "Exporter le diagnostic", .de: "Diagnose exportieren",
+            .es: "Exportar diagnóstico", .pt: "Exportar diagnóstico",
+        ],
+        "diagnostics.open_settings": [
+            .zhHans: "打开设置", .en: "Open Settings", .ja: "設定を開く", .ko: "설정 열기",
+            .ru: "Открыть настройки", .ar: "فتح الإعدادات", .fr: "Ouvrir les réglages", .de: "Einstellungen öffnen",
+            .es: "Abrir ajustes", .pt: "Abrir ajustes",
+        ],
+        "diagnostics.open_logs": [
+            .zhHans: "打开日志目录", .en: "Open log folder", .ja: "ログフォルダを開く", .ko: "로그 폴더 열기",
+            .ru: "Открыть папку журналов", .ar: "فتح مجلد السجلات", .fr: "Ouvrir le dossier des journaux", .de: "Protokollordner öffnen",
+            .es: "Abrir carpeta de registros", .pt: "Abrir pasta de registos",
+        ],
+        "diagnostics.open_help": [
+            .zhHans: "打开帮助", .en: "Open help", .ja: "ヘルプを開く", .ko: "도움말 열기",
+            .ru: "Открыть справку", .ar: "فتح المساعدة", .fr: "Ouvrir l’aide", .de: "Hilfe öffnen",
+            .es: "Abrir ayuda", .pt: "Abrir ajuda",
+        ],
+        "diagnostics.banner.action": [
+            .zhHans: "查看诊断", .en: "Diagnostics", .ja: "診断を見る", .ko: "진단 보기",
+            .ru: "Диагностика", .ar: "التشخيص", .fr: "Diagnostic", .de: "Diagnose",
+            .es: "Diagnóstico", .pt: "Diagnóstico",
+        ],
+        "diagnostics.export.title": [
+            .zhHans: "导出本机诊断包", .en: "Export local diagnostics", .ja: "ローカル診断を書き出す", .ko: "로컬 진단 내보내기",
+            .ru: "Экспорт локальной диагностики", .ar: "تصدير التشخيص المحلي", .fr: "Exporter le diagnostic local", .de: "Lokale Diagnose exportieren",
+            .es: "Exportar diagnóstico local", .pt: "Exportar diagnóstico local",
+        ],
+        "diagnostics.export.excluded_intro": [
+            .zhHans: "导出前请确认：以下字段不会写入诊断包。", .en: "Before export: these fields are excluded from the package.", .ja: "書き出し前：次の項目は診断パックに含まれません。", .ko: "내보내기 전: 아래 항목은 패키지에 포함되지 않습니다.",
+            .ru: "Перед экспортом: эти поля не попадут в пакет.", .ar: "قبل التصدير: تُستبعد هذه الحقول من الحزمة.", .fr: "Avant export : ces champs sont exclus du paquet.", .de: "Vor dem Export: Diese Felder sind ausgeschlossen.",
+            .es: "Antes de exportar: estos campos no van en el paquete.", .pt: "Antes de exportar: estes campos ficam de fora.",
+        ],
+        "diagnostics.export.confirm": [
+            .zhHans: "仍要导出", .en: "Export anyway", .ja: "書き出す", .ko: "내보내기",
+            .ru: "Экспортировать", .ar: "تصدير", .fr: "Exporter", .de: "Exportieren",
+            .es: "Exportar", .pt: "Exportar",
+        ],
+        "diagnostics.export.cancel": [
+            .zhHans: "取消", .en: "Cancel", .ja: "キャンセル", .ko: "취소",
+            .ru: "Отмена", .ar: "إلغاء", .fr: "Annuler", .de: "Abbrechen",
+            .es: "Cancelar", .pt: "Cancelar",
+        ],
+        "diagnostics.export.success": [
+            .zhHans: "诊断包已导出", .en: "Diagnostics package exported", .ja: "診断パックを書き出しました", .ko: "진단 패키지를 내보냈습니다",
+            .ru: "Пакет диагностики экспортирован", .ar: "تم تصدير حزمة التشخيص", .fr: "Paquet de diagnostic exporté", .de: "Diagnosepaket exportiert",
+            .es: "Paquete de diagnóstico exportado", .pt: "Pacote de diagnóstico exportado",
+        ],
+        "diagnostics.export.failed": [
+            .zhHans: "诊断包导出失败", .en: "Diagnostics export failed", .ja: "診断の書き出しに失敗", .ko: "진단 내보내기 실패",
+            .ru: "Не удалось экспортировать диагностику", .ar: "فشل تصدير التشخيص", .fr: "Échec de l’export du diagnostic", .de: "Diagnose-Export fehlgeschlagen",
+            .es: "Error al exportar el diagnóstico", .pt: "Falha ao exportar o diagnóstico",
+        ],
+        "settings.diagnostics": [
+            .zhHans: "诊断中心", .en: "Diagnostics", .ja: "診断", .ko: "진단",
+            .ru: "Диагностика", .ar: "التشخيص", .fr: "Diagnostic", .de: "Diagnose",
+            .es: "Diagnóstico", .pt: "Diagnóstico",
+        ],
+        "settings.diagnostics_sub": [
+            .zhHans: "查看本机问题并导出不含密钥的诊断包", .en: "Inspect this Mac and export a secret-free package", .ja: "この Mac を確認し、秘密情報なしの診断を書き出す", .ko: "이 Mac을 확인하고 비밀 없는 패키지를 내보냅니다",
+            .ru: "Проверить этот Mac и экспортировать пакет без секретов", .ar: "افحص هذا الـ Mac وصدّر حزمة بلا أسرار", .fr: "Inspecter ce Mac et exporter un paquet sans secrets", .de: "Diesen Mac prüfen und ein paket ohne Geheimnisse exportieren",
+            .es: "Revisar este Mac y exportar un paquete sin secretos", .pt: "Inspecionar este Mac e exportar um pacote sem segredos",
+        ],
+        "diagnostics.status.ok": [
+            .zhHans: "正常", .en: "OK", .ja: "正常", .ko: "정상",
+            .ru: "ОК", .ar: "حسن", .fr: "OK", .de: "OK",
+            .es: "OK", .pt: "OK",
+        ],
+        "diagnostics.status.warning": [
+            .zhHans: "注意", .en: "Warning", .ja: "注意", .ko: "주의",
+            .ru: "Внимание", .ar: "تحذير", .fr: "Attention", .de: "Hinweis",
+            .es: "Aviso", .pt: "Aviso",
+        ],
+        "diagnostics.status.failed": [
+            .zhHans: "失败", .en: "Failed", .ja: "失敗", .ko: "실패",
+            .ru: "Ошибка", .ar: "فشل", .fr: "Échec", .de: "Fehler",
+            .es: "Error", .pt: "Falha",
+        ],
+        "diagnostics.status.unknown": [
+            .zhHans: "未知", .en: "Unknown", .ja: "不明", .ko: "알 수 없음",
+            .ru: "Неизвестно", .ar: "غير معروف", .fr: "Inconnu", .de: "Unbekannt",
+            .es: "Desconocido", .pt: "Desconhecido",
+        ],
+        "diagnostics.check.appVersion": [
+            .zhHans: "应用版本", .en: "App version", .ja: "アプリ版", .ko: "앱 버전",
+            .ru: "Версия приложения", .ar: "إصدار التطبيق", .fr: "Version de l’app", .de: "App-Version",
+            .es: "Versión de la app", .pt: "Versão da app",
+        ],
+        "diagnostics.check.macos": [
+            .zhHans: "macOS 版本", .en: "macOS version", .ja: "macOS バージョン", .ko: "macOS 버전",
+            .ru: "Версия macOS", .ar: "إصدار macOS", .fr: "Version de macOS", .de: "macOS-Version",
+            .es: "Versión de macOS", .pt: "Versão do macOS",
+        ],
+        "diagnostics.check.architecture": [
+            .zhHans: "处理器架构", .en: "Architecture", .ja: "アーキテクチャ", .ko: "아키텍처",
+            .ru: "Архитектура", .ar: "المعمارية", .fr: "Architecture", .de: "Architektur",
+            .es: "Arquitectura", .pt: "Arquitetura",
+        ],
+        "diagnostics.check.launchMode": [
+            .zhHans: "运行方式", .en: "Launch mode", .ja: "起動方式", .ko: "실행 방식",
+            .ru: "Режим запуска", .ar: "وضع التشغيل", .fr: "Mode de lancement", .de: "Startmodus",
+            .es: "Modo de arranque", .pt: "Modo de arranque",
+        ],
+        "diagnostics.check.schema": [
+            .zhHans: "设置 schema", .en: "Settings schema", .ja: "設定スキーマ", .ko: "설정 스키마",
+            .ru: "Схема настроек", .ar: "مخطط الإعدادات", .fr: "Schéma des réglages", .de: "Einstellungsschema",
+            .es: "Esquema de ajustes", .pt: "Esquema de definições",
+        ],
+        "diagnostics.check.applicationSupport": [
+            .zhHans: "应用支持目录", .en: "Application Support", .ja: "Application Support", .ko: "Application Support",
+            .ru: "Application Support", .ar: "Application Support", .fr: "Application Support", .de: "Application Support",
+            .es: "Application Support", .pt: "Application Support",
+        ],
+        "diagnostics.check.logs": [
+            .zhHans: "日志目录", .en: "Log directory", .ja: "ログディレクトリ", .ko: "로그 디렉터리",
+            .ru: "Папка журналов", .ar: "مجلد السجلات", .fr: "Dossier des journaux", .de: "Protokollordner",
+            .es: "Carpeta de registros", .pt: "Pasta de registos",
+        ],
+        "diagnostics.check.temporary": [
+            .zhHans: "临时目录", .en: "Temporary directory", .ja: "一時ディレクトリ", .ko: "임시 디렉터리",
+            .ru: "Временная папка", .ar: "المجلد المؤقت", .fr: "Dossier temporaire", .de: "Temporärer Ordner",
+            .es: "Carpeta temporal", .pt: "Pasta temporária",
+        ],
+        "diagnostics.check.settings": [
+            .zhHans: "设置文件", .en: "Settings file", .ja: "設定ファイル", .ko: "설정 파일",
+            .ru: "Файл настроек", .ar: "ملف الإعدادات", .fr: "Fichier des réglages", .de: "Einstellungsdatei",
+            .es: "Archivo de ajustes", .pt: "Ficheiro de definições",
+        ],
+        "diagnostics.check.usageHistory": [
+            .zhHans: "用量历史", .en: "Usage history", .ja: "使用履歴", .ko: "사용 기록",
+            .ru: "История расхода", .ar: "سجل الاستخدام", .fr: "Historique d’utilisation", .de: "Nutzungsverlauf",
+            .es: "Historial de uso", .pt: "Histórico de uso",
+        ],
+        "diagnostics.check.migration": [
+            .zhHans: "最近迁移", .en: "Latest migration", .ja: "直近の移行", .ko: "최근 마이그레이션",
+            .ru: "Последняя миграция", .ar: "آخر ترحيل", .fr: "Dernière migration", .de: "Letzte Migration",
+            .es: "Última migración", .pt: "Última migração",
+        ],
+        "diagnostics.check.backup": [
+            .zhHans: "最近备份", .en: "Latest backup", .ja: "直近のバックアップ", .ko: "최근 백업",
+            .ru: "Последняя резервная копия", .ar: "آخر نسخة احتياطية", .fr: "Dernière sauvegarde", .de: "Letztes Backup",
+            .es: "Última copia", .pt: "Última cópia",
+        ],
+        "diagnostics.check.restore": [
+            .zhHans: "最近恢复", .en: "Latest restore", .ja: "直近の復元", .ko: "최근 복원",
+            .ru: "Последнее восстановление", .ar: "آخر استعادة", .fr: "Dernière restauration", .de: "Letzte Wiederherstellung",
+            .es: "Última restauración", .pt: "Última restauro",
+        ],
+        "diagnostics.check.keychain": [
+            .zhHans: "普通钥匙串", .en: "Ordinary Keychain", .ja: "通常のキーチェーン", .ko: "일반 키체인",
+            .ru: "Обычная связка ключей", .ar: "سلسلة المفاتيح العادية", .fr: "Trousseau ordinaire", .de: "Normale Schlüsselkette",
+            .es: "Llavero ordinario", .pt: "Porta-chaves normal",
+        ],
+        "diagnostics.check.notifications": [
+            .zhHans: "通知授权", .en: "Notification authorization", .ja: "通知の許可", .ko: "알림 권한",
+            .ru: "Разрешение уведомлений", .ar: "تفويض الإشعارات", .fr: "Autorisation des notifications", .de: "Mitteilungsfreigabe",
+            .es: "Autorización de notificaciones", .pt: "Autorização de notificações",
+        ],
+        "diagnostics.check.refresh": [
+            .zhHans: "刷新状态", .en: "Refresh status", .ja: "更新状態", .ko: "새로고침 상태",
+            .ru: "Состояние обновления", .ar: "حالة التحديث", .fr: "État d’actualisation", .de: "Aktualisierungsstatus",
+            .es: "Estado de actualización", .pt: "Estado de atualização",
+        ],
+        "diagnostics.check.providers": [
+            .zhHans: "渠道配置", .en: "Provider configuration", .ja: "チャネル設定", .ko: "채널 구성",
+            .ru: "Конфигурация каналов", .ar: "تهيئة المزوّد", .fr: "Configuration des canaux", .de: "Kanal-Konfiguration",
+            .es: "Configuración de proveedores", .pt: "Configuração de provedores",
+        ],
+        "diagnostics.check.usage": [
+            .zhHans: "用量统计", .en: "Usage statistics", .ja: "使用量", .ko: "사용량 통계",
+            .ru: "Статистика расхода", .ar: "إحصاءات الاستخدام", .fr: "Statistiques d’utilisation", .de: "Nutzungsstatistik",
+            .es: "Estadísticas de uso", .pt: "Estatísticas de uso",
+        ],
+        "diagnostics.detail.appVersion.ok": [
+            .zhHans: "当前应用版本。", .en: "Current app version.",
+        ],
+        "diagnostics.detail.macos.ok": [
+            .zhHans: "当前系统版本。", .en: "Current macOS version.",
+        ],
+        "diagnostics.detail.architecture.appleSilicon": [
+            .zhHans: "Apple 芯片。", .en: "Apple silicon.",
+        ],
+        "diagnostics.detail.architecture.intel": [
+            .zhHans: "Intel 处理器。", .en: "Intel processor.",
+        ],
+        "diagnostics.detail.architecture.unknown": [
+            .zhHans: "架构未知。", .en: "Unknown architecture.",
+        ],
+        "diagnostics.detail.launchMode.menuBar": [
+            .zhHans: "菜单栏应用。", .en: "Menu bar app.",
+        ],
+        "diagnostics.detail.launchMode.unknown": [
+            .zhHans: "运行方式未知。", .en: "Unknown launch mode.",
+        ],
+        "diagnostics.detail.schema.ok": [
+            .zhHans: "设置 schema 可用。", .en: "Settings schema is supported.",
+        ],
+        "diagnostics.detail.schema.unsupported": [
+            .zhHans: "设置 schema 不受支持。", .en: "Settings schema is not supported.",
+        ],
+        "diagnostics.detail.applicationSupport.ok": [
+            .zhHans: "Application Support 可写。", .en: "Application Support is writable.",
+        ],
+        "diagnostics.detail.applicationSupport.unwritable": [
+            .zhHans: "Application Support 不可写。", .en: "Application Support is not writable.",
+        ],
+        "diagnostics.detail.logs.ok": [
+            .zhHans: "日志目录可写。", .en: "Log directory is writable.",
+        ],
+        "diagnostics.detail.logs.unwritable": [
+            .zhHans: "日志目录不可写。", .en: "Log directory is not writable.",
+        ],
+        "diagnostics.detail.temporary.ok": [
+            .zhHans: "临时目录可写。", .en: "Temporary directory is writable.",
+        ],
+        "diagnostics.detail.temporary.unwritable": [
+            .zhHans: "临时目录不可写。", .en: "Temporary directory is not writable.",
+        ],
+        "diagnostics.detail.settings.ok": [
+            .zhHans: "设置文件可读。", .en: "Settings file is readable.",
+        ],
+        "diagnostics.detail.settings.unreadable": [
+            .zhHans: "设置文件不可读。", .en: "Settings file is not readable.",
+        ],
+        "diagnostics.detail.usageHistory.ok": [
+            .zhHans: "用量历史可读。", .en: "Usage history is readable.",
+        ],
+        "diagnostics.detail.usageHistory.unreadable": [
+            .zhHans: "用量历史不可读。", .en: "Usage history is not readable.",
+        ],
+        "diagnostics.detail.migration.ok": [
+            .zhHans: "最近一次迁移已留下快照。", .en: "A migration snapshot is present.",
+        ],
+        "diagnostics.detail.migration.none": [
+            .zhHans: "尚未记录迁移结果。", .en: "No migration result recorded.",
+        ],
+        "diagnostics.detail.migration.failed": [
+            .zhHans: "最近一次迁移失败。", .en: "The latest migration failed.",
+        ],
+        "diagnostics.detail.migration.unknown": [
+            .zhHans: "迁移结果未知。", .en: "Migration result is unknown.",
+        ],
+        "diagnostics.detail.backup.ok": [
+            .zhHans: "最近一次写入前已有快照。", .en: "A write snapshot is present.",
+        ],
+        "diagnostics.detail.backup.none": [
+            .zhHans: "尚未记录备份结果。", .en: "No backup result recorded.",
+        ],
+        "diagnostics.detail.backup.failed": [
+            .zhHans: "最近一次备份失败。", .en: "The latest backup failed.",
+        ],
+        "diagnostics.detail.backup.unknown": [
+            .zhHans: "备份结果未知。", .en: "Backup result is unknown.",
+        ],
+        "diagnostics.detail.restore.ok": [
+            .zhHans: "最近一次恢复已记录。", .en: "A restore result is present.",
+        ],
+        "diagnostics.detail.restore.none": [
+            .zhHans: "尚未记录恢复结果。", .en: "No restore result recorded.",
+        ],
+        "diagnostics.detail.restore.failed": [
+            .zhHans: "最近一次恢复失败。", .en: "The latest restore failed.",
+        ],
+        "diagnostics.detail.restore.unknown": [
+            .zhHans: "恢复结果未知。", .en: "Restore result is unknown.",
+        ],
+        "diagnostics.detail.keychain.available": [
+            .zhHans: "普通钥匙串可用。", .en: "Ordinary Keychain is available.",
+        ],
+        "diagnostics.detail.keychain.unavailable": [
+            .zhHans: "普通钥匙串不可用。", .en: "Ordinary Keychain is unavailable.",
+        ],
+        "diagnostics.detail.keychain.unknown": [
+            .zhHans: "钥匙串状态未知。", .en: "Keychain status is unknown.",
+        ],
+        "diagnostics.detail.notifications.authorized": [
+            .zhHans: "通知已授权。", .en: "Notifications are authorized.",
+        ],
+        "diagnostics.detail.notifications.provisional": [
+            .zhHans: "通知为临时授权。", .en: "Notifications are provisionally authorized.",
+        ],
+        "diagnostics.detail.notifications.notDetermined": [
+            .zhHans: "通知尚未决定。", .en: "Notification permission is not decided.",
+        ],
+        "diagnostics.detail.notifications.denied": [
+            .zhHans: "通知已被拒绝。", .en: "Notifications were denied.",
+        ],
+        "diagnostics.detail.notifications.restricted": [
+            .zhHans: "通知受限。", .en: "Notifications are restricted.",
+        ],
+        "diagnostics.detail.notifications.unknown": [
+            .zhHans: "通知状态未知。", .en: "Notification status is unknown.",
+        ],
+        "diagnostics.detail.refresh.idle": [
+            .zhHans: "当前未在刷新。", .en: "Refresh is idle.",
+        ],
+        "diagnostics.detail.refresh.running": [
+            .zhHans: "正在刷新。", .en: "Refresh is running.",
+        ],
+        "diagnostics.detail.refresh.cancelling": [
+            .zhHans: "正在取消刷新。", .en: "Refresh is cancelling.",
+        ],
+        "diagnostics.detail.refresh.succeeded": [
+            .zhHans: "最近一次刷新成功。", .en: "Last refresh succeeded.",
+        ],
+        "diagnostics.detail.refresh.partiallyFailed": [
+            .zhHans: "最近一次刷新部分失败。", .en: "Last refresh partially failed.",
+        ],
+        "diagnostics.detail.refresh.failed": [
+            .zhHans: "最近一次刷新失败。", .en: "Last refresh failed.",
+        ],
+        "diagnostics.detail.providers.ok": [
+            .zhHans: "已记录渠道类型与凭据引用是否存在。", .en: "Provider types and credential-ref presence recorded.",
+        ],
+        "diagnostics.detail.usage.ok": [
+            .zhHans: "用量历史摘要可用。", .en: "Usage history summary is available.",
+        ],
+        "diagnostics.detail.usage.warning": [
+            .zhHans: "用量保存或读取出现问题。", .en: "Usage save or load reported a problem.",
+        ],
     ]
 }

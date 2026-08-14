@@ -19,6 +19,17 @@ struct HomeView: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(SBTheme.warn)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    if showsDiagnosticsAction {
+                        Button {
+                            model.openDiagnosticsCenter()
+                        } label: {
+                            Text(l10n.t("diagnostics.banner.action"))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(SBTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(l10n.t("diagnostics.banner.action"))
+                    }
                     Button {
                         model.dismissRefreshNotice()
                     } label: {
@@ -109,6 +120,14 @@ struct HomeView: View {
             return l10n.t(key)
         }
         return model.banner
+    }
+
+    private var showsDiagnosticsAction: Bool {
+        DiagnosticBannerPolicy.shouldOfferDiagnostics(
+            noticeKey: model.refreshNoticeKey,
+            usageDataError: model.usageDataError,
+            usageRecoveryNotice: model.usageRecoveryNotice
+        )
     }
 
     // MARK: - Reorder（对齐智额）

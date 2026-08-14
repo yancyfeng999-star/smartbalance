@@ -53,6 +53,10 @@ struct MenuRootView: View {
                         settingsShell
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                             .transition(.opacity)
+                    case .diagnostics:
+                        diagnosticsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
                     }
                 }
             }
@@ -97,7 +101,9 @@ struct MenuRootView: View {
 
     private var usageShell: some View {
         VStack(spacing: 0) {
-            detailHeader(title: l10n.t("usage.title"))
+            detailHeader(title: l10n.t("usage.title")) {
+                model.selectedTab = .home
+            }
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
@@ -134,6 +140,26 @@ struct MenuRootView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 8)
                 .padding(.bottom, 14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    // MARK: - Diagnostics shell
+
+    private var diagnosticsShell: some View {
+        VStack(spacing: 0) {
+            diagnosticsHeader
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                DiagnosticsCenterView(model: model)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
@@ -240,16 +266,24 @@ struct MenuRootView: View {
     }
 
     private var settingsHeader: some View {
-        detailHeader(title: l10n.t("settings.title"))
+        detailHeader(title: l10n.t("settings.title")) {
+            model.selectedTab = .home
+        }
     }
 
-    private func detailHeader(title: String) -> some View {
+    private var diagnosticsHeader: some View {
+        detailHeader(title: l10n.t("diagnostics.title")) {
+            model.closeDiagnosticsCenter()
+        }
+    }
+
+    private func detailHeader(title: String, back: @escaping () -> Void = { }) -> some View {
         HStack {
             Button {
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    model.selectedTab = .home
+                    back()
                 }
             } label: {
                 HStack(spacing: 4) {

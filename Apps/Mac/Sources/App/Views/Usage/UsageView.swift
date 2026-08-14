@@ -25,26 +25,21 @@ struct UsageView: View {
             periodNavigator(summary: currentSummary)
 
             if model.usageDataError != nil {
-                Label(usageErrorText, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.danger)
-                    .fixedSize(horizontal: false, vertical: true)
+                recoverableBanner(text: usageErrorText, systemImage: "exclamationmark.triangle.fill", tint: SBTheme.danger)
             }
 
             if let key = model.refreshNoticeKey,
                key != "usage.save_failed",
                key != "usage.load_failed" {
-                Label(l10n.t(key), systemImage: "clock.badge.xmark")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.warn)
-                    .fixedSize(horizontal: false, vertical: true)
+                recoverableBanner(text: l10n.t(key), systemImage: "clock.badge.xmark", tint: SBTheme.warn)
             }
 
             if model.usageRecoveryNotice {
-                Label(l10n.t("usage.history_recovered"), systemImage: "arrow.counterclockwise.circle.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.warn)
-                    .fixedSize(horizontal: false, vertical: true)
+                recoverableBanner(
+                    text: l10n.t("usage.history_recovered"),
+                    systemImage: "arrow.counterclockwise.circle.fill",
+                    tint: SBTheme.warn
+                )
             }
 
             content(summary: currentSummary)
@@ -173,6 +168,25 @@ struct UsageView: View {
             ForEach(summary.currencies) { currency in
                 UsageCurrencyCard(summary: currency, period: period)
             }
+        }
+    }
+
+    private func recoverableBanner(text: String, systemImage: String, tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Label(text, systemImage: systemImage)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button {
+                model.openDiagnosticsCenter()
+            } label: {
+                Text(l10n.t("diagnostics.banner.action"))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(l10n.t("diagnostics.banner.action"))
         }
     }
 
