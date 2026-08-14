@@ -947,12 +947,10 @@ final class AppModel: ObservableObject {
 
     // MARK: - 数据导出 / 导入
 
-    /// 导出设置 + 密钥到用户选择的 JSON（含明文 API Key，仅本机保管）。
+    /// 导出非敏感设置为 portable-settings v2；不含 API Key / Cookie / SMTP 密码。
     func exportDataBackup() {
-        let secretsMap = secrets.exportAll()
         let package = DataBackupService.makePackage(
             settings: settings,
-            secrets: secretsMap,
             appVersion: appVersion
         )
 
@@ -960,7 +958,7 @@ final class AppModel: ObservableObject {
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
         panel.title = "导出智余数据"
-        panel.message = "备份包含全部账号配置与 API 密钥（明文）。请妥善保管，勿上传公开网盘。"
+        panel.message = "导出账号与报警等非敏感设置。密钥不会写入文件，导入后需要重新填写。"
         panel.nameFieldStringValue = DataBackupService.defaultFileName()
         panel.allowedContentTypes = [.json]
 
@@ -970,12 +968,11 @@ final class AppModel: ObservableObject {
 
         do {
             try DataBackupService.write(package, to: url)
-            let secretCount = secretsMap.count
             let accountCount = settings.accounts.count
-            let msg = "已导出 \(accountCount) 个账号 · \(secretCount) 条密钥\n\(url.path)"
+            let msg = "已导出 \(accountCount) 个账号（不含密钥）\n\(url.path)"
             banner = "数据已导出"
             presentAlert(title: "导出成功", message: msg)
-            AppLog.info("Data backup exported · accounts=\(accountCount) secrets=\(secretCount) → \(url.lastPathComponent)")
+            AppLog.info("Portable settings exported · accounts=\(accountCount) → \(url.lastPathComponent)")
         } catch {
             banner = "导出失败：\(error.localizedDescription)"
             presentAlert(title: "导出失败", message: error.localizedDescription)
@@ -983,22 +980,24 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 从备份 JSON 恢复；会覆盖当前设置与密钥库。
+    /// 从 portable v2 或旧 v1 备份恢复非敏感设置；不导入 secrets，不读旧 Keychain。
     func importDataBackup() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.title = "导入智余数据"
-        panel.message = "选择之前导出的备份 JSON。导入后会覆盖本机现有账号与密钥。"
+        panel.message = "选择设置迁移包。导入后覆盖本机账号配置，凭据需要重新填写。"
         panel.allowedContentTypes = [.json]
 
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        let package: DataBackupPackage
+        let data: Data
+        let inspection: DataBackupService.BackupInspection
         do {
-            package = try DataBackupService.read(from: url)
+            data = try Data(contentsOf: url)
+            inspection = try DataBackupService.inspect(data)
         } catch {
             banner = "导入失败：\(error.localizedDescription)"
             presentAlert(title: "导入失败", message: error.localizedDescription)
@@ -1006,13 +1005,32 @@ final class AppModel: ObservableObject {
             return
         }
 
+        let result: PortableImportResult
+        do {
+            result = try DataBackupService.importSettings(from: data)
+        } catch {
+            banner = "导入失败：\(error.localizedDescription)"
+            presentAlert(title: "导入失败", message: error.localizedDescription)
+            AppLog.error("Data backup import parse failed: \(error.localizedDescription)")
+            return
+        }
+
         let confirm = NSAlert()
         confirm.messageText = "确认导入并覆盖？"
-        confirm.informativeText = """
-        将恢复 \(package.settings.accounts.count) 个账号、\(package.secrets.count) 条密钥（导出自 \(package.appVersion)）。
+        switch inspection {
+        case .portable(let package):
+            confirm.informativeText = """
+            将恢复 \(result.settings.accounts.count) 个账号（导出自 \(package.appVersion)）。
 
-        当前本机数据会被替换。若只想试装 App，请先导出再卸载。
-        """
+            密钥不会导入，导入后需要重新填写凭据。当前本机账号列表会被替换。
+            """
+        case .legacySecret(let warning):
+            confirm.informativeText = """
+            \(warning.warningMessage)
+
+            将恢复 \(result.settings.accounts.count) 个账号的非敏感设置（导出自 \(warning.appVersion)）。密钥不会导入。
+            """
+        }
         confirm.alertStyle = .warning
         confirm.addButton(withTitle: "导入并覆盖")
         confirm.addButton(withTitle: "取消")
@@ -1020,12 +1038,14 @@ final class AppModel: ObservableObject {
         guard confirm.runModal() == .alertFirstButtonReturn else { return }
 
         do {
-            try applyImportedBackup(package)
-            let msg = "已导入 \(package.settings.accounts.count) 个账号 · \(package.secrets.count) 条密钥"
+            try applyImportedSettings(result.settings)
+            let msg = result.credentialsNeedReentry
+                ? "已导入 \(result.settings.accounts.count) 个账号，请重新填写凭据"
+                : "已导入 \(result.settings.accounts.count) 个账号"
             banner = "数据已导入 · 正在刷新余额"
             presentAlert(title: "导入成功", message: msg)
-            AppLog.info("Data backup imported · accounts=\(package.settings.accounts.count) secrets=\(package.secrets.count)")
-            requestUsageBaselineResetAndRefresh(for: Set(package.settings.accounts.map(\.id)))
+            AppLog.info("Portable settings imported · accounts=\(result.settings.accounts.count) reentry=\(result.credentialsNeedReentry)")
+            requestUsageBaselineResetAndRefresh(for: Set(result.settings.accounts.map(\.id)))
         } catch {
             banner = "导入失败：\(error.localizedDescription)"
             presentAlert(title: "导入失败", message: error.localizedDescription)
@@ -1033,20 +1053,11 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func applyImportedBackup(_ package: DataBackupPackage) throws {
-        var next = package.settings
+    private func applyImportedSettings(_ imported: AppSettings) throws {
+        var next = imported
         next.windowPinned = false
         next.apiQueryEnabled = true
-
-        // 导入事务：settings 失败则回滚密钥库
-        let vaultBefore = secrets.snapshot()
-        try secrets.replaceAll(package.secrets)
-        do {
-            try store.save(next)
-        } catch {
-            try? secrets.replaceAll(vaultBefore)
-            throw error
-        }
+        try store.save(next)
 
         invalidateActiveRefresh()
         settings = next
