@@ -329,3 +329,40 @@ public enum CredentialPresence: String, Sendable, Equatable {
     case present
     case missing
 }
+
+/// After a restore, wipe usage baselines only when usage history was not restored.
+public enum RestoreApplyPolicy: Sendable {
+    public static func shouldResetUsageBaselines(includedUsage: Bool) -> Bool {
+        !includedUsage
+    }
+}
+
+public struct RestoreSessionToken: Equatable, Sendable {
+    public let rawValue: Int
+
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+}
+
+/// Generation token so dismiss/cancel cannot apply a restore that finished after the user left.
+public struct RestoreSession: Equatable, Sendable {
+    private var generation: Int
+
+    public init(generation: Int = 0) {
+        self.generation = generation
+    }
+
+    public mutating func begin() -> RestoreSessionToken {
+        generation += 1
+        return RestoreSessionToken(rawValue: generation)
+    }
+
+    public mutating func cancel() {
+        generation += 1
+    }
+
+    public func isCurrent(_ token: RestoreSessionToken) -> Bool {
+        token.rawValue == generation
+    }
+}

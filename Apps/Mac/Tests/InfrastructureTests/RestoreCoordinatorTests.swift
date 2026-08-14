@@ -298,6 +298,152 @@ final class RestoreCoordinatorTests: XCTestCase {
             ).dailyRecords.count,
             trimmed.dailyRecords.count
         )
+        XCTAssertEqual(reloaded.baselines.count, 1)
+        XCTAssertEqual(reloaded.baselines.first?.value, 100)
+        XCTAssertFalse(RestoreApplyPolicy.shouldResetUsageBaselines(includedUsage: true))
+    }
+
+    func testRestoreInstallsStagedEmptyAccountsInsteadOfKeepingExisting() async throws {
+        let env = try await seedOriginals()
+        let incoming = try SettingsTransferService.exportData(
+            settings: AppSettings(accounts: [], themeMode: "light", appLanguage: "en"),
+            appVersion: "0.3.1"
+        )
+
+        let outcome = await env.coordinator.restore(
+            from: incoming,
+            confirmed: true,
+            includeUsage: false
+        )
+
+        XCTAssertEqual(outcome.status, .succeeded)
+        let loaded = SettingsStore(directory: directory).load()
+        XCTAssertTrue(loaded.accounts.isEmpty, "validated staged bytes must replace accounts, including empty")
+        XCTAssertEqual(loaded.themeMode, "light")
+        XCTAssertEqual(loaded.appLanguage, "en")
+        let disk = try Data(contentsOf: env.settingsStore.fileURL)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: disk) as? [String: Any])
+        let settings = try XCTUnwrap(object["settings"] as? [String: Any])
+        let accounts = try XCTUnwrap(settings["accounts"] as? [Any])
+        XCTAssertTrue(accounts.isEmpty)
+    }
+
+    func testUsageWriteFailureRollsBackSettingsAndReportsActualRollback() async throws {
+        let env = try await seedOriginals()
+        let originalSettings = try Data(contentsOf: env.settingsStore.fileURL)
+        let originalUsage = try Data(contentsOf: env.usageStore.fileURL)
+        let failingUsage = UsageHistoryStore(
+            filename: "usage-history.json",
+            directory: directory,
+            writer: { _, _ in throw TestRestoreWriteError.diskFull }
+        )
+        let coordinator = RestoreCoordinator(
+            directory: directory,
+            settingsStore: env.settingsStore,
+            usageStore: failingUsage,
+            backupManager: BackupManager(directory: directory),
+            outcomes: DiagnosticOutcomeStore(directory: directory)
+        )
+        let package = LocalRestorePackage.make(
+            from: AppSettings(accounts: [
+                BalanceAccount(kind: .kimi, displayName: "Incoming", secretRef: "in"),
+            ], themeMode: "light"),
+            usage: UsageHistoryDocument(
+                schemaVersion: 1,
+                dailyRecords: [record(dayKey: "2026-08-10", unit: "CNY", amount: 1)]
+            ),
+            appVersion: "0.3.1"
+        )
+
+        let outcome = await coordinator.restore(
+            from: try LocalRestorePackage.encode(package),
+            confirmed: true,
+            includeUsage: true
+        )
+
+        XCTAssertEqual(outcome.status, .failed)
+        XCTAssertEqual(outcome.failureReason, .usageWriteFailed)
+        XCTAssertTrue(outcome.rolledBack)
+        XCTAssertEqual(try Data(contentsOf: env.settingsStore.fileURL), originalSettings)
+        XCTAssertEqual(try Data(contentsOf: env.usageStore.fileURL), originalUsage)
+        XCTAssertEqual(SettingsStore(directory: directory).load().accounts.first?.displayName, "Original")
+        XCTAssertEqual(posixPermissions(at: env.settingsStore.fileURL), 0o600)
+        XCTAssertEqual(DiagnosticOutcomeStore(directory: directory).load().restore.result, .failed)
+    }
+
+    func testUsageWriteFailureDoesNotClaimRollbackWhenSnapshotRestoreFails() async throws {
+        let env = try await seedOriginals()
+        let failingUsage = UsageHistoryStore(
+            filename: "usage-history.json",
+            directory: directory,
+            writer: { _, _ in throw TestRestoreWriteError.diskFull }
+        )
+        let coordinator = RestoreCoordinator(
+            directory: directory,
+            settingsStore: env.settingsStore,
+            usageStore: failingUsage,
+            backupManager: BackupManager(directory: directory),
+            outcomes: DiagnosticOutcomeStore(directory: directory)
+        )
+        coordinator.afterSettingsInstall = { snapshot in
+            if let snapshot {
+                try? FileManager.default.removeItem(at: snapshot.url)
+            }
+        }
+        let package = LocalRestorePackage.make(
+            from: AppSettings(accounts: [
+                BalanceAccount(kind: .kimi, displayName: "Incoming", secretRef: "in"),
+            ], themeMode: "light"),
+            usage: UsageHistoryDocument(
+                schemaVersion: 1,
+                dailyRecords: [record(dayKey: "2026-08-10", unit: "CNY", amount: 1)]
+            ),
+            appVersion: "0.3.1"
+        )
+
+        let outcome = await coordinator.restore(
+            from: try LocalRestorePackage.encode(package),
+            confirmed: true,
+            includeUsage: true
+        )
+
+        XCTAssertEqual(outcome.status, .failed)
+        XCTAssertEqual(outcome.failureReason, .usageWriteFailed)
+        XCTAssertFalse(outcome.rolledBack, "must not claim rollback when snapshot restore failed")
+    }
+
+    func testCancelBeforeInstallLeavesOriginalsUnchanged() async throws {
+        let env = try await seedOriginals()
+        let originalSettings = try Data(contentsOf: env.settingsStore.fileURL)
+        let originalUsage = try Data(contentsOf: env.usageStore.fileURL)
+        let gate = RestoreCancellationGate()
+        env.coordinator.beforeInstall = { await gate.wait() }
+        let incoming = try SettingsTransferService.exportData(
+            settings: AppSettings(accounts: [
+                BalanceAccount(kind: .kimi, displayName: "Should Not Apply", secretRef: "new"),
+            ], themeMode: "light"),
+            appVersion: "0.3.1"
+        )
+
+        let task = Task {
+            await env.coordinator.restore(
+                from: incoming,
+                confirmed: true,
+                includeUsage: false
+            )
+        }
+        while !(await gate.hasWaiter) {
+            await Task.yield()
+        }
+        task.cancel()
+        await gate.release()
+        let outcome = await task.value
+
+        XCTAssertEqual(outcome.status, .cancelled)
+        XCTAssertEqual(try Data(contentsOf: env.settingsStore.fileURL), originalSettings)
+        XCTAssertEqual(try Data(contentsOf: env.usageStore.fileURL), originalUsage)
+        XCTAssertEqual(SettingsStore(directory: directory).load().accounts.first?.displayName, "Original")
+        XCTAssertEqual(DiagnosticOutcomeStore(directory: directory).load().restore.result, .none)
     }
 
     private struct Env {
@@ -392,4 +538,21 @@ final class RestoreCoordinatorTests: XCTestCase {
 
 private enum TestRestoreWriteError: Error {
     case diskFull
+}
+
+private actor RestoreCancellationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    var hasWaiter: Bool { continuation != nil }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
 }

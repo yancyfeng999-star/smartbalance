@@ -41,6 +41,8 @@ final class AppModel: ObservableObject {
     private var diagnosticsReturnTab: Tab = .home
     private var pendingRestoreData: Data?
     private var pendingRestoreMode: SettingsSupportPage = .transfer
+    private var restoreSession = RestoreSession()
+    private var restoreTask: Task<Void, Never>?
 
     enum Tab: String {
         case home
@@ -1161,6 +1163,7 @@ final class AppModel: ObservableObject {
     }
 
     func closeSettingsSupport() {
+        abortInFlightRestore()
         if restorePreview != nil || restoreOutcome != nil {
             clearRestorePreview(resetPage: false)
             return
@@ -1241,7 +1244,9 @@ final class AppModel: ObservableObject {
         var prepared = preview
         prepared?.settings.windowPinned = false
         prepared?.settings.apiQueryEnabled = true
-        Task { @MainActor [weak self] in
+        let token = restoreSession.begin()
+        restoreTask?.cancel()
+        restoreTask = Task { @MainActor [weak self] in
             guard let self else { return }
             let outcome: RestoreOutcome
             if let prepared {
@@ -1259,7 +1264,9 @@ final class AppModel: ObservableObject {
                     allowLegacyNonSensitive: allowLegacy
                 )
             }
+            guard self.restoreSession.isCurrent(token), !Task.isCancelled else { return }
             self.restoreBusy = false
+            self.restoreTask = nil
             self.restoreOutcome = outcome
             if outcome.status == .succeeded {
                 self.applyRestoredState(outcome)
@@ -1273,6 +1280,7 @@ final class AppModel: ObservableObject {
     }
 
     func cancelPendingRestore() {
+        abortInFlightRestore()
         restoreOutcome = RestoreOutcome.cancelled()
         pendingRestoreData = nil
         restorePreview = nil
@@ -1349,15 +1357,26 @@ final class AppModel: ObservableObject {
         }
         preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
         objectWillChange.send()
-        requestUsageBaselineResetAndRefresh(for: Set(next.accounts.map(\.id)))
+        if RestoreApplyPolicy.shouldResetUsageBaselines(includedUsage: outcome.includedUsage) {
+            requestUsageBaselineResetAndRefresh(for: Set(next.accounts.map(\.id)))
+        } else {
+            refresh()
+        }
+    }
+
+    private func abortInFlightRestore() {
+        restoreSession.cancel()
+        restoreTask?.cancel()
+        restoreTask = nil
+        restoreBusy = false
     }
 
     private func clearRestorePreview(resetPage: Bool) {
+        abortInFlightRestore()
         restorePreview = nil
         restoreOutcome = nil
         pendingRestoreData = nil
         restoreLegacyAcknowledged = false
-        restoreBusy = false
         if resetPage {
             settingsSupportPage = nil
         }

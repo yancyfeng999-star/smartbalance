@@ -171,8 +171,13 @@ public actor UsageHistoryStore {
     }
 
     public func replaceDocument(_ document: UsageHistoryDocument) throws {
-        try Task.checkCancellation()
         let data = try encoder.encode(document)
+        try replaceEncodedDocument(data)
+    }
+
+    public func replaceEncodedDocument(_ data: Data) throws {
+        try Task.checkCancellation()
+        let document = try decoder.decode(UsageHistoryDocument.self, from: data)
         try writer(data, fileURL)
         cached = document
         hasLoaded = true

@@ -118,6 +118,17 @@ public final class SettingsStore: @unchecked Sendable {
         return load()
     }
 
+    /// Writes already-validated envelope bytes as-is. Does not merge accounts or extensions.
+    public func installValidatedEnvelope(_ data: Data) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let outcome = try runner.migrate(data: data)
+        try writer(data, url)
+        var document = outcome.document
+        document.settings.extensions = document.extensions
+        cachedDocument = document
+    }
+
     private func existingAccounts() -> [BalanceAccount]? {
         guard let existing = try? Data(contentsOf: url),
               let outcome = try? runner.migrate(data: existing) else {

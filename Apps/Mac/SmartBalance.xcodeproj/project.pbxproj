@@ -168,6 +168,7 @@
 		E08E1DDBA99F69B050D5A819 /* RefreshModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3859B33896830447A6D280 /* RefreshModels.swift */; };
 		E2527499AD2C162A25D45195 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */; };
 		E30EFB57A9D82D64D408757F /* SecretMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF26DFD225E26801BD8B0EA /* SecretMask.swift */; };
+		E48D6CFC42E007EB1AF75970 /* RestoreApplyPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DDE51A830C9608C70D9A3F /* RestoreApplyPolicyTests.swift */; };
 		E75EC36A1F7FD9D1D206DBFD /* StatusItemIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6096065B6EA1779896300BB0 /* StatusItemIdentity.swift */; };
 		E8D6FAB1FBD1EC0A81D4353B /* ViralTokProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4CE1EF4B9D661D8E0EC1540 /* ViralTokProviderTests.swift */; };
 		EA65F5255DE4A15AD0445367 /* OpenRouterProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B6A6413BB5EA3C5A52AA7 /* OpenRouterProviderTests.swift */; };
@@ -434,6 +435,7 @@
 		C179F3AEA1BCAF1A6FFF1060 /* UsageSummaryBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSummaryBuilder.swift; sourceTree = "<group>"; };
 		C1FF5FBC16F346FFBA569577 /* RestorePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestorePreviewView.swift; sourceTree = "<group>"; };
 		C4CE1EF4B9D661D8E0EC1540 /* ViralTokProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViralTokProviderTests.swift; sourceTree = "<group>"; };
+		C4DDE51A830C9608C70D9A3F /* RestoreApplyPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestoreApplyPolicyTests.swift; sourceTree = "<group>"; };
 		C53139A27E862F8E05EA0BD0 /* NSStatusItem Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSStatusItem Extensions.swift"; sourceTree = "<group>"; };
 		C5AAE8EF719BC07AF237A54F /* SMTPSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPSection.swift; sourceTree = "<group>"; };
 		C5F9141AAB18DF160ABCB945 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -834,6 +836,7 @@
 				A8B1A05AE6579A7456CDAF6F /* DiagnosticModelsTests.swift */,
 				15D030DD7BF058E34B1414F0 /* PortableTransferModelsTests.swift */,
 				195521574C55B092DCDED40C /* RefreshModelsTests.swift */,
+				C4DDE51A830C9608C70D9A3F /* RestoreApplyPolicyTests.swift */,
 				A7086203FF112FD363786BA4 /* SettingsMigrationTests.swift */,
 				84FC2759A6334CA0B67F9E86 /* UsageAccumulatorTests.swift */,
 				C0CC4A9C0B27726B9BFB20A5 /* UsageSummaryBuilderTests.swift */,
@@ -1379,6 +1382,7 @@
 				96B344A928ABA8BD01E08D82 /* DiagnosticModelsTests.swift in Sources */,
 				81951F4C3CF5B790F0B4314D /* PortableTransferModelsTests.swift in Sources */,
 				1753FE9B4F1E7FB380B98365 /* RefreshModelsTests.swift in Sources */,
+				E48D6CFC42E007EB1AF75970 /* RestoreApplyPolicyTests.swift in Sources */,
 				F7D84B563FB107FE6C234379 /* SettingsMigrationTests.swift in Sources */,
 				B40E32184C27C930F2C86394 /* UsageAccumulatorTests.swift in Sources */,
 				2DD9D886ECB8CB8E2ED4C4F7 /* UsageSummaryBuilderTests.swift in Sources */,
