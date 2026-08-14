@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.2.59 |
+| 版本 | 0.3.2 |
 
 ---
 
@@ -79,9 +79,7 @@ NOTES="修复 xxx" ./scripts/release.sh
 SKIP_PUBLISH=1 ./scripts/release.sh
 ```
 
-**规则：每次上线必须走 `release.sh`，自动：升版本 → 打 dmg/pkg → 提交 → tag → GitHub Release。**
-
-**Agent 默认：** 功能/修复做完后直接发版上 GitHub，**不要**让用户自己升版或 push。详见 [AGENTS.md](./AGENTS.md)。
+**维护者发布规则：** 正式版本统一走 `release.sh`，按顺序完成版本、测试、DMG/PKG、SHA256、提交、tag 和 GitHub Release。普通贡献者不需要直接发布或 push 生产版本；请先提交 Pull Request。
 
 产物：
 
@@ -92,7 +90,7 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 
 发版只上传 GitHub Releases，**不复制到桌面**。需要本机副本时：`COPY_TO_DESKTOP=1 ./scripts/package-release.sh`。
 
-**只认一个入口：** 正式版在 `/Applications/智余.app`（应用程序）。  
+**只认一个入口：** 正式版在 `/Applications/智余.app`（应用程序）。
 若启动台/聚焦出现多个「智余」：
 
 ```bash
@@ -107,11 +105,13 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 
 ## 更新（GitHub Releases）
 
-与智额相同思路（**无 Sparkle 静默装**）：
+智余的 P1 更新流程是手动确认，不会因为启动应用而静默替换：
 
-1. 推送代码到 `github.com/yancyfeng999-star/smartbalance`
-2. 创建 Release `v0.2.0`，上传 `SmartBalance-0.2.0-macOS.zip`
-3. 设置 → **检查更新** → 有新版本则**自动下载到「下载」文件夹 → 打开 → 退出应用**，便于替换安装
+1. 维护者发布带有版本说明和校验文件的 GitHub Release。
+2. 用户进入设置 → **检查更新**，查看版本、说明和校验状态。
+3. 用户明确确认后下载并打开安装资产；校验失败或用户取消时保留当前版本。
+
+自动更新、Beta 通道和后台安装不属于当前默认能力，除非另有版本说明和用户可见开关。
 
 ---
 
@@ -120,17 +120,26 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（0600，本机直读，无指纹） |
+| 密钥 | macOS Keychain（普通条目，不启用指纹/密码门禁） |
 | 用量历史 | `…/usage-history.json`（0600，本机记录，最多 400 天） |
 
 ---
 
-## 文档
+## 开源、隐私与文档
 
-- **[AGENTS.md](./AGENTS.md)** — AI / 自动化协作入口（默认修完即发版上 GitHub）
-- **[docs/AGENT_RELEASE_WORKFLOW.md](./docs/AGENT_RELEASE_WORKFLOW.md)** — 开发与发版逐步流程
+智余源代码采用 [Apache License 2.0（Apache-2.0）](./LICENSE)。贡献前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)、[SECURITY.md](./SECURITY.md) 和 [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)。运行时依赖、图片、商标和外部代码的归属见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+
+余额和用量数据默认留在本机；API Key、Cookie 和 SMTP 密码只进入普通 macOS Keychain，不应提交到仓库。完整数据边界见 [docs/DATA_AND_PRIVACY.md](./docs/DATA_AND_PRIVACY.md)。
+
+## 项目文档
+
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — 分层、数据流、持久化和更新边界
+- **[docs/USER_GUIDE.md](./docs/USER_GUIDE.md)** — 安装、设置、报警和用量统计
+- **[docs/PROVIDER_DEVELOPMENT.md](./docs/PROVIDER_DEVELOPMENT.md)** — 新增 Provider 的开发和测试要求
+- **[docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md)** — 开源发布、测试、构建和证据清单
+- **[AGENTS.md](./AGENTS.md)** — 本地 Agent / 自动化协作规则
+- **[docs/AGENT_RELEASE_WORKFLOW.md](./docs/AGENT_RELEASE_WORKFLOW.md)** — 维护者开发与发版逐步流程
 - [PRODUCT.md](./PRODUCT.md)
 - [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 - [CHANGELOG.md](./CHANGELOG.md)
-- [docs/USER_GUIDE.md](./docs/USER_GUIDE.md)
 - [Apps/Mac/README.md](./Apps/Mac/README.md)

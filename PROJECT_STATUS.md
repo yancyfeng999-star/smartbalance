@@ -1,13 +1,13 @@
 # 项目状态
 
-**版本：** 0.2.56（build 77）  
-**阶段：** 可安装使用；GitHub Releases 发版与应用内检查更新已通  
-**远程：** https://github.com/yancyfeng999-star/smartbalance  
+**版本：** 0.3.2（build 83，以 `Apps/Mac/Sources/App/Info.plist` 为准）
+**阶段：** 可安装使用；GitHub Releases 发版与应用内检查更新已通
+**远程：** https://github.com/yancyfeng999-star/smartbalance
 
 ## Agent 默认
 
-修 bug / 做功能 → **直接** `NOTES="…" ./scripts/release.sh` 上线。  
-用户只「检查更新」装包，**不**负责升版与 push。  
+修 bug / 做功能 → **直接** `NOTES="…" ./scripts/release.sh` 上线。
+用户只「检查更新」装包，**不**负责升版与 push。
 
 详见：
 
@@ -20,9 +20,10 @@
 - 多平台余额 + 手录 + 人民币折算报警
 - 完全本地的自然天 / ISO 周 / 月渠道用量统计；按币种分卡，历史保留 400 天
 - 首页卡片选中 +「打开后台」跟选中账号（0.2.17）
-- 本机 vault 密钥；Mac 通知 / SMTP 邮件报警
+- 本机 Keychain 密钥；Mac 通知 / SMTP 邮件报警
 - 多语言设置；平台 logo；GitHub 检查更新
 - `release.sh` 一键：升版 → dmg/pkg → tag → Release
+- Apache-2.0 开源协议、贡献/安全/行为准则、第三方声明与本地开源门禁
 
 ## 仓库布局
 
@@ -38,8 +39,18 @@ AGENTS.md          # Agent 入口
 |------|------|
 | 日志 | `~/Library/Logs/SmartBalance/app.log` |
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `…/secrets.vault`（勿提交） |
+| 密钥 | macOS Keychain（不写入仓库） |
 | 用量历史 | `…/usage-history.json`（0600，不含密钥） |
+
+## 开源文档
+
+- [README.md](./README.md) — 用户入口、构建、隐私和项目文档索引
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — 开发、测试和 Pull Request 要求
+- [SECURITY.md](./SECURITY.md) — 私下安全报告和敏感数据边界
+- [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) — 运行时依赖、构建工具和资源归属
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — 当前模块和数据流
+- [docs/DATA_AND_PRIVACY.md](./docs/DATA_AND_PRIVACY.md) — 本地数据、联网和备份边界
+- [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) — 发布前验证和证据分层
 
 ## 手工验收（可选）
 
