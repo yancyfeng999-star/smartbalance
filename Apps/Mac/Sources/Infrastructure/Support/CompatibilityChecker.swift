@@ -113,23 +113,31 @@ public struct CompatibilityChecker: Sendable {
         }
     }
 
-    /// Reachability only: write/read/delete a probe item in the plain Keychain service.
+    private static let probeCache = KeychainProbeCache()
+
+    /// Reachability only. Never shows a Keychain password / Allow sheet.
     public static func probePlainKeychain() -> Bool {
+        if let cached = probeCache.value {
+            return cached
+        }
+        KeychainInteractionPolicy.disableSystemPrompts()
+        let available = performNonInteractiveProbe()
+        probeCache.value = available
+        return available
+    }
+
+    private static func performNonInteractiveProbe() -> Bool {
         let service = "com.smartbalance.zhiyu.plain"
         let account = "smartbalance.compat-probe"
         let payload = Data("probe".utf8)
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
+        var base = KeychainInteractionPolicy.baseQuery(service: service, account: account)
+        KeychainInteractionPolicy.applyNoPrompt(&base)
 
         var add = base
         add[kSecValueData as String] = payload
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let addStatus = SecItemAdd(add as CFDictionary, nil)
-        guard addStatus == errSecSuccess else {
+        if addStatus != errSecSuccess && addStatus != errSecDuplicateItem {
             return false
         }
 
@@ -138,11 +146,10 @@ public struct CompatibilityChecker: Sendable {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
         let copyStatus = SecItemCopyMatching(query as CFDictionary, &result)
-        SecItemDelete(base as CFDictionary)
-        guard copyStatus == errSecSuccess, let data = result as? Data, data == payload else {
+        if KeychainInteractionPolicy.shouldTreatAsInaccessible(copyStatus) {
             return false
         }
-        return true
+        return copyStatus == errSecSuccess && (result as? Data) == payload
     }
 
     private func makeCheck(
@@ -264,5 +271,23 @@ public struct CompatibilityChecker: Sendable {
         if major != minMajor { return major > minMajor }
         if minor != minMinor { return minor > minMinor }
         return patch >= minPatch
+    }
+}
+
+private final class KeychainProbeCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cached: Bool?
+
+    var value: Bool? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return cached
+        }
+        set {
+            lock.lock()
+            cached = newValue
+            lock.unlock()
+        }
     }
 }

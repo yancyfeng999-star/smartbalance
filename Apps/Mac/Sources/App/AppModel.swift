@@ -185,6 +185,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     }
 
     init() {
+        KeychainInteractionPolicy.disableSystemPrompts()
         let supportDirectory = SettingsStore.shared.fileURL.deletingLastPathComponent()
         self.restoreCoordinator = RestoreCoordinator(
             directory: supportDirectory,

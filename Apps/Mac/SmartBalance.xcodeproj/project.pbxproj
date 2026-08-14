@@ -140,9 +140,11 @@
 		85FDC0EFFE8DA86FAB75518C /* RecoveryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33430B0811AFFDD7EAF4D16 /* RecoveryModels.swift */; };
 		8706E9E1FB4DC8251D8EEFDC /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C299590DA907A1C409B8818 /* HTTPClient.swift */; };
 		8A86026AF7B8D9AFD8D03716 /* PackageSilentInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2825DF0462A6A0A1344D65 /* PackageSilentInstaller.swift */; };
+		8AB9F01F2767374F9F92E38B /* KeychainInteractionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261977B13BA2103A8ABAE80D /* KeychainInteractionPolicy.swift */; };
 		8B55AF3AD4CB1E79208DED0B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF532DFB5BBC8067BB5820E3 /* AppSettings.swift */; };
 		8D69F2B6E07A5DEE56E974CD /* AppLogDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38B9071517C799139BD78EC4 /* AppLogDiagnosticsTests.swift */; };
 		8F651A41358C0BBF73CEFA7E /* NSEvent Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F15958D01DDF0080CDC559 /* NSEvent Extensions.swift */; };
+		91D46196182D6B490DAC03C5 /* KeychainInteractionPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B227B5193B6A079122B25BF8 /* KeychainInteractionPolicyTests.swift */; };
 		9200A53402C7B66229158A57 /* NSWindow Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096C68BD668E9E216FDF3E9F /* NSWindow Extensions.swift */; };
 		929A0B182E3EB2B9A4F223DE /* LocalizationCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98DF035D36226528B8389C4 /* LocalizationCatalog.swift */; };
 		93D38310245857DB4DA1633B /* Domain.framework in Dependencies */ = {isa = PBXBuildFile; fileRef = DA1C4B11EB28B7088638D9A2 /* Domain.framework */; };
@@ -384,6 +386,7 @@
 		1FBEF854F6CBD36CDD96164A /* NestedSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedSettingsCard.swift; sourceTree = "<group>"; };
 		2207DFE1155F6B688A6A107F /* OpenSourceDocumentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenSourceDocumentationTests.swift; sourceTree = "<group>"; };
 		240083F91451D0638FB44B01 /* MenuBarExtraAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarExtraAccess.swift; sourceTree = "<group>"; };
+		261977B13BA2103A8ABAE80D /* KeychainInteractionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainInteractionPolicy.swift; sourceTree = "<group>"; };
 		2955BB9935CA9246DAFA8594 /* UpdateProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateProgressView.swift; sourceTree = "<group>"; };
 		2AE60A397ABBD1ED11071686 /* MenuBarExtraUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarExtraUtils.swift; sourceTree = "<group>"; };
 		2CEA514F49E8ECC095548688 /* PortableTransferModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortableTransferModels.swift; sourceTree = "<group>"; };
@@ -503,6 +506,7 @@
 		ACA497C310E1F7A29D35133B /* SettingsMigrationRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMigrationRunner.swift; sourceTree = "<group>"; };
 		AEDEE56B98D59B4EE0F189A2 /* PackageSilentInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackageSilentInstallerTests.swift; sourceTree = "<group>"; };
 		B1C5572E513768C44B435FD2 /* UpdateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateModels.swift; sourceTree = "<group>"; };
+		B227B5193B6A079122B25BF8 /* KeychainInteractionPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainInteractionPolicyTests.swift; sourceTree = "<group>"; };
 		B230B389AC55DF1832F2420E /* NotificationPermissionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPermissionStateTests.swift; sourceTree = "<group>"; };
 		B354EE7B38B3CB046EA00DF6 /* CrashRecoveryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashRecoveryStore.swift; sourceTree = "<group>"; };
 		B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
@@ -725,6 +729,7 @@
 				F5AD088B9D2A877EE55325A2 /* DiagnosticOutcomeStore.swift */,
 				0320EAC6A29CA61B32AB6517 /* DiagnosticsService.swift */,
 				6CCC7AD66CA65DE55DD22DAB /* FirstLaunchStore.swift */,
+				261977B13BA2103A8ABAE80D /* KeychainInteractionPolicy.swift */,
 				16E0A194C2E197BFBF60050C /* PerformanceSample.swift */,
 				35BB626E76D9B52CC0F0B90F /* PrivacyRedactor.swift */,
 				AB72B985609C574FD69BB894 /* RecoveryMarker.swift */,
@@ -810,6 +815,7 @@
 				E1231E34AA6D3150E0F35241 /* DMXAPIProviderTests.swift */,
 				06BC4A40B6147EE87EB68C2C /* FirstLaunchStoreTests.swift */,
 				5604F41C8F665AC5D238CCA3 /* HTTPClientMock.swift */,
+				B227B5193B6A079122B25BF8 /* KeychainInteractionPolicyTests.swift */,
 				A9CE4C39537DEE121B23206C /* KimiProviderTests.swift */,
 				52B5A932223E0B4A423D6950 /* LaoZhangProviderTests.swift */,
 				D84ABA2FA1CE0F8924A5A903 /* LegacySecretBackupImportTests.swift */,
@@ -1347,6 +1353,7 @@
 				73F882FCEEDAE180774EDCA7 /* DiagnosticsServiceTests.swift in Sources */,
 				ACFC7CC717DCEA8FF341A231 /* FirstLaunchStoreTests.swift in Sources */,
 				B9BB96A8E86CD80043FBF011 /* HTTPClientMock.swift in Sources */,
+				91D46196182D6B490DAC03C5 /* KeychainInteractionPolicyTests.swift in Sources */,
 				39D5E9D5A606C3EDEF337FE3 /* KimiProviderTests.swift in Sources */,
 				2C5CE599258DD64465E17522 /* LaoZhangProviderTests.swift in Sources */,
 				30F34CF2D2850500417AF58F /* LegacySecretBackupImportTests.swift in Sources */,
@@ -1478,6 +1485,7 @@
 				231C8E014B788ADC9ABD3637 /* DiagnosticOutcomeStore.swift in Sources */,
 				6745A95ED78135BC73D3CFB1 /* DiagnosticsService.swift in Sources */,
 				01971B632885A785D3FC437C /* FirstLaunchStore.swift in Sources */,
+				8AB9F01F2767374F9F92E38B /* KeychainInteractionPolicy.swift in Sources */,
 				CADE084CAC1C2295D0B5A140 /* PerformanceSample.swift in Sources */,
 				12E5D8EA4093755C2B5205F3 /* PrivacyRedactor.swift in Sources */,
 				F14A7535CEC9ECFD52734E61 /* RecoveryMarker.swift in Sources */,
