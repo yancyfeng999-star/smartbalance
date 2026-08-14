@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # 清理本机多余的「智余」入口，只保留 /Applications/智余.app
+# 不安装、不另建一份 App；正式入口永远只有安装包装进去的那一份。
 #
 # 常见重复来源：
 # - Xcode / tuist 构建的 DerivedData Debug/Release
+# - /tmp 试编目录、废纸篓
 # - 桌面/下载的测试包
 # - 未弹出的 dmg 卷（/Volumes/智余 x.y.z）
+#
+# KEEP_RUNNING=1 时不结束正在跑的智余（发版/测试后清残留用）
 #
 set -euo pipefail
 
@@ -14,10 +18,15 @@ APP_ID="com.smartbalance.zhiyu"
 LEGACY_APP_ID="com.smartbalance.app"
 KEEP="/Applications/智余.app"
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+KEEP_RUNNING="${KEEP_RUNNING:-0}"
 
-echo "==> 退出运行中的智余"
-pkill -x "智余" 2>/dev/null || true
-sleep 0.3
+if [[ "${KEEP_RUNNING}" != "1" ]]; then
+  echo "==> 退出运行中的智余"
+  pkill -x "智余" 2>/dev/null || true
+  sleep 0.3
+else
+  echo "==> 保留正在运行的智余，只删多余副本"
+fi
 
 echo "==> 弹出未关闭的安装镜像"
 shopt -s nullglob
@@ -39,7 +48,7 @@ unregister_rm() {
   if [[ -x "$LSREG" ]]; then
     "$LSREG" -u "$app" 2>/dev/null || true
   fi
-  rm -rf "$app"
+  rm -rf "$app" 2>/dev/null || true
 }
 
 echo "==> 扫描并删除多余 .app"
@@ -55,21 +64,33 @@ done
 for app in \
   "${HOME}/Desktop/智余.app" \
   "${HOME}/Downloads/智余.app" \
-  "${HOME}/Applications/智余.app"
+  "${HOME}/Applications/智余.app" \
+  "${HOME}/.Trash/智余.app"
 do
   unregister_rm "$app"
 done
 
-# Xcode / 项目构建产物
+# Xcode / 项目构建产物 / 临时试编
 for root in \
   "${HOME}/Library/Developer/Xcode/DerivedData" \
-  "${REPO_ROOT}/Apps/Mac/build"
+  "${REPO_ROOT}/Apps/Mac/build" \
+  /tmp \
+  /private/tmp
 do
   [[ -d "$root" ]] || continue
   while IFS= read -r app; do
     unregister_rm "$app"
-  done < <(find "$root" -name "智余.app" -type d 2>/dev/null || true)
+  done < <(find "$root" \( -name "智余.app" -o -name "SmartBalance.app" \) -type d 2>/dev/null || true)
 done
+
+# 试编留下的整棵临时目录（不要误删 /tmp/zhiyu-*.png）
+shopt -s nullglob
+for tmp in /tmp/zhiyu-* /private/tmp/zhiyu-*; do
+  [[ -d "$tmp" ]] || continue
+  echo "  remove $tmp"
+  rm -rf "$tmp" 2>/dev/null || true
+done
+shopt -u nullglob
 
 if [[ -d "$KEEP" ]]; then
   ver="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$KEEP/Contents/Info.plist" 2>/dev/null || echo "?")"

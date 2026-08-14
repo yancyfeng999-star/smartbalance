@@ -112,6 +112,9 @@ git push origin "${TAG}" --force
 echo "======== 5) 创建 Pull Request ========"
 gh pr create --title "release: ${VERSION} (build ${BUILD})" --body "发版 PR，包含版本 ${VERSION} 的变更" --base main --head "${RELEASE_BRANCH}"
 
+echo "======== 6) 清掉本机多余 .app ========"
+KEEP_RUNNING=1 ./scripts/cleanup-duplicate-apps.sh || true
+
 echo ""
 echo "========== 发版准备完成 =========="
 echo "版本: ${VERSION} (build ${BUILD})"

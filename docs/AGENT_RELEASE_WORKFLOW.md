@@ -84,7 +84,7 @@ xcodebuild -scheme SmartBalance -configuration Debug \
 # 或：./scripts/run-tests.sh
 ```
 
-本地可直接跑 Debug 产物验证；**不要**把 `build/` 提交进 git。
+本地验证用 `/Applications/智余.app` 或打开刚打好的 dmg/pkg。**不要**再 `build-test-app.sh` 或把 DerivedData 里的 `.app` 留在本机——启动台会出现很多个「智余」。打包/测试脚本结束会清掉这些残留，只保留安装包和 `/Applications/智余.app`。**不要**把 `build/` 提交进 git。
 
 ### 3. 提交功能修复（发版前）
 
