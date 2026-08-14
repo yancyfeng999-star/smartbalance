@@ -76,7 +76,7 @@ fi
 echo "======== 3) Git 提交 ========"
 cd "${REPO}"
 # 一并提交尚未入库的源码/脚本/品牌图，避免出现「包已更新、仓库无代码」
-git add Apps/Mac/Sources Apps/Mac/scripts Apps/Mac/Branding Branding README.md LICENSE CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md .github CHANGELOG.md PRODUCT.md PROJECT_STATUS.md docs 2>/dev/null || true
+git add Apps/Mac/README.md Apps/Mac/Sources Apps/Mac/Tests Apps/Mac/SmartBalance.xcodeproj Apps/Mac/scripts Apps/Mac/Branding Branding README.md LICENSE CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md .github CHANGELOG.md PRODUCT.md PROJECT_STATUS.md docs 2>/dev/null || true
 git add "releases/Mac/${TAG}/RELEASE_NOTES.md" "releases/Mac/${TAG}/SHA256SUMS.txt" 2>/dev/null || true
 if git diff --cached --quiet 2>/dev/null && git diff --quiet 2>/dev/null; then
   echo "(无文本变更可提交，继续)"
