@@ -1,72 +1,25 @@
 import Foundation
 import Domain
 import Security
-import LocalAuthentication
 
-/// 本机密钥库（Keychain + 生物识别/密码保护）。
+/// 本机密钥库（普通 Keychain 存储）。
 ///
-/// - 路径：系统 Keychain
-/// - 安全策略：使用 kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-/// - 生物识别：访问时需 Touch ID / Face ID / 用户密码
+/// - 不调用生物识别或设备用户认证 API
+/// - 不使用 SecAccessControl，避免启动时 Touch ID / 登录钥匙串密码弹窗
+/// - 使用新的 service 命名空间，避免读取旧版带访问控制的 Keychain 条目
 public final class LocalSecretStore: @unchecked Sendable {
     public static let shared = LocalSecretStore()
 
     private let queue = DispatchQueue(label: "com.smartbalance.secrets")
-    private let service = "com.smartbalance.zhiyu"
+    /// 旧版 service 的条目带有生物识别访问控制，不能在无弹窗模式下安全读取。
+    private let service = "com.smartbalance.zhiyu.plain"
     private var memory: [String: String] = [:]
-    private var memoryLoaded = false
-    private var isAuthenticated = false
-    /// 上次认证成功时间，用于缓存避免反复弹窗
-    private var lastAuthTime: Date?
-    /// 认证缓存有效期（5分钟）
-    private let authCacheDuration: TimeInterval = 300
+    private var inaccessibleAccounts: Set<String> = []
+    private var lookupCounts: [String: Int] = [:]
+    private var availabilityCache: DiagnosticKeychainStatus?
 
-    public init() {}
-
-    // MARK: - Authentication
-
-    /// 请求生物识别认证（成功后5分钟内不再弹窗）
-    public func authenticate() async -> Bool {
-        // 如果最近已认证过，直接返回成功
-        if isAuthenticated, let lastTime = lastAuthTime,
-           Date().timeIntervalSince(lastTime) < authCacheDuration {
-            return true
-        }
-
-        let context = LAContext()
-        context.localizedReason = "解锁智余以访问 API 密钥"
-        context.localizedCancelTitle = "取消"
-
-        var error: NSError?
-        // 优先尝试生物识别，不可用则回退到密码
-        let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-            ? .deviceOwnerAuthenticationWithBiometrics
-            : .deviceOwnerAuthentication
-
-        guard context.canEvaluatePolicy(policy, error: &error) else {
-            AppLog.error("Authentication not available: \(error?.localizedDescription ?? "Unknown")")
-            return false
-        }
-
-        let success = await withCheckedContinuation { continuation in
-            context.evaluatePolicy(policy, localizedReason: "解锁智余以访问 API 密钥") { result, _ in
-                continuation.resume(returning: result)
-            }
-        }
-
-        if success {
-            isAuthenticated = true
-            lastAuthTime = Date()
-        } else {
-            AppLog.error("Authentication failed")
-        }
-        return success
-    }
-
-    /// 重置认证状态（锁定后需重新认证）
-    public func lock() {
-        isAuthenticated = false
-        lastAuthTime = nil
+    public init() {
+        KeychainInteractionPolicy.disableSystemPrompts()
     }
 
     // MARK: - CRUD
@@ -80,17 +33,26 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     public func get(account: String) -> String? {
         queue.sync {
-            if let value = loadFromKeychain(key: account) {
+            if inaccessibleAccounts.contains(account) {
+                return nil
+            }
+            if let value = memory[account] {
                 return value
             }
-            return memory[account]
+            lookupCounts[account, default: 0] += 1
+            guard let value = loadFromKeychain(key: account) else { return nil }
+            memory[account] = value
+            return value
         }
     }
 
     public func contains(account: String) -> Bool {
-        queue.sync {
-            return get(account: account) != nil
-        }
+        get(account: account) != nil
+    }
+
+    /// 只回答凭据是否缺失，不返回密钥值。
+    public func credentialPresence(for account: String) -> CredentialPresence {
+        contains(account: account) ? .present : .missing
     }
 
     public func delete(account: String) {
@@ -114,7 +76,6 @@ public final class LocalSecretStore: @unchecked Sendable {
                 try saveToKeychain(key: key, value: value)
             }
             memory = dict
-            memoryLoaded = true
         }
     }
 
@@ -123,105 +84,132 @@ public final class LocalSecretStore: @unchecked Sendable {
         exportAll()
     }
 
+    /// 非敏感可达性：只返回 available / unavailable / unknown。
+    public func availabilityStatus() -> DiagnosticKeychainStatus {
+        queue.sync {
+            if let availabilityCache { return availabilityCache }
+            let status = probeAvailability()
+            availabilityCache = status
+            return status
+        }
+    }
+
+    func recordNonInteractiveDenialForTesting(account: String) {
+        queue.sync { inaccessibleAccounts.insert(account) }
+    }
+
+    func keychainLookupCountForTesting(account: String) -> Int {
+        queue.sync { lookupCounts[account] ?? 0 }
+    }
+
     // MARK: - Keychain
 
     private func saveToKeychain(key: String, value: String) throws {
         guard let data = value.data(using: .utf8) else {
             throw SecretStoreError.encodingFailed
         }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        
-        // 先删除旧条目
-        SecItemDelete(query as CFDictionary)
-        
+
+        let identity = identityQuery(key: key)
+        let updateStatus = SecItemUpdate(
+            identity as CFDictionary,
+            [kSecValueData as String: data] as CFDictionary
+        )
+        if updateStatus == errSecSuccess {
+            inaccessibleAccounts.remove(key)
+            return
+        }
+        if KeychainInteractionPolicy.shouldTreatAsInaccessible(updateStatus) {
+            inaccessibleAccounts.insert(key)
+            throw SecretStoreError.keychainFailed(updateStatus)
+        }
+        guard updateStatus == errSecItemNotFound else {
+            throw SecretStoreError.keychainFailed(updateStatus)
+        }
+
+        var query = identity
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
+            if KeychainInteractionPolicy.shouldTreatAsInaccessible(status) {
+                inaccessibleAccounts.insert(key)
+            }
             throw SecretStoreError.keychainFailed(status)
         }
+        inaccessibleAccounts.remove(key)
     }
-    
+
     private func loadFromKeychain(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
+        var query = identityQuery(key: key)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
+        if KeychainInteractionPolicy.shouldTreatAsInaccessible(status) {
+            inaccessibleAccounts.insert(key)
+            return nil
+        }
         guard status == errSecSuccess, let data = result as? Data else {
             return nil
         }
-        
         return String(data: data, encoding: .utf8)
     }
-    
+
     private func deleteFromKeychain(key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key
-        ]
-        
-        SecItemDelete(query as CFDictionary)
+        _ = SecItemDelete(identityQuery(key: key) as CFDictionary)
+        inaccessibleAccounts.remove(key)
     }
-    
-    private func ensureMemoryLoaded() {
-        guard !memoryLoaded else { return }
-        // 从 Keychain 加载所有条目
-        memory = loadAllFromKeychain()
-        memoryLoaded = true
-    }
-    
-    private func loadAllFromKeychain() -> [String: String] {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecReturnAttributes as String: true,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitAll
-        ]
-        
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
-        guard status == errSecSuccess, let items = result as? [[String: Any]] else {
-            return [:]
-        }
-        
-        var dict: [String: String] = [:]
-        for item in items {
-            guard let key = item[kSecAttrAccount as String] as? String,
-                  let data = item[kSecValueData as String] as? Data,
-                  let value = String(data: data, encoding: .utf8) else {
-                continue
+
+    private func probeAvailability() -> DiagnosticKeychainStatus {
+        KeychainInteractionPolicy.disableSystemPrompts()
+        let account = "smartbalance.availability-probe"
+        let payload = Data("probe".utf8)
+        var base = KeychainInteractionPolicy.baseQuery(service: service, account: account)
+        KeychainInteractionPolicy.applyNoPrompt(&base)
+
+        var add = base
+        add[kSecValueData as String] = payload
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let addStatus = SecItemAdd(add as CFDictionary, nil)
+        if addStatus != errSecSuccess && addStatus != errSecDuplicateItem {
+            if addStatus == errSecNotAvailable
+                || KeychainInteractionPolicy.shouldTreatAsInaccessible(addStatus) {
+                return .unavailable
             }
-            dict[key] = value
+            return .unknown
         }
-        
-        return dict
+
+        var query = base
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        let copyStatus = SecItemCopyMatching(query as CFDictionary, &result)
+        if copyStatus == errSecSuccess, result as? Data == payload {
+            return .available
+        }
+        if KeychainInteractionPolicy.shouldTreatAsInaccessible(copyStatus) {
+            return .unavailable
+        }
+        return .unknown
+    }
+
+    private func identityQuery(key: String) -> [String: Any] {
+        var query = KeychainInteractionPolicy.baseQuery(service: service, account: key)
+        KeychainInteractionPolicy.applyNoPrompt(&query)
+        return query
     }
 
     public enum SecretStoreError: Error, LocalizedError {
-        case ioFailed(String)
         case encodingFailed
         case keychainFailed(OSStatus)
 
         public var errorDescription: String? {
             switch self {
-            case .ioFailed(let m): "密钥文件错误：\(m)"
-            case .encodingFailed: "密钥编码失败"
-            case .keychainFailed(let status): "Keychain 操作失败: \(status)"
+            case .encodingFailed:
+                "密钥编码失败"
+            case .keychainFailed(let status):
+                "Keychain 操作失败: \(status)"
             }
         }
     }

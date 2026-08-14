@@ -15,6 +15,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var themeMode: String
     /// 界面语言：`zh-Hans` / `en` / …
     public var appLanguage: String
+    /// 未识别的顶层 JSON 字段；写入信封的 `extensions`，不影响已知字段校验。
+    public var extensions: [String: JSONValue]
 
     public init(
         accounts: [BalanceAccount] = [],
@@ -25,7 +27,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         lastAlertAtByAccount: [String: Date] = [:],
         windowPinned: Bool = false,
         themeMode: String = ThemeMode.system.rawValue,
-        appLanguage: String = AppLanguage.default.rawValue
+        appLanguage: String = AppLanguage.default.rawValue,
+        extensions: [String: JSONValue] = [:]
     ) {
         self.accounts = accounts
         self.email = email
@@ -36,6 +39,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.windowPinned = windowPinned
         self.themeMode = themeMode
         self.appLanguage = appLanguage
+        self.extensions = extensions
     }
 
     public var resolvedThemeMode: ThemeMode {
@@ -78,6 +82,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         windowPinned = try c.decodeIfPresent(Bool.self, forKey: .windowPinned) ?? false
         themeMode = try c.decodeIfPresent(String.self, forKey: .themeMode) ?? ThemeMode.system.rawValue
         appLanguage = try c.decodeIfPresent(String.self, forKey: .appLanguage) ?? AppLanguage.default.rawValue
+        let stored = try c.decodeIfPresent([String: JSONValue].self, forKey: .extensions) ?? [:]
+        extensions = try UnknownFields.collect(from: decoder, known: CodingKeys.self, existing: stored)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -100,5 +106,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case emailAlertModeEnabled
         // 旧字段仅解码忽略
         case mailSources, inboundMailbox, platformMailEnabled
+        case extensions
     }
 }

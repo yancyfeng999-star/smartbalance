@@ -21,8 +21,16 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case minimax
     /// apinebula：Chrome 导入 session 自动查余额（New-API 兼容）
     case apinebula
+    /// 旧设置或用量里出现的未识别渠道；读入保留，不作为可添加平台。
+    case unsupported
 
     public var id: String { rawValue }
+
+    public var isRecognized: Bool { self != .unsupported }
+
+    public static var selectableCases: [ProviderKind] {
+        allCases.filter(\.isRecognized)
+    }
 
     public var displayName: String {
         switch self {
@@ -37,6 +45,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "小米 MiMo"
         case .minimax: "MiniMax"
         case .apinebula: "apinebula"
+        case .unsupported: "未识别渠道"
         }
     }
 
@@ -54,6 +63,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "https://platform.xiaomimimo.com"
         case .minimax: "https://www.minimaxi.com"
         case .apinebula: "https://apinebula.ai"
+        case .unsupported: nil
         }
     }
 
@@ -100,18 +110,20 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
         case .minimax: "https://platform.minimaxi.com/console/recharge-records"
         case .apinebula: "https://apinebula.ai/zh/console/topup"
+        case .unsupported: nil
         }
     }
 
     /// 无公开余额 API，靠用户手录 + 每日提醒（当前无内置手录平台）。
     public var isManualEntry: Bool { false }
 
-    public var needsSecret: Bool { !isManualEntry }
+    public var needsSecret: Bool { isRecognized && !isManualEntry }
 
     /// 火山引擎等：需要 Access Key ID + Secret Access Key 两段凭证。
     public var needsAccessKeyPair: Bool {
         switch self {
         case .volcengine: true
+        case .unsupported: false
         default: false
         }
     }
@@ -129,12 +141,14 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "粘贴 serviceToken 或整段 Cookie"
         case .minimax: "粘贴 _token 与 group，或整段 Cookie"
         case .apinebula: "session Cookie（推荐从 Chrome 一键导入）"
+        case .unsupported: "此渠道无法识别，请在支持该平台的版本中重新配置"
         }
     }
 
     public var accessKeyIdHintCN: String {
         switch self {
         case .volcengine: "Access Key ID（AK）"
+        case .unsupported: "Access Key ID"
         default: "Access Key ID"
         }
     }
@@ -153,6 +167,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         // MiniMax：查询余额需 X-Group-Id
         // apinebula：UID 从 session 自动解析，UI 不要求手填
         case .newapi, .dmxapi, .mimo, .minimax: true
+        case .unsupported: false
         default: false
         }
     }
@@ -161,6 +176,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     public var supportsBrowserSessionImport: Bool {
         switch self {
         case .mimo, .minimax, .apinebula: true
+        case .unsupported: false
         default: false
         }
     }
@@ -171,6 +187,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .dmxapi: "用户 ID（个人资料页）"
         case .mimo: "userId（Cookie 里的 userId）"
         case .minimax: "minimax_group_id_v2（Cookie 里的组织 ID）"
+        case .unsupported: "用户 ID"
         default: "用户 ID"
         }
     }
@@ -180,6 +197,17 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         // 吉米币 / 老张 USD 在 Provider 内已折算为人民币再展示
         case .mimo, .minimax, .apinebula, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
         case .openrouter, .newapi: "USD"
+        case .unsupported: "¥"
         }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ProviderKind(rawValue: raw) ?? .unsupported
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
