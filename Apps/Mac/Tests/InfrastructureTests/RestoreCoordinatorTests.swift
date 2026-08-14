@@ -446,6 +446,47 @@ final class RestoreCoordinatorTests: XCTestCase {
         XCTAssertEqual(DiagnosticOutcomeStore(directory: directory).load().restore.result, .none)
     }
 
+    func testSnapshotCreationFailureDoesNotApplyRestoreAndReportsSnapshotFailed() async throws {
+        let env = try await seedOriginals()
+        let originalSettings = try Data(contentsOf: env.settingsStore.fileURL)
+        let originalUsage = try Data(contentsOf: env.usageStore.fileURL)
+
+        let snapshotRoot = directory.appendingPathComponent("blocked-snapshots", isDirectory: true)
+        let blockedManager = BackupManager(directory: snapshotRoot)
+        try FileManager.default.removeItem(at: snapshotRoot)
+        try Data("not-a-directory".utf8).write(to: snapshotRoot)
+
+        let coordinator = RestoreCoordinator(
+            directory: directory,
+            settingsStore: env.settingsStore,
+            usageStore: env.usageStore,
+            backupManager: blockedManager,
+            outcomes: DiagnosticOutcomeStore(directory: directory)
+        )
+        let incoming = try SettingsTransferService.exportData(
+            settings: AppSettings(accounts: [
+                BalanceAccount(kind: .kimi, displayName: "Must Not Apply", secretRef: "new"),
+            ], themeMode: "light"),
+            appVersion: "0.3.1"
+        )
+
+        let outcome = await coordinator.restore(
+            from: incoming,
+            confirmed: true,
+            includeUsage: false
+        )
+
+        XCTAssertEqual(outcome.status, .failed)
+        XCTAssertEqual(outcome.failureReason, .snapshotFailed)
+        XCTAssertNotEqual(outcome.failureReason, .settingsWriteFailed)
+        XCTAssertEqual(try Data(contentsOf: env.settingsStore.fileURL), originalSettings)
+        XCTAssertEqual(try Data(contentsOf: env.usageStore.fileURL), originalUsage)
+        XCTAssertEqual(SettingsStore(directory: directory).load().accounts.first?.displayName, "Original")
+        XCTAssertEqual(DiagnosticOutcomeStore(directory: directory).load().restore.result, .failed)
+        XCTAssertEqual(RestoreFailureReason.snapshotFailed.localizationKey, "restore.error.snapshot")
+        XCTAssertNotEqual(RestoreFailureReason.snapshotFailed.localizationKey, "restore.error.settings")
+    }
+
     private struct Env {
         var settingsStore: SettingsStore
         var usageStore: UsageHistoryStore

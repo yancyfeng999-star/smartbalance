@@ -1383,15 +1383,7 @@ final class AppModel: ObservableObject {
     }
 
     private func restoreFailureKey(_ reason: RestoreFailureReason?) -> String {
-        switch reason {
-        case .formatMismatch: return "restore.error.format"
-        case .versionTooNew: return "restore.error.version"
-        case .corruptUsage: return "restore.error.usage"
-        case .settingsWriteFailed: return "restore.error.settings"
-        case .usageWriteFailed: return "restore.error.usage_write"
-        case .cancelled: return "restore.result.cancelled"
-        default: return "restore.result.failed"
-        }
+        reason?.localizationKey ?? "restore.result.failed"
     }
 
     /// 一点「检查更新」：有新版本则直接下 pkg 静默安装，中间不弹任何窗。

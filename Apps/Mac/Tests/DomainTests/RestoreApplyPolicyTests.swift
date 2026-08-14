@@ -17,4 +17,12 @@ final class RestoreApplyPolicyTests: XCTestCase {
         XCTAssertTrue(session.isCurrent(next))
         XCTAssertFalse(session.isCurrent(token))
     }
+
+    func testSnapshotFailedHasItsOwnLocalizationKey() {
+        XCTAssertEqual(RestoreFailureReason.snapshotFailed.localizationKey, "restore.error.snapshot")
+        XCTAssertNotEqual(
+            RestoreFailureReason.snapshotFailed.localizationKey,
+            RestoreFailureReason.settingsWriteFailed.localizationKey
+        )
+    }
 }

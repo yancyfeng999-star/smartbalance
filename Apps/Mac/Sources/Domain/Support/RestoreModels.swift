@@ -269,6 +269,27 @@ public enum RestoreFailureReason: String, Sendable, Equatable {
     case usageWriteFailed
     case snapshotFailed
     case validationFailed
+
+    public var localizationKey: String {
+        switch self {
+        case .cancelled:
+            return "restore.result.cancelled"
+        case .formatMismatch:
+            return "restore.error.format"
+        case .versionTooNew:
+            return "restore.error.version"
+        case .corruptUsage:
+            return "restore.error.usage"
+        case .settingsWriteFailed:
+            return "restore.error.settings"
+        case .usageWriteFailed:
+            return "restore.error.usage_write"
+        case .snapshotFailed:
+            return "restore.error.snapshot"
+        case .validationFailed:
+            return "restore.result.failed"
+        }
+    }
 }
 
 public struct RestoreOutcome: Equatable, Sendable {

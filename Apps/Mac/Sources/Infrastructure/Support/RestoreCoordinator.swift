@@ -85,7 +85,15 @@ public final class RestoreCoordinator: @unchecked Sendable {
                     reason: "restore"
                 )
             }
+        } catch is CancellationError {
+            return .cancelled()
+        } catch {
+            outcomes.record(.restore, result: .failed)
+            AppLog.error("Restore snapshot failed", category: .backup, event: "restore_snapshot_failed")
+            return .failed(.snapshotFailed)
+        }
 
+        do {
             let applyUsage = includeUsage && preview.usageHistory != nil
             if applyUsage, let usage = preview.usageHistory,
                usage.schemaVersion < 1 || usage.schemaVersion > UsageHistoryDocument.currentSchemaVersion {

@@ -1215,6 +1215,9 @@ final class L10n: ObservableObject {
         "restore.error.settings": [
             .zhHans: "设置写入失败，已回滚", .en: "Settings write failed and was rolled back",
         ],
+        "restore.error.snapshot": [
+            .zhHans: "恢复前快照失败，未改动原数据", .en: "Could not snapshot current data. Nothing was restored.",
+        ],
         "restore.error.read": [
             .zhHans: "无法读取所选文件", .en: "Could not read the selected file",
         ],
