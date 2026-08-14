@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.3.2（Info.plist / build 83） |
+| 版本 | 0.4.0 |
 | 验证 | 见 [docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。已实现 ≠ 本地测试 ≠ 运行时验证 ≠ 已发布 ≠ 用户验收 |
 
 ---
