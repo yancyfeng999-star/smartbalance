@@ -1,0 +1,6 @@
+{
+  "accounts": [
+    {
+      "id": "not-a-uuid",
+      "kind": "deepseek",
+      "displayName": "broken-fixture"

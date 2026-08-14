@@ -40,12 +40,6 @@
 
 15. **证据分层。** 报告时分别说明：源代码完成、单元/集成测试通过、Debug/Release 构建通过、安装包生成、运行时人工验收、GitHub Release、用户验收。测试通过不等于已发布，模拟网络通过不等于真实渠道通过。
 
-16. **开源仓库硬约束。** LICENSE、README、贡献指南、安全政策、第三方声明和发布说明都是产品交付物，不是发版后的附属文档。任何新增代码、图片、字体、依赖和文案都必须有来源、许可证或项目自有权利说明。
-
-17. **许可证基线。** 项目所有者已决定采用 Apache License 2.0（SPDX 标识 `Apache-2.0`）。实施时必须把根 `LICENSE` 规范为官方完整文本，并同步更新贡献者说明、第三方兼容性检查和发布门禁；不能只替换许可证文件而遗漏仓库文档或贡献流程。
-
-18. **开源信息真实。** 文档只能描述已经存在或本次已验证的能力；不得把“源码已提交”写成“安装包已发布”，不得把 mock Provider 测试写成真实渠道测试，不得把本地诊断写成云端支持，不得承诺未实现的自动更新或遥测。
-
 ---
 
 ## 1. 参考方案与智余适配结论
@@ -69,7 +63,6 @@
 | 迁移、恢复和更新失败可回退 | 所有写入使用临时文件 + 原子替换，恢复前创建快照，更新前校验资源 |
 | P1 本地能力，P2 远程能力 | P1 不做遥测/自动更新/崩溃上传，P2 只有在隐私和后端条件满足时才开启 |
 | 每个任务有红灯、绿灯和验收门 | 任务按 TDD 顺序执行，先失败测试，再最小实现，再全量验证 |
-| 开源仓库必须可被接手 | README、架构、隐私、贡献、安全、第三方声明和发布清单形成最小文档闭环 |
 
 ### 1.3 不直接复制的内容
 
@@ -81,7 +74,6 @@
 | 自动上传崩溃和匿名诊断 | 没有已确认的后端、隐私声明和用户同意流程，列为 P2 阻断项 |
 | 重新实现用量统计 | 智余用量统计已经存在，通用能力只围绕保存、刷新和可诊断性增强 |
 | 新增第三方 UI/网络依赖 | 当前 SwiftUI、AppKit、Swift Charts 和现有 HTTP 客户端足够完成 P1 |
-| 把 LICENSE 当作默认模板不检查 | 现有 LICENSE 不是目标 Apache-2.0 完整文件，且缺少明确标题/SPDX 和第三方归属清单，必须在开源文档任务中规范 |
 
 ---
 
@@ -99,7 +91,6 @@
 - 用量：`UsageModels.swift`、`UsageAccumulator.swift`、`UsageSummaryBuilder.swift`、`UsageHistoryStore.swift` 和 `Views/Usage/*` 已形成完整的本地日/周/月统计链路。
 - 更新：`UpdateChecker.swift`、`ReleaseDownloader.swift`、`PackageSilentInstaller.swift` 已有 GitHub Releases 检查、下载和安装基础，但仍需要版本说明、资源校验和失败恢复层。
 - 日志和通知：`AppLog.swift`、`MacNotificationService.swift` 已存在，但日志尚未形成诊断导出所需的统一脱敏、轮转和权限策略，通知授权发生时机也需要纳入首次启动设计。
-- 开源基础文件：根目录已有 `LICENSE`、`README.md`、`CHANGELOG.md` 和用户/发布文档，但当前没有独立的 `CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、第三方声明和开源发布检查脚本；现有 LICENSE 需要明确为 Apache-2.0 并补充 SPDX 标识。
 
 ### 2.2 当前缺口
 
@@ -112,8 +103,6 @@
 7. 更新下载和安装没有统一的最低系统版本、资源大小、SHA-256、签名/包完整性和失败回滚报告。
 8. 现有 `AppModel` 和部分设置页面仍有硬编码中文文案；新增通用能力若继续硬编码，会破坏已有多语言和窄窗口体验。
 9. `PROJECT_STATUS.md` 顶部记录的版本与 `Apps/Mac/Sources/App/Info.plist` 当前 `0.3.1 / build 82` 不一致，需要在任务 0 做文档基线纠正。
-10. 根 README 的更新说明仍写有“自动下载到下载文件夹”，与本计划 P1 的“用户明确确认后下载/安装”不一致；开源文档必须以实际行为为准，避免给用户错误的安全预期。
-11. 依赖、图片、字体、Provider logo、引用的外部文档和代码片段没有统一清单；开源发布前无法证明仓库内内容的许可证边界。
 
 ### 2.3 数据与隐私路径
 
@@ -224,8 +213,6 @@ public struct DiagnosticReport: Codable, Sendable, Equatable {
 | Domain | `Sources/Domain/Support/FirstLaunchModels.swift`、`RefreshModels.swift`、`DiagnosticModels.swift`、`PortableTransferModels.swift`、`CompatibilityModels.swift`、`RecoveryModels.swift`、`UpdateModels.swift` | `AppSettings.swift`、必要时 `BalanceAccount.swift` 增加迁移/便携转换，不改变 Provider 业务字段 |
 | Infrastructure | `Sources/Infrastructure/Support/FirstLaunchStore.swift`、`SettingsMigrationRunner.swift`、`CompatibilityChecker.swift`、`RefreshCoordinator.swift`、`DiagnosticsService.swift`、`PrivacyRedactor.swift`、`SettingsTransferService.swift`、`BackupManager.swift`、`CrashRecoveryStore.swift`、`UpdateSafetyValidator.swift` | `SettingsStore.swift`、`DataBackupService.swift`、`UsageHistoryStore.swift`、`AppLog.swift`、`UpdateChecker.swift`、`ReleaseDownloader.swift`、`PackageSilentInstaller.swift`、必要时 `MacNotificationService.swift` |
 | App | `Sources/App/Views/Onboarding/FirstLaunchView.swift`、`CompatibilityView.swift`、`Views/Support/DiagnosticsCenterView.swift`、`SettingsTransferView.swift`、`BackupRestoreView.swift`、`UpdateDetailsView.swift`、`HelpCenterView.swift`、`Views/Recovery/SafeModeView.swift` | `SmartBalanceApp.swift`、`AppDelegate.swift`、`AppModel.swift`、`MenuRootView.swift`、`SettingsRootView.swift`、`Localization/L10n.swift`、`Theme/AppMotion.swift` |
-| Open source docs | `CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`THIRD_PARTY_NOTICES.md`、`docs/ARCHITECTURE.md`、`docs/DATA_AND_PRIVACY.md`、`docs/PROVIDER_DEVELOPMENT.md`、`docs/RELEASE_CHECKLIST.md`、`.github/PULL_REQUEST_TEMPLATE.md`、`.github/ISSUE_TEMPLATE/bug_report.yml`、`.github/ISSUE_TEMPLATE/feature_request.yml` | `LICENSE`、`README.md`、`Apps/Mac/README.md`、`docs/USER_GUIDE.md`、`PRODUCT.md`、`PROJECT_STATUS.md`、`CHANGELOG.md` |
-| Open source tooling | `Apps/Mac/scripts/verify-open-source.sh`、`Apps/Mac/Tests/InfrastructureTests/OpenSourceDocumentationTests.swift` | `Apps/Mac/scripts/release.sh`、`package-release.sh`（只增加开源文件/许可证/第三方声明门禁，不改变既有发布入口） |
 | Tests | `Tests/DomainTests/*CommonCapabilitiesTests.swift`、`Tests/InfrastructureTests/*CommonCapabilitiesTests.swift`、必要时 `Tests/AppTests/*Tests.swift` | 复用 `HTTPClientMock.swift`、现有 `UpdateCheckerTests.swift`、`UsageHistoryStoreTests.swift`、`LocalSecretStoreTests.swift`，不把真实 Provider 当作通用能力测试依赖 |
 
 ---
@@ -237,7 +224,6 @@ public struct DiagnosticReport: Codable, Sendable, Equatable {
 | 批次 | 任务 | 依赖 | 结果 |
 |---|---|---|---|
 | P1-A 基础 | 0. 基线与契约 | 无 | 可复现基线、数据清单、隐私 allowlist |
-| P1-A 开源 | 0A. 开源协议、文档和仓库治理 | 0 | LICENSE 明确、贡献者可接手、用户和维护者文档闭环 |
 | P1-A 基础 | 1. 设置 schema、迁移和安全备份基础 | 0 | 旧设置可读、新写入可回滚、默认导出不含密钥 |
 | P1-A 基础 | 2. 首次启动与兼容性 | 1 | 新用户知道下一步，旧环境能解释问题 |
 | P1-A 基础 | 3. 刷新协调器 | 0 | 刷新取消、去重、旧响应丢弃规则可测试 |
@@ -261,7 +247,6 @@ public struct DiagnosticReport: Codable, Sendable, Equatable {
 ```mermaid
 flowchart LR
     T0[0 基线契约] --> T1[1 设置迁移与备份基础]
-    T0 --> T0A[0A 开源协议与文档基线]
     T0 --> T3[3 刷新协调器]
     T1 --> T2[2 首次启动与兼容性]
     T2 --> T4[4 诊断中心]
@@ -279,7 +264,6 @@ flowchart LR
     T3 --> T10[10 性能与生命周期]
     T7 --> T10
     T10 --> T11[11 全量验证]
-    T0A --> T11
 ```
 
 ---
@@ -308,54 +292,6 @@ flowchart LR
 - [ ] 用 `git diff --check` 检查文档和 fixture；确认 Task 0 没有产品代码变更后，提交 `docs: define SmartBalance common capabilities contract`。
 
 **验证门：** 基线测试结果可复现；版本源、数据路径、密钥路径和禁止导出字段有证据；后续任务不需要猜测当前行为。
-
-### Task 0A：开源协议、文档和仓库治理
-
-**目标：** 把智余作为一个真正可被用户、贡献者和维护者接手的开源仓库交付。许可证、隐私边界、架构说明、构建测试、贡献流程、漏洞报告、第三方归属和发布检查必须与代码同步，而不是只依赖 Agent 记忆。
-
-**Files:**
-
-- 修改：`LICENSE`、`README.md`、`Apps/Mac/README.md`、`docs/USER_GUIDE.md`、`PRODUCT.md`、`PROJECT_STATUS.md`、`CHANGELOG.md`。
-- 新增：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`THIRD_PARTY_NOTICES.md`。
-- 新增：`docs/ARCHITECTURE.md`、`docs/DATA_AND_PRIVACY.md`、`docs/PROVIDER_DEVELOPMENT.md`、`docs/RELEASE_CHECKLIST.md`。
-- 新增：`.github/PULL_REQUEST_TEMPLATE.md`、`.github/ISSUE_TEMPLATE/bug_report.yml`、`.github/ISSUE_TEMPLATE/feature_request.yml`。
-- 新增：`Apps/Mac/scripts/verify-open-source.sh`、`Apps/Mac/Tests/InfrastructureTests/OpenSourceDocumentationTests.swift`。
-- 审核来源：`Apps/Mac/Tuist/Package.swift`、`Apps/Mac/Tuist/Package.resolved`、`Apps/Mac/Sources/App/Resources/Assets.xcassets`、Provider logo、字体和所有外部链接/代码注释。
-
-**许可证和归属决策:**
-
-- [x] 将根目录 `LICENSE` 规范为完整 Apache License 2.0 文件：包含官方完整条款、项目批准的版权主体和 `SPDX-License-Identifier: Apache-2.0`。
-- [x] 在 `README.md`、`CONTRIBUTING.md` 和 `THIRD_PARTY_NOTICES.md` 明确：智余源代码和仓库文档按 Apache-2.0 发布；贡献者提交的内容需拥有相应权利，并按 Apache-2.0 的贡献与再分发条款提供；不得把 API 服务商、Provider logo、用户凭据或第三方品牌误写成项目资产。
-- [x] 为 `MenuBarExtraAccess`、Tuist/Swift Package 依赖、构建脚本引用的外部代码、图片、字体和示例代码建立清单，记录名称、版本/commit、来源 URL、许可证和是否随 App 分发。
-- [ ] 逐项核对第三方许可证与 Apache-2.0 项目的兼容性；许可证文件缺失、来源不明或不允许当前分发方式时，停止发布该依赖/资产，不能只在 NOTICE 中补一句说明。
-- [x] `THIRD_PARTY_NOTICES.md` 区分“随 App 分发的运行时依赖”和“仅用于开发/构建的工具”，不把 Apple 系统框架伪装成项目第三方代码，也不遗漏实际打进 App 的依赖。
-
-**文档内容契约:**
-
-- [x] 根 `README.md` 说明产品用途、支持的 macOS 版本、渠道范围、日/周/月用量口径、本地数据路径、Keychain/隐私边界、构建/测试命令、开发文档、贡献入口、许可证和第三方声明。
-- [x] `docs/ARCHITECTURE.md` 说明 `Domain → Infrastructure → App`、`AppModel`、刷新协调器、ProviderRegistry、UsageHistoryStore、菜单栏入口和更新器边界；文档中的文件路径必须真实存在。
-- [x] `docs/DATA_AND_PRIVACY.md` 说明设置、用量历史、日志、Keychain、诊断包和备份包的存储位置、是否联网、是否上传、是否包含密钥，以及迁移/恢复的排除字段。
-- [x] `docs/PROVIDER_DEVELOPMENT.md` 说明新增 Provider 的接口、ProviderRegistry 注册、mock 测试、secretRef 规则、手录渠道、logo 资源和不得提交真实 API Key 的要求。
-- [x] `CONTRIBUTING.md` 说明开发环境、`tuist generate`、`./scripts/run-tests.sh`、Debug/Release 构建、测试 fixture、提交/PR 要求、文档同步和真实渠道测试限制。
-- [x] `SECURITY.md` 说明不要在公开 Issue 粘贴 API Key、Cookie、SMTP 密码或诊断包；漏洞通过 GitHub Security Advisories/Private Vulnerability Reporting 提交；维护者确认后再公开修复信息。
-- [x] `CODE_OF_CONDUCT.md` 采用项目批准的 Contributor Covenant 2.1 文本或等价短版，写明适用范围、报告渠道和维护者处理边界，不引入与项目无关的个人联系方式。
-- [x] `docs/RELEASE_CHECKLIST.md` 说明测试、许可证、第三方声明、隐私扫描、版本源、CHANGELOG、DMG/PKG/SHA256、GitHub Release 和用户安装验证的证据分层。
-- [x] 更新 `docs/USER_GUIDE.md` 的安装、首次启动、设置迁移、诊断、备份、更新和安全提示；更新说明不再写“自动下载”或“静默安装”，除非代码和 P2 计划已经正式改变该行为。
-- [x] `PROJECT_STATUS.md` 只写当前已验证状态；计划中的能力放在“未完成/计划”部分，不伪造实现、构建、Release 或用户验收。
-
-**TDD/文档验证步骤:**
-
-- [x] 先写 `OpenSourceDocumentationTests`：要求根 LICENSE、README、CONTRIBUTING、SECURITY、第三方声明存在；README 链接的文件存在；许可证含 Apache-2.0 标识；文档不包含本机绝对路径、真实凭据或“已发布但未验证”的表述。
-- [x] 先写 `verify-open-source.sh`：在仓库根目录执行，检查必需文件、LICENSE/SPDX、第三方声明、README 关键章节和 `git ls-files` 中不存在意外的 `.env`、Keychain dump、诊断包或真实 secret fixture；检查失败返回非零。
-- [x] 先运行 `cd Apps/Mac && tuist generate --no-open && xcodebuild test -workspace SmartBalance.xcworkspace -scheme SmartBalance -destination 'platform=macOS' -only-testing:InfrastructureTests/OpenSourceDocumentationTests`，确认新测试在脚本实现前按预期失败。
-- [x] 完成文档和许可证后运行 `bash Apps/Mac/scripts/verify-open-source.sh` 与定向 XCTest；脚本不依赖网络、不修改仓库、不上传任何内容。
-- [x] 在 `Apps/Mac/scripts/release.sh` 的打包前门禁中调用 `verify-open-source.sh`，使本地试包和正式发版都不能跳过许可证/文档/第三方检查；`SKIP_PUBLISH=1` 仍只跳过远程发布，不跳过本地门禁。
-- [x] 用 `git diff --check`、Markdown 链接检查和 `git status --short` 验证；确认没有把 `releases/` 二进制、用户日志或诊断包提交进源代码变更。
-- [ ] 提交 `docs: establish open-source license and contribution documentation`，该提交只包含许可证、开源文档、模板和检查脚本/测试，不混入 Provider 或 UI 功能。
-
-> 本地执行状态（2026-08-14）：Task 0A 的许可证、文档、模板、门禁和测试已完成并通过本地验证；本次未提交、未 push、未创建 Release。现有 App/Provider 图像资源的逐项创作主体、授权或商标使用证明仍需维护者在发布前核对，当前按发布阻塞项处理，详见 `THIRD_PARTY_NOTICES.md`。
-
-**验收标准：** 新贡献者只看 README/CONTRIBUTING 就能生成工程并运行测试；用户能理解数据和隐私边界；安全问题有私下报告路径；所有随 App 分发的第三方内容有许可证和归属；发布门禁能在本地自动发现文档/协议缺失；当前 LICENSE 明确为 Apache-2.0 且不留下法律含义不清的空白。
 
 ### Task 1：设置 schema、迁移、未知字段和安全备份基础
 
@@ -697,15 +633,13 @@ flowchart LR
 
 **Files:**
 
-- 修改：`LICENSE`、`README.md`、`Apps/Mac/README.md`、`docs/USER_GUIDE.md`、`PRODUCT.md`、`PROJECT_STATUS.md`、`CHANGELOG.md`、必要时 `docs/AGENT_RELEASE_WORKFLOW.md`。
-- 确认：`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`THIRD_PARTY_NOTICES.md`、`docs/ARCHITECTURE.md`、`docs/DATA_AND_PRIVACY.md`、`docs/PROVIDER_DEVELOPMENT.md`、`docs/RELEASE_CHECKLIST.md` 和 `.github/*` 模板已经进入交付提交。
+- 修改：`Apps/Mac/README.md`、`PRODUCT.md`、`PROJECT_STATUS.md`、必要时 `docs/AGENT_RELEASE_WORKFLOW.md`。
 - 新增：`docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md`。
 - 可能修改：`CHANGELOG.md` 或仓库既有发布记录文件；只记录实际完成内容。
 
 **Required checks:**
 
 - [ ] 运行 `cd Apps/Mac && ./scripts/run-tests.sh`，保存完整输出和失败分类。
-- [ ] 运行 `bash Apps/Mac/scripts/verify-open-source.sh`，确认 LICENSE/SPDX、必需开源文档、README 链接、第三方声明和敏感文件门禁通过。
 - [ ] 运行 `cd Apps/Mac && tuist generate --no-open`，确认生成成功且不修改无关生成文件。
 - [ ] 运行 `xcodebuild build -workspace SmartBalance.xcworkspace -scheme SmartBalance -configuration Debug -destination 'platform=macOS'`。
 - [ ] 运行 `xcodebuild build -workspace SmartBalance.xcworkspace -scheme SmartBalance -configuration Release -destination 'platform=macOS'`。
@@ -714,9 +648,7 @@ flowchart LR
 - [ ] 至少测试两个真实 macOS 架构/环境组合中的可运行证据；如果只有当前机器，明确写“当前机器验证”，不宣称跨机器兼容已证实。
 - [ ] 不使用真实 Provider Key 做自动化测试；真实渠道测试若未获得单独授权，报告写“未执行”，不写“全部渠道通过”。
 - [ ] 检查计划中所有“无密钥、无 Touch ID、无密码弹窗”的路径：启动、设置保存、诊断导出、迁移、恢复和 safe mode。
-- [ ] 逐项核对第三方依赖、Provider logo、字体、图片和示例代码的来源/许可证/分发范围；缺失归属时阻止发布，不用“未知”带过。
-- [ ] 更新 README/PROJECT_STATUS/CHANGELOG/Release notes 时区分“已实现、本地测试、运行时验证、已发布、用户验收”，不把代码存在误写成 GitHub Release 或安装成功。
-- [ ] 验证 README 中的 P1 更新说明、隐私说明、安装命令和测试命令与实际代码一致；文档链接在仓库根目录和 `Apps/Mac` 目录下均可定位。
+- [ ] 更新 README/PROJECT_STATUS 时区分“已实现、本地测试、运行时验证、已发布、用户验收”，不把代码存在误写成 GitHub Release 或安装成功。
 - [ ] 完成本地代码审查和 `requesting-code-review`；所有 P1 任务的红灯/绿灯记录齐全后，才进入项目既有发版流程。
 
 **交付门：** 测试和构建结果可复现；安装/运行时行为有记录；隐私扫描无泄漏；未授权的远程发布、安装、渠道真实请求和用户验收不会被伪造为完成。
@@ -756,15 +688,6 @@ flowchart LR
 - [ ] 智余现有首页/用量/设置布局仍可用，右上角齿轮和用量入口语义不变。
 - [ ] 余额查询、Provider 配置、通知、SMTP 和日/周/月用量统计口径没有未记录的变化。
 
-### 开源协议与文档
-
-- [x] 根目录 `LICENSE` 明确采用 Apache-2.0，包含官方完整条款、项目批准的版权主体和 `SPDX-License-Identifier: Apache-2.0`。
-- [x] `README.md` 是用户入口，能说明安装、构建、测试、支持范围、数据隐私、用量口径、贡献、漏洞报告、许可证和第三方声明；其中的命令和链接经过实际验证。
-- [x] `CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`、`THIRD_PARTY_NOTICES.md`、架构/隐私/Provider/发布文档均已提交且互相链接。
-- [ ] 所有随 App 分发的依赖、图片、字体、logo、代码片段和外部内容都有来源、版本和许可证记录；许可证不兼容或来源不明的内容未进入发布包。
-- [x] `verify-open-source.sh` 和 `OpenSourceDocumentationTests` 在本地通过，并已接入发布前门禁。
-- [x] 文档没有真实 API Key、Cookie、SMTP 密码、诊断包、本机绝对路径或未经验证的 Release/安装/用户验收结论。
-
 ### 数据安全
 
 - [ ] 新生成的设置迁移包、诊断包、本机备份和日志不含 API Key、Cookie、SMTP 密码、Keychain 值或原始 Provider 响应。
@@ -777,7 +700,6 @@ flowchart LR
 - [ ] Debug 和 Release 构建均通过，`git diff --check` 通过，工作区无意外秘密或临时产物。
 - [ ] 已完成目标 macOS 环境的运行时人工检查，并记录当前机器/架构限制。
 - [ ] 代码完成、构建完成、安装包完成、GitHub Release、用户验收分别记录，不相互替代。
-- [ ] 开源发布证据单独记录许可证、第三方声明、源码 tag、Release 资产和文档版本，不把二进制包存在误写成源码许可或用户安装成功。
 
 ### 发布边界
 
@@ -791,13 +713,12 @@ flowchart LR
 建议按以下顺序执行，不跨过前置验证门：
 
 1. Task 0：冻结基线和隐私契约。
-2. Task 0A：先确定 Apache-2.0、第三方声明、README、贡献/安全文档和开源门禁。
-3. Task 1：解决 schema、迁移和现有明文 secrets 备份风险。
-4. Task 2–3：建立首次启动和刷新两个基础状态机。
-5. Task 4–5：完成诊断、设置迁移和本机恢复。
-6. Task 6–7：完成手动更新安全和异常启动恢复。
-7. Task 8–10：收口用量/通知兼容性、无障碍、帮助、性能和生命周期。
-8. Task 11：全量验证、文档同步、开源门禁和交付证据。
-9. P2 能力单独立项，不与 P1 混入同一次未经验证的发布。
+2. Task 1：先解决 schema、迁移和现有明文 secrets 备份风险。
+3. Task 2–3：建立首次启动和刷新两个基础状态机。
+4. Task 4–5：完成诊断、设置迁移和本机恢复。
+5. Task 6–7：完成手动更新安全和异常启动恢复。
+6. Task 8–10：收口用量/通知兼容性、无障碍、帮助、性能和生命周期。
+7. Task 11：全量验证、文档同步和交付证据。
+8. P2 能力单独立项，不与 P1 混入同一次未经验证的发布。
 
-本文件保存后，下一步只能先执行 Task 0 的只读基线和 Task 0A 的开源资料核对；在获得明确的实现授权前，不应修改生产代码、运行真实渠道请求、安装新版本或上传 GitHub。
+本文件保存后，下一步只能先执行 Task 0 的只读基线和测试记录；在获得明确的实现授权前，不应修改生产代码、运行真实渠道请求、安装新版本或上传 GitHub。

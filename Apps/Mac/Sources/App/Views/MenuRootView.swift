@@ -11,6 +11,7 @@ struct MenuRootView: View {
     var runsInPinnedWindow: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var l10n = L10n.shared
+    @FocusState private var focusedControl: SupportFocusTarget?
 
     /// 壳背景用模型解析的主题，不依赖本视图尚未继承的 preferredColorScheme。
     private var resolvedShellScheme: ColorScheme {
@@ -24,45 +25,89 @@ struct MenuRootView: View {
     var body: some View {
         let _ = l10n.revision
         ZStack {
-            // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
-            switch model.selectedTab {
-            case .home:
-                homeShell
+            Group {
+                if model.helpPage != nil {
+                    helpShell
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                } else {
+                // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
+                switch model.sessionRoute {
+                case .onboarding:
+                    FirstLaunchView(model: model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                case .compatibility:
+                    ScrollView(.vertical, showsIndicators: true) {
+                        CompatibilityView(model: model, presentation: .blocking)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
-            case .usage:
-                usageShell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .transition(.opacity)
-            case .settings:
-                settingsShell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .transition(.opacity)
+                case .safeMode:
+                    if model.selectedTab == .diagnostics {
+                        diagnosticsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    } else {
+                        SafeModeView(model: model)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    }
+                case .home:
+                    switch model.selectedTab {
+                    case .home:
+                        homeShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    case .usage:
+                        usageShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    case .settings:
+                        settingsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    case .diagnostics:
+                        diagnosticsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    }
+                }
+                }
             }
+            .id("theme-\(model.settings.themeMode)")
         }
-        // 主题变化时强制整树重建，让 NSColor 动态 token 按新 appearance 重取
-        .id("theme-\(model.settings.themeMode)")
         .background(SBTheme.shellBackground(for: resolvedShellScheme).ignoresSafeArea())
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
         .preferredColorScheme(model.preferredColorScheme)
         .environment(\.layoutDirection, model.settings.resolvedLanguage == .ar ? .rightToLeft : .leftToRight)
+        .supportPageChrome()
+        .supportKeyboard(
+            onEscape: { model.handleSupportEscape() },
+            onReturn: { model.handleSupportReturn() }
+        )
+        .focusSection()
         .onAppear {
             model.applyAppearancePreference()
             if runsInPinnedWindow {
                 // 只设一次默认框，之后用户可拖；不跟内容跳
                 PinnedBalanceWindowController.shared.ensureDefaultSize()
             }
-            // 打开弹层时若尚未出结果，且当前没在刷，补一次
-            if !model.isRefreshing,
-               model.snapshots.isEmpty
-                || model.snapshots.allSatisfy({ $0.status == .unknown && $0.amount == nil }) {
-                model.refresh()
+            model.noteMenuAppeared()
+        }
+        .onDisappear {
+            if runsInPinnedWindow || !model.pinWindowOpen,
+               let reason = RefreshLifecyclePolicy.cancelReason(for: .windowClosed) {
+                model.cancelRefresh(reason: reason)
             }
         }
         .onChange(of: model.settings.themeMode) { _, _ in
             model.applyAppearancePreference()
         }
         .onChange(of: model.selectedTab) { _, _ in
+            model.notePageSwitch()
             // 切 Tab 不改外框；置顶窗也禁止跟着内容收缩
             if runsInPinnedWindow {
                 PinnedBalanceWindowController.shared.ensureDefaultSize(force: false)
@@ -72,9 +117,74 @@ struct MenuRootView: View {
 
     // MARK: - Usage shell
 
+    private var helpShell: some View {
+        VStack(spacing: 0) {
+            detailHeader(title: l10n.t(helpHeaderTitleKey)) {
+                model.closeHelpCenter()
+            }
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                helpContent
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var helpContent: some View {
+        switch model.helpPage {
+        case .topic(let id):
+            TroubleshootingTopicView(topicID: id)
+        case .index, .none:
+            HelpCenterView { topic in
+                model.openHelpTopic(topic)
+            }
+        }
+    }
+
+    private var helpHeaderTitleKey: String {
+        if case .topic = model.helpPage {
+            return MenuNavigationPolicy.headerTitleKey(for: .troubleshooting)
+        }
+        return MenuNavigationPolicy.headerTitleKey(for: .help)
+    }
+
+    private var currentSurface: MenuSurface {
+        if model.restorePreview != nil || model.restoreOutcome != nil {
+            return .restorePreview
+        }
+        if model.selectedTab == .diagnostics {
+            return .diagnostics
+        }
+        switch model.settingsSupportPage {
+        case .transfer:
+            return .transfer
+        case .backup:
+            return .backup
+        case .updates:
+            return .updates
+        case .none:
+            switch model.selectedTab {
+            case .home: return .home
+            case .usage: return .usage
+            case .settings: return .settings
+            case .diagnostics: return .diagnostics
+            }
+        }
+    }
+
     private var usageShell: some View {
         VStack(spacing: 0) {
-            detailHeader(title: l10n.t("usage.title"))
+            detailHeader(title: l10n.t(MenuNavigationPolicy.headerTitleKey(for: .usage))) {
+                model.selectedTab = .home
+            }
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
@@ -115,6 +225,26 @@ struct MenuRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
+    // MARK: - Diagnostics shell
+
+    private var diagnosticsShell: some View {
+        VStack(spacing: 0) {
+            diagnosticsHeader
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                DiagnosticsCenterView(model: model)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
     // MARK: - Settings shell
 
     private var settingsShell: some View {
@@ -125,7 +255,7 @@ struct MenuRootView: View {
                 .padding(.bottom, 10)
 
             ScrollView(.vertical, showsIndicators: true) {
-                SettingsRootView(model: model)
+                settingsSupportContent
                     .padding(.horizontal, 14)
                     .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -168,7 +298,7 @@ struct MenuRootView: View {
                 .monospacedDigit()
 
             Button {
-                model.refresh()
+                model.handleRefreshButton()
             } label: {
                 Image(systemName: model.isRefreshing ? "hourglass" : "arrow.clockwise")
                     .font(.system(size: 13, weight: .semibold))
@@ -176,9 +306,15 @@ struct MenuRootView: View {
                     .frame(width: 28, height: 26)
             }
             .buttonStyle(.plain)
-            .disabled(model.isRefreshing)
-            .help("刷新全部")
+            .help(l10n.t(model.refreshButtonHelpKey))
+            .supportButtonLabel(
+                l10n.t(model.refreshButtonHelpKey),
+                identifier: SupportAccessibilityID.navRefresh.rawValue,
+                selected: model.isRefreshing
+            )
             .keyboardShortcut("r")
+            .focusable()
+            .focused($focusedControl, equals: .refresh)
 
             Button {
                 togglePin()
@@ -197,8 +333,13 @@ struct MenuRootView: View {
             .buttonStyle(.plain)
             .help(
                 (runsInPinnedWindow || model.pinWindowOpen)
-                    ? "取消置顶"
-                    : "置顶常驻窗口（点其他应用不关闭）"
+                    ? l10n.t("home.pin.on")
+                    : l10n.t("home.pin.off")
+            )
+            .accessibilityLabel(
+                (runsInPinnedWindow || model.pinWindowOpen)
+                    ? l10n.t("home.pin.on")
+                    : l10n.t("home.pin.off")
             )
 
             Button {
@@ -210,30 +351,71 @@ struct MenuRootView: View {
                     .frame(width: 28, height: 26)
             }
             .buttonStyle(.plain)
-            .help(l10n.t("settings.title"))
+            .help(l10n.t("home.settings"))
             .keyboardShortcut(",")
-            .accessibilityLabel(l10n.t("settings.title"))
+            .supportButtonLabel(
+                l10n.t("home.settings"),
+                identifier: SupportAccessibilityID.navSettings.rawValue,
+                selected: model.selectedTab == .settings
+            )
+            .focusable()
+            .focused($focusedControl, equals: .settings)
+        }
+    }
+
+    private var settingsSupportContent: some View {
+        Group {
+            if model.restorePreview != nil || model.restoreOutcome != nil {
+                RestorePreviewView(model: model)
+            } else if model.settingsSupportPage == .transfer {
+                SettingsTransferView(model: model)
+            } else if model.settingsSupportPage == .backup {
+                BackupRestoreView(model: model)
+            } else if model.settingsSupportPage == .updates {
+                UpdateDetailsView(model: model)
+            } else {
+                SettingsRootView(model: model)
+            }
         }
     }
 
     private var settingsHeader: some View {
-        detailHeader(title: l10n.t("settings.title"))
+        detailHeader(title: l10n.t(settingsHeaderTitleKey)) {
+            if model.settingsSupportPage != nil {
+                model.closeSettingsSupport()
+            } else {
+                model.selectedTab = .home
+            }
+        }
     }
 
-    private func detailHeader(title: String) -> some View {
-        HStack {
+    private var settingsHeaderTitleKey: String {
+        MenuNavigationPolicy.headerTitleKey(for: currentSurface)
+    }
+
+    private var diagnosticsHeader: some View {
+        detailHeader(title: l10n.t(MenuNavigationPolicy.headerTitleKey(for: .diagnostics))) {
+            model.closeDiagnosticsCenter()
+        }
+    }
+
+    private func detailHeader(title: String, back: @escaping () -> Void = { }) -> some View {
+        let backLabel = l10n.t("nav.back")
+        return HStack {
             Button {
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    model.selectedTab = .home
+                    back()
                 }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .bold))
-                    Text(l10n.t("settings.back"))
+                    Text(backLabel)
                         .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .foregroundStyle(SBTheme.text)
                 .padding(.horizontal, 12)
@@ -248,12 +430,18 @@ struct MenuRootView: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(l10n.t("settings.back"))
+            .supportButtonLabel(backLabel, identifier: SupportAccessibilityID.navBack.rawValue)
+            .focusable()
+            .focused($focusedControl, equals: .back)
 
             Spacer()
             Text(title)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(SBTheme.text)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             // 与左侧返回对称占位，标题居中
             Color.clear.frame(width: 72, height: 1)
@@ -268,7 +456,10 @@ struct MenuRootView: View {
                 model.openDashboard()
             }
             .keyboardShortcut("d")
-            .help("打开当前选中账号对应平台控制台")
+            .help(l10n.t("home.dashboard.help"))
+            .accessibilityLabel(l10n.t("home.open_dashboard"))
+            .focusable()
+            .focused($focusedControl, equals: .dashboard)
 
             footerPill(title: l10n.t("home.usage"), systemName: "chart.bar.xaxis") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖
@@ -279,11 +470,21 @@ struct MenuRootView: View {
                 }
             }
             .keyboardShortcut("u")
+            .supportButtonLabel(
+                l10n.t("home.usage"),
+                identifier: SupportAccessibilityID.navUsage.rawValue,
+                selected: model.selectedTab == .usage
+            )
+            .focusable()
+            .focused($focusedControl, equals: .usage)
 
             footerPill(title: l10n.t("home.quit"), systemName: "power") {
                 model.quit()
             }
-            .help("完全退出智余（菜单栏图标会消失）")
+            .help(l10n.t("home.quit.help"))
+            .accessibilityLabel(l10n.t("home.quit"))
+            .focusable()
+            .focused($focusedControl, equals: .quit)
         }
     }
 
@@ -297,7 +498,7 @@ struct MenuRootView: View {
                     model.selectedTab = .home
                 }
             } label: {
-                Text(l10n.t("settings.done"))
+                Text(l10n.t("nav.done"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 22)
@@ -309,6 +510,10 @@ struct MenuRootView: View {
                     )
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.defaultAction)
+            .supportButtonLabel(l10n.t("nav.done"), identifier: SupportAccessibilityID.navDone.rawValue)
+            .focusable()
+            .focused($focusedControl, equals: .done)
         }
     }
 

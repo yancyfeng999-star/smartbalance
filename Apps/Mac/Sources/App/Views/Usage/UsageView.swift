@@ -24,18 +24,30 @@ struct UsageView: View {
             periodPicker
             periodNavigator(summary: currentSummary)
 
-            if model.usageDataError != nil {
-                Label(usageErrorText, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.danger)
-                    .fixedSize(horizontal: false, vertical: true)
+            usageHealthStatus
+
+            if let kind = usageErrorKind {
+                ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: kind)) { action in
+                    model.performErrorAction(action, kind: kind)
+                }
+            } else if let key = model.refreshNoticeKey,
+                      key != "usage.save_failed",
+                      key != "usage.load_failed" {
+                if let kind = ActionableErrorPolicy.kind(noticeKey: key) {
+                    ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: kind)) { action in
+                        model.performErrorAction(action, kind: kind)
+                    }
+                } else {
+                    recoverableBanner(text: l10n.t(key), systemImage: "clock.badge.xmark", tint: SBTheme.warn)
+                }
             }
 
-            if model.usageRecoveryNotice {
-                Label(l10n.t("usage.history_recovered"), systemImage: "arrow.counterclockwise.circle.fill")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SBTheme.warn)
-                    .fixedSize(horizontal: false, vertical: true)
+            if model.usageRecoveryNotice, model.usageStorageHealth != .needsRestore {
+                recoverableBanner(
+                    text: l10n.t("usage.history_recovered"),
+                    systemImage: "arrow.counterclockwise.circle.fill",
+                    tint: SBTheme.warn
+                )
             }
 
             content(summary: currentSummary)
@@ -79,6 +91,8 @@ struct UsageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(period == candidate ? .isSelected : [])
+                .accessibilityLabel(title(for: candidate))
+                .accessibilityIdentifier("usage.period.\(candidate.rawValue)")
             }
         }
         .padding(3)
@@ -167,10 +181,49 @@ struct UsageView: View {
         }
     }
 
-    private var usageErrorText: String {
-        model.usageDataError == "load"
-            ? l10n.t("usage.load_failed")
-            : l10n.t("usage.save_failed")
+    private func recoverableBanner(text: String, systemImage: String, tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Label(text, systemImage: systemImage)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button {
+                model.openDiagnosticsCenter()
+            } label: {
+                Text(l10n.t("diagnostics.banner.action"))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(l10n.t("diagnostics.banner.action"))
+        }
+    }
+
+    private var usageHealthStatus: some View {
+        let health = model.usageStorageHealth
+        return HStack(alignment: .top, spacing: 6) {
+            Image(systemName: health.isUserVisibleWarning ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(health.isUserVisibleWarning ? SBTheme.warn : SBTheme.ok)
+                .accessibilityHidden(true)
+            Text(l10n.t(health.messageKey))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(health.isUserVisibleWarning ? SBTheme.warn : SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(l10n.t(health.messageKey))
+    }
+
+    private var usageErrorKind: ActionableErrorKind? {
+        SupportViewMapping.homeBannerKind(
+            noticeKey: model.refreshNoticeKey,
+            bannerKey: model.bannerKey,
+            usageHealth: model.usageStorageHealth,
+            usageDataError: model.usageDataError
+        )
     }
 
     private func emptyState(

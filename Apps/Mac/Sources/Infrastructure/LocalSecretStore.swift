@@ -41,6 +41,11 @@ public final class LocalSecretStore: @unchecked Sendable {
         get(account: account) != nil
     }
 
+    /// 只回答凭据是否缺失，不返回密钥值。
+    public func credentialPresence(for account: String) -> CredentialPresence {
+        contains(account: account) ? .present : .missing
+    }
+
     public func delete(account: String) {
         queue.sync {
             deleteFromKeychain(key: account)
@@ -68,6 +73,11 @@ public final class LocalSecretStore: @unchecked Sendable {
     /// 当前内存快照（导入回滚用）。
     public func snapshot() -> [String: String] {
         exportAll()
+    }
+
+    /// 非敏感可达性：只返回 available / unavailable / unknown。
+    public func availabilityStatus() -> DiagnosticKeychainStatus {
+        queue.sync { probeAvailability() }
     }
 
     // MARK: - Keychain
@@ -113,6 +123,39 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     private func deleteFromKeychain(key: String) {
         SecItemDelete(identityQuery(key: key) as CFDictionary)
+    }
+
+    private func probeAvailability() -> DiagnosticKeychainStatus {
+        let account = "smartbalance.availability-probe"
+        let payload = Data("probe".utf8)
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(base as CFDictionary)
+
+        var add = base
+        add[kSecValueData as String] = payload
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let addStatus = SecItemAdd(add as CFDictionary, nil)
+        guard addStatus == errSecSuccess else {
+            if addStatus == errSecNotAvailable || addStatus == errSecInteractionNotAllowed {
+                return .unavailable
+            }
+            return .unknown
+        }
+
+        var query = base
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        let copyStatus = SecItemCopyMatching(query as CFDictionary, &result)
+        SecItemDelete(base as CFDictionary)
+        if copyStatus == errSecSuccess, result as? Data == payload {
+            return .available
+        }
+        return .unknown
     }
 
     private func identityQuery(key: String) -> [String: Any] {

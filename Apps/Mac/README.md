@@ -2,6 +2,8 @@
 
 这是智余 macOS 菜单栏 App 的工程目录。用户和贡献者入口在仓库根目录 [README.md](../../README.md)；贡献、隐私、第三方和发布规则分别见 [CONTRIBUTING.md](../../CONTRIBUTING.md)、[docs/DATA_AND_PRIVACY.md](../../docs/DATA_AND_PRIVACY.md)、[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) 和 [docs/RELEASE_CHECKLIST.md](../../docs/RELEASE_CHECKLIST.md)。
 
+Agent 协作与发版：仓库根目录 [AGENTS.md](../../AGENTS.md)、[docs/AGENT_RELEASE_WORKFLOW.md](../../docs/AGENT_RELEASE_WORKFLOW.md)。默认修完即 `NOTES="…" ./scripts/release.sh`。验证见 [verification](../../docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。
+
 ## 分层
 
 ```text
@@ -38,4 +40,4 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 
 ## 更新
 
-`UpdateChecker` + `ReleaseDownloader`：设置里手动检查 GitHub Releases，用户确认后下载打开；当前默认不静默安装。
+`UpdateChecker` 只检查并展示说明；用户确认后才 `ReleaseDownloader` 下载，再校验、安装。不是启动后静默替换。

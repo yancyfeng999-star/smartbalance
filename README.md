@@ -6,7 +6,8 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.3.2 |
+| 版本 | 0.3.2（Info.plist / build 83） |
+| 验证 | 见 [docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。已实现 ≠ 本地测试 ≠ 运行时验证 ≠ 已发布 ≠ 用户验收 |
 
 ---
 
@@ -54,7 +55,8 @@ ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
 
 - 本地自然天、ISO 自然周（周一开始）和自然月的渠道金额，并向前查看最多 400 天；
 - 接口累计值的精确差额，以及无累计字段渠道的余额下降估算；
-- 按 CNY、USD 和未知单位分别生成的总额、趋势图和渠道明细。
+- 按 CNY、USD 和未知单位分别生成的总额、趋势图和渠道明细；
+- 用量页/诊断显示历史可用、需要恢复或最近保存失败，不把历史文件内容展示给用户。
 
 首次成功刷新只建立基线，因此不会补算安装前或启用前的历史消费。充值、累计值重置、密钥或用户 ID 变化、单位或统计方式变化会重建基线，不会产生负消费；跨日未刷新产生的差额统一归入后一次刷新日期并显示提示。
 
@@ -99,19 +101,23 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 
 本地试装也请装到应用程序：`./scripts/build-test-app.sh`（不再放桌面）。
 
-测试：`./scripts/run-tests.sh`
+测试：`./scripts/run-tests.sh`（2026-08-14 本工作树复跑 366 passed / 0 failed；不含真实渠道）
 
 ---
 
 ## 更新（GitHub Releases）
 
-智余的 P1 更新流程是手动确认，不会因为启动应用而静默替换：
+产品版本以 Info.plist 为准（当前 **0.3.2 / 83**）。已发布包以 GitHub Releases 上的 tag 为准。
+
+检查更新流程是手动确认，不会因为启动应用而静默替换：
 
 1. 维护者发布带有版本说明和校验文件的 GitHub Release。
 2. 用户进入设置 → **检查更新**，查看版本、说明和校验状态。
-3. 用户明确确认后下载并打开安装资产；校验失败或用户取消时保留当前版本。
+3. **用户明确确认**后才下载并安装；校验失败或用户取消时保留当前版本。
 
-自动更新、Beta 通道和后台安装不属于当前默认能力，除非另有版本说明和用户可见开关。
+历史上部分已发布包曾在发现新版本后直接下载安装。不要把旧行为写成当前目标。
+
+自动更新、Beta 通道和后台安装不属于当前默认能力。发版走 `Apps/Mac/scripts/release.sh`。
 
 ---
 
@@ -143,3 +149,4 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 - [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 - [CHANGELOG.md](./CHANGELOG.md)
 - [Apps/Mac/README.md](./Apps/Mac/README.md)
+- [docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md) — P1 验证证据（未发版）

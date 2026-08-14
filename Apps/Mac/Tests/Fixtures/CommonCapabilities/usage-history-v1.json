@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "baselines": [
+    {
+      "accountId": "33333333-3333-3333-3333-333333333333",
+      "providerKind": "deepseek",
+      "unit": "CNY",
+      "method": "balanceDeltaEstimate",
+      "value": 96.5,
+      "sampledAt": "2026-08-10T02:00:00Z",
+      "sampleCount": 2
+    }
+  ],
+  "dailyRecords": [
+    {
+      "dayKey": "2026-08-10",
+      "timeZoneIdentifier": "Asia/Shanghai",
+      "accountId": "33333333-3333-3333-3333-333333333333",
+      "providerKind": "deepseek",
+      "unit": "CNY",
+      "providerAmount": 0,
+      "estimatedAmount": 3.5,
+      "sampleCount": 1,
+      "hasBoundaryGap": false
+    },
+    {
+      "dayKey": "2026-08-09",
+      "timeZoneIdentifier": "Asia/Shanghai",
+      "accountId": "44444444-4444-4444-4444-444444444444",
+      "providerKind": "openrouter",
+      "unit": "USD",
+      "providerAmount": 1.25,
+      "estimatedAmount": 0,
+      "sampleCount": 1,
+      "hasBoundaryGap": false
+    }
+  ],
+  "updatedAt": "2026-08-10T02:00:00Z"
+}
