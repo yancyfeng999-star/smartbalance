@@ -8,6 +8,7 @@ public final class SettingsStore: @unchecked Sendable {
     private let url: URL
     private let lock = NSLock()
     private let backupManager: BackupManager
+    private let outcomes: DiagnosticOutcomeStore
     private let writer: @Sendable (Data, URL) throws -> Void
     private let runner = SettingsMigrationRunner()
     private var cachedDocument: SettingsDocument?
@@ -18,6 +19,7 @@ public final class SettingsStore: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         self.url = dir.appendingPathComponent(filename)
         self.backupManager = BackupManager(directory: dir)
+        self.outcomes = DiagnosticOutcomeStore(directory: dir)
         self.writer = Self.defaultWriter
     }
 
@@ -30,6 +32,7 @@ public final class SettingsStore: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         self.url = directory.appendingPathComponent(filename)
         self.backupManager = backupManager ?? BackupManager(directory: directory)
+        self.outcomes = DiagnosticOutcomeStore(directory: directory)
         self.writer = writer ?? Self.defaultWriter
     }
 
@@ -49,8 +52,10 @@ public final class SettingsStore: @unchecked Sendable {
                     _ = try backupManager.createSnapshot(of: url, reason: "schema-migration")
                     try writer(try SettingsDocument.encode(document), url)
                     cachedDocument = document
+                    outcomes.record(.migration, result: .ok)
                 } catch {
-                    AppLog.error("settings schema 迁移写入失败，保留原文件：\(error.localizedDescription)")
+                    outcomes.record(.migration, result: .failed)
+                    AppLog.error("settings schema 迁移写入失败，保留原文件", category: .settings, event: "schema_migration_failed")
                     cachedDocument = document
                     return document.settings
                 }
@@ -90,11 +95,17 @@ public final class SettingsStore: @unchecked Sendable {
             settings: toWrite,
             extensions: extensions
         )
-        if FileManager.default.fileExists(atPath: url.path) {
-            _ = try backupManager.createSnapshot(of: url, reason: "settings-write")
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try backupManager.createSnapshot(of: url, reason: "settings-write")
+            }
+            try writer(try SettingsDocument.encode(document), url)
+            cachedDocument = document
+            outcomes.record(.backup, result: .ok)
+        } catch {
+            outcomes.record(.backup, result: .failed)
+            throw error
         }
-        try writer(try SettingsDocument.encode(document), url)
-        cachedDocument = document
     }
 
     public var fileURL: URL { url }

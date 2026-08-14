@@ -673,6 +673,11 @@ final class L10n: ObservableObject {
             .ru: "Не удалось определить схему настроек.", .ar: "تعذّر تحديد مخطط الإعدادات.", .fr: "Impossible de déterminer le schéma des réglages.", .de: "Das Einstellungsschema konnte nicht bestimmt werden.",
             .es: "No se pudo determinar el esquema de ajustes.", .pt: "Não foi possível determinar o esquema de definições.",
         ],
+        "diagnostics.facts.title": [
+            .zhHans: "渠道 / 用量 / 刷新", .en: "Providers / usage / refresh", .ja: "チャネル / 使用量 / 更新", .ko: "채널 / 사용량 / 새로고침",
+            .ru: "Каналы / расход / обновление", .ar: "المزوّدون / الاستخدام / التحديث", .fr: "Canaux / usage / actualisation", .de: "Kanäle / Nutzung / Aktualisierung",
+            .es: "Proveedores / uso / actualización", .pt: "Provedores / uso / atualização",
+        ],
         "diagnostics.title": [
             .zhHans: "诊断中心", .en: "Diagnostics", .ja: "診断", .ko: "진단",
             .ru: "Диагностика", .ar: "التشخيص", .fr: "Diagnostic", .de: "Diagnose",

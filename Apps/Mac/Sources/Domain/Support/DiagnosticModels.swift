@@ -363,6 +363,143 @@ public struct DiagnosticsContext: Sendable, Equatable {
     }
 }
 
+public enum DiagnosticOutcomeKind: String, Codable, Sendable, Equatable {
+    case migration
+    case backup
+    case restore
+}
+
+public enum DiagnosticOutcomeResult: String, Codable, Sendable, Equatable {
+    case ok
+    case failed
+    case none
+}
+
+public struct DiagnosticOutcomeEntry: Codable, Sendable, Equatable {
+    public var result: DiagnosticOutcomeResult
+    public var at: Date?
+
+    public init(result: DiagnosticOutcomeResult, at: Date? = nil) {
+        self.result = result
+        self.at = at
+    }
+}
+
+public struct DiagnosticOutcomeLedger: Codable, Sendable, Equatable {
+    public static let currentSchemaVersion = 1
+    public static let fileName = "diagnostic-outcomes.json"
+
+    public var schemaVersion: Int
+    public var migration: DiagnosticOutcomeEntry
+    public var backup: DiagnosticOutcomeEntry
+    public var restore: DiagnosticOutcomeEntry
+
+    public static let empty = DiagnosticOutcomeLedger(
+        migration: DiagnosticOutcomeEntry(result: .none),
+        backup: DiagnosticOutcomeEntry(result: .none),
+        restore: DiagnosticOutcomeEntry(result: .none)
+    )
+
+    public init(
+        schemaVersion: Int = DiagnosticOutcomeLedger.currentSchemaVersion,
+        migration: DiagnosticOutcomeEntry,
+        backup: DiagnosticOutcomeEntry,
+        restore: DiagnosticOutcomeEntry
+    ) {
+        self.schemaVersion = schemaVersion
+        self.migration = migration
+        self.backup = backup
+        self.restore = restore
+    }
+
+    public func updated(
+        _ kind: DiagnosticOutcomeKind,
+        result: DiagnosticOutcomeResult,
+        at: Date
+    ) -> DiagnosticOutcomeLedger {
+        var next = self
+        let entry = DiagnosticOutcomeEntry(result: result, at: at)
+        switch kind {
+        case .migration: next.migration = entry
+        case .backup: next.backup = entry
+        case .restore: next.restore = entry
+        }
+        return next
+    }
+}
+
+public struct DiagnosticSnapshotOutcomes: Sendable, Equatable {
+    public var migration: String
+    public var backup: String
+    public var restore: String
+
+    public init(migration: String, backup: String, restore: String) {
+        self.migration = migration
+        self.backup = backup
+        self.restore = restore
+    }
+}
+
+/// Last migrate/backup/restore: ledger wins (includes `failed`); else filename fallback.
+public enum DiagnosticSnapshotClassifier: Sendable {
+    public static func classify(
+        filenames: [String],
+        ledger: DiagnosticOutcomeLedger? = nil
+    ) -> DiagnosticSnapshotOutcomes {
+        let fallback = DiagnosticSnapshotOutcomes(
+            migration: filenames.contains { isToken($0, "schema-migration") } ? "ok" : "none",
+            backup: filenames.contains { isToken($0, "settings-write") } ? "ok" : "none",
+            restore: filenames.contains { isToken($0, "restore") } ? "ok" : "none"
+        )
+        guard let ledger else { return fallback }
+        return DiagnosticSnapshotOutcomes(
+            migration: resolve(ledger.migration, fallback: fallback.migration),
+            backup: resolve(ledger.backup, fallback: fallback.backup),
+            restore: resolve(ledger.restore, fallback: fallback.restore)
+        )
+    }
+
+    private static func resolve(_ entry: DiagnosticOutcomeEntry, fallback: String) -> String {
+        switch entry.result {
+        case .none:
+            return fallback
+        case .ok, .failed:
+            return entry.result.rawValue
+        }
+    }
+
+    private static func isToken(_ name: String, _ token: String) -> Bool {
+        let stem = (name as NSString).deletingPathExtension
+        if stem.hasSuffix("-failed") { return false }
+        return stem == token
+            || stem.hasSuffix("-\(token)")
+            || stem.contains("-\(token)-")
+    }
+}
+
+public enum DiagnosticReadableSummary: Sendable {
+    public static func providerLines(_ providers: [DiagnosticProviderSummary]) -> [String] {
+        providers.map { provider in
+            let cred = provider.hasCredentialRef ? "hasCredentialRef=true" : "hasCredentialRef=false"
+            let enabled = provider.enabled ? "enabled=true" : "enabled=false"
+            return "\(provider.kind) \(enabled) \(cred)"
+        }
+    }
+
+    public static func usageLine(_ usage: DiagnosticUsageSummary) -> String {
+        let earliest = usage.earliestDate ?? "-"
+        let latest = usage.latestDate ?? "-"
+        let units = usage.unitCategories.isEmpty ? "-" : usage.unitCategories.joined(separator: ",")
+        let error = usage.saveErrorClassification ?? "none"
+        return "records=\(usage.recordCount) range=\(earliest)/\(latest) units=\(units) saveError=\(error)"
+    }
+
+    public static func refreshLine(_ refresh: DiagnosticRefreshSummary) -> String {
+        let stamp = refresh.lastRefreshAt.map { ISO8601DateFormatter().string(from: $0) } ?? "-"
+        return "\(refresh.state) \(refresh.succeededCount)/\(refresh.failedCount) lastRefreshAt=\(stamp)"
+    }
+}
+
 public enum DiagnosticBannerPolicy: Sendable {
     public static func shouldOfferDiagnostics(
         noticeKey: String?,

@@ -122,6 +122,78 @@ final class DiagnosticsServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: log.path))
     }
 
+    func testTextSummarySurfacesProviderUsageAndLastRefresh() throws {
+        let report = DiagnosticsService().collect(makeContext())
+        let text = DiagnosticArchiveWriter.textSummary(report)
+        XCTAssertTrue(text.contains("deepseek enabled=true hasCredentialRef=true"), text)
+        XCTAssertTrue(text.contains("records=2"), text)
+        XCTAssertTrue(text.contains("2026-08-01"), text)
+        XCTAssertTrue(text.contains("2026-08-10"), text)
+        XCTAssertTrue(text.contains("CNY"), text)
+        XCTAssertTrue(text.contains("lastRefreshAt="), text)
+        XCTAssertFalse(text.contains("secretRef="), text)
+        XCTAssertEqual(report.check(.providers)?.redactedDetail?.contains("hasCredentialRef=true"), true)
+        XCTAssertEqual(report.check(.usage)?.redactedDetail?.contains("2026-08-01"), true)
+        XCTAssertEqual(report.check(.refresh)?.redactedDetail?.contains("lastRefreshAt="), true)
+    }
+
+    func testLatestLedgerOutcomeWinsOverOlderSnapshotFilename() throws {
+        let old = directory.appendingPathComponent("settings-20260814-150405-settings-write.json")
+        try Data("{}".utf8).write(to: old)
+        let migration = directory.appendingPathComponent("settings-20260814-120000-schema-migration.json")
+        try Data("{}".utf8).write(to: migration)
+        let ledger = DiagnosticOutcomeLedger.empty
+            .updated(.backup, result: .failed, at: Date(timeIntervalSince1970: 1_787_200_000))
+            .updated(.migration, result: .failed, at: Date(timeIntervalSince1970: 1_787_200_100))
+        try DiagnosticOutcomeStore(directory: directory).save(ledger)
+
+        let context = DiagnosticsService.makeLiveContext(
+            settings: AppSettings(),
+            usage: UsageHistoryDocument(),
+            usageSaveError: nil,
+            refresh: DiagnosticRefreshSummary(state: "idle"),
+            keychainStatus: .unknown,
+            notificationAuthorization: .unknown,
+            appVersion: "0.3.1",
+            build: "82",
+            applicationSupportDirectory: directory
+        )
+        XCTAssertEqual(context.lastBackupResult, "failed")
+        XCTAssertEqual(context.lastMigrationResult, "failed")
+        XCTAssertEqual(context.lastRestoreResult, "none")
+        XCTAssertEqual(
+            DiagnosticsService().collect(context).check(.backup)?.status,
+            .failed
+        )
+    }
+
+    func testFailedSettingsWriteRecordsFailedBackupOutcome() throws {
+        let store = SettingsStore(directory: directory)
+        try store.save(AppSettings(accounts: [
+            BalanceAccount(kind: .deepseek, displayName: "Keep"),
+        ]))
+        let failing = SettingsStore(
+            directory: directory,
+            writer: { _, _ in throw TestWriteError.diskFull }
+        )
+        XCTAssertThrowsError(try failing.save(AppSettings(accounts: [
+            BalanceAccount(kind: .kimi, displayName: "Nope"),
+        ])))
+
+        let context = DiagnosticsService.makeLiveContext(
+            settings: AppSettings(),
+            usage: UsageHistoryDocument(),
+            usageSaveError: nil,
+            refresh: DiagnosticRefreshSummary(state: "idle"),
+            keychainStatus: .unknown,
+            notificationAuthorization: .unknown,
+            appVersion: "0.3.1",
+            build: "82",
+            applicationSupportDirectory: directory
+        )
+        XCTAssertEqual(context.lastBackupResult, "failed")
+    }
+
     func testKeychainStatusNeverIncludesServiceAccountOrLength() throws {
         let report = DiagnosticsService().collect(makeContext(keychainStatus: .unavailable))
         XCTAssertEqual(report.keychainStatus, .unavailable)
@@ -182,4 +254,8 @@ final class DiagnosticsServiceTests: XCTestCase {
         let value = try? FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber
         return value?.intValue ?? -1
     }
+}
+
+private enum TestWriteError: Error {
+    case diskFull
 }

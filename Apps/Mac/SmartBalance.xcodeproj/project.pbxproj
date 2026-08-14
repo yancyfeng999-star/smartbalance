@@ -36,6 +36,7 @@
 		1C3BC9240B8AF6642F31DD43 /* SMTPSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AAE8EF719BC07AF237A54F /* SMTPSection.swift */; };
 		1DBE74EAD98F03A728A60356 /* VolcengineSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E6BB535A3CCB48BCF86A90 /* VolcengineSigner.swift */; };
 		218FD283C303B67A22C48E7F /* FirstLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EED6113B0A4782A37E741E8 /* FirstLaunchView.swift */; };
+		231C8E014B788ADC9ABD3637 /* DiagnosticOutcomeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5AD088B9D2A877EE55325A2 /* DiagnosticOutcomeStore.swift */; };
 		233203DD126F7B774FB37CE2 /* LocalSecretStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8DA58AA5D06C441EAB55E0 /* LocalSecretStoreTests.swift */; };
 		236D73C099F018E767F9D57E /* ThemeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E5CA0EAE0ACA963EBABA91 /* ThemeMode.swift */; };
 		2770DF8C5D975AC370E66103 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F145D494EDCB4547269E57 /* AppLog.swift */; };
@@ -462,6 +463,7 @@
 		F2EB39095094CE9898ECCA2A /* AlertChannelsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertChannelsSection.swift; sourceTree = "<group>"; };
 		F3228372433F2ADCE983F36C /* ProviderLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLogoView.swift; sourceTree = "<group>"; };
 		F342A2116AC420D4A006039D /* BalanceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceCardView.swift; sourceTree = "<group>"; };
+		F5AD088B9D2A877EE55325A2 /* DiagnosticOutcomeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticOutcomeStore.swift; sourceTree = "<group>"; };
 		F71A8BC1881287D18421CB6E /* SMTPProtocolFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPProtocolFormattingTests.swift; sourceTree = "<group>"; };
 		F87D9F53CC0C671F1E816FFF /* SettingsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRootView.swift; sourceTree = "<group>"; };
 		FC9E1A59DAE9DF047DCAF8F5 /* NSControl Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSControl Extensions.swift"; sourceTree = "<group>"; };
@@ -613,6 +615,7 @@
 				34743ABAB3E0CC74A05B2AEE /* BackupManager.swift */,
 				92F58C29B790972B15D2C787 /* CompatibilityChecker.swift */,
 				3F5D477184A5A045A67CBFB3 /* DiagnosticArchiveWriter.swift */,
+				F5AD088B9D2A877EE55325A2 /* DiagnosticOutcomeStore.swift */,
 				0320EAC6A29CA61B32AB6517 /* DiagnosticsService.swift */,
 				6CCC7AD66CA65DE55DD22DAB /* FirstLaunchStore.swift */,
 				35BB626E76D9B52CC0F0B90F /* PrivacyRedactor.swift */,
@@ -1282,6 +1285,7 @@
 				714B7E98FEBB67E0C33875B0 /* BackupManager.swift in Sources */,
 				0F13B980FBF3E8FE2C4FC6B9 /* CompatibilityChecker.swift in Sources */,
 				30F74289AAB1BD421ACFEE23 /* DiagnosticArchiveWriter.swift in Sources */,
+				231C8E014B788ADC9ABD3637 /* DiagnosticOutcomeStore.swift in Sources */,
 				6745A95ED78135BC73D3CFB1 /* DiagnosticsService.swift in Sources */,
 				01971B632885A785D3FC437C /* FirstLaunchStore.swift in Sources */,
 				12E5D8EA4093755C2B5205F3 /* PrivacyRedactor.swift in Sources */,

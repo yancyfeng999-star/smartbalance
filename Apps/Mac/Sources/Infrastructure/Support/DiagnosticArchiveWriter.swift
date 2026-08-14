@@ -55,9 +55,17 @@ public struct DiagnosticArchiveWriter: Sendable {
         }
         lines.append("keychain: \(report.keychainStatus.rawValue)")
         lines.append("notifications: \(report.notificationAuthorization)")
-        lines.append("refresh: \(report.refresh.state) \(report.refresh.succeededCount)/\(report.refresh.failedCount)")
-        lines.append("providers: \(report.providers.count)")
-        lines.append("usageRecords: \(report.usage.recordCount)")
+        lines.append("refresh: \(DiagnosticReadableSummary.refreshLine(report.refresh))")
+        let providerLines = DiagnosticReadableSummary.providerLines(report.providers)
+        if providerLines.isEmpty {
+            lines.append("providers: 0")
+        } else {
+            lines.append("providers:")
+            for line in providerLines {
+                lines.append("- \(line)")
+            }
+        }
+        lines.append("usage: \(DiagnosticReadableSummary.usageLine(report.usage))")
         lines.append("migration: \(report.lastMigrationResult)")
         lines.append("backup: \(report.lastBackupResult)")
         lines.append("restore: \(report.lastRestoreResult)")

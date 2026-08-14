@@ -26,6 +26,7 @@ struct DiagnosticsCenterView: View {
                         .foregroundStyle(SBTheme.muted)
                 }
                 if let report = model.diagnosticReport {
+                    allowlistFacts(report)
                     ForEach(report.checks) { item in
                         DiagnosticCheckRow(item: item)
                     }
@@ -54,6 +55,30 @@ struct DiagnosticsCenterView: View {
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private func allowlistFacts(_ report: DiagnosticReport) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(l10n.t("diagnostics.facts.title"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(SBTheme.text)
+            Text(DiagnosticReadableSummary.refreshLine(report.refresh))
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(DiagnosticReadableSummary.providerLines(report.providers), id: \.self) { line in
+                Text(line)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(SBTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(DiagnosticReadableSummary.usageLine(report.usage))
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(l10n.t("diagnostics.facts.title"))
     }
 
     private var actions: some View {

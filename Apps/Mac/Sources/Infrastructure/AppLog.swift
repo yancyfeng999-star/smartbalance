@@ -3,7 +3,7 @@ import AppKit
 import Domain
 
 /// 本地文件日志：~/Library/Logs/SmartBalance/app.log
-/// 写入前脱敏；按大小轮转（只 rename，不读整文件）。
+/// 写入前脱敏；按大小轮转（只 rename）。文件 IO 在专用队列，不占用调用线程。
 public enum AppLog {
     public enum ErrorCategory: String, Sendable {
         case settings
@@ -23,10 +23,17 @@ public enum AppLog {
     public static let defaultMaxRotatedFiles = 3
     public static let diagnosticLineLimit = DiagnosticOptions.defaultMaxLogLines
 
-    private static let lock = NSLock()
+    private static let queueKey = DispatchSpecificKey<UInt8>()
+    private static let ioQueue: DispatchQueue = {
+        let queue = DispatchQueue(label: "com.smartbalance.applog", qos: .utility)
+        queue.setSpecific(key: queueKey, value: 1)
+        return queue
+    }()
+
     nonisolated(unsafe) public static var directoryOverride: URL?
     nonisolated(unsafe) public static var maxFileSizeBytesOverride: Int64?
     nonisolated(unsafe) public static var maxRotatedFilesOverride: Int?
+    nonisolated(unsafe) public static var fileIOThreadObserverForTests: (() -> Void)?
 
     public static var directoryURL: URL {
         if let directoryOverride {
@@ -77,33 +84,33 @@ public enum AppLog {
         let ts = ISO8601DateFormatter().string(from: Date())
         let eventPart = event.map { " event=\($0)" } ?? ""
         let lineOut = "[\(ts)] [\(level)] [\(category.rawValue)] \(file):\(line)\(eventPart) \(redacted)\n"
-        lock.lock()
-        defer { lock.unlock() }
-        rotateIfNeededLocked()
-        appendLocked(lineOut)
+        ioQueue.async {
+            fileIOThreadObserverForTests?()
+            rotateIfNeededOnQueue()
+            appendOnQueue(lineOut)
+        }
     }
 
     public static func tailLines(
         maxLines: Int = diagnosticLineLimit,
         maxBytes: Int = DiagnosticOptions.defaultMaxLogReadBytes
     ) -> [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return tailLinesUnlocked(from: fileURL, maxLines: maxLines, maxBytes: maxBytes)
+        onIOQueue { tailLinesOnQueue(from: fileURL, maxLines: maxLines, maxBytes: maxBytes) }
     }
 
     public static func tailLines(from url: URL, maxLines: Int, maxBytes: Int) -> [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return tailLinesUnlocked(from: url, maxLines: maxLines, maxBytes: maxBytes)
+        onIOQueue { tailLinesOnQueue(from: url, maxLines: maxLines, maxBytes: maxBytes) }
     }
 
     public static func resetForTests() {
         maxFileSizeBytesOverride = nil
         maxRotatedFilesOverride = nil
+        fileIOThreadObserverForTests = nil
     }
 
-    public static func flushForTests() {}
+    public static func flushForTests() {
+        ioQueue.sync {}
+    }
 
     /// 打开日志目录（Finder）。
     @MainActor
@@ -111,7 +118,14 @@ public enum AppLog {
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
-    private static func rotateIfNeededLocked() {
+    private static func onIOQueue<T>(_ work: () -> T) -> T {
+        if DispatchQueue.getSpecific(key: queueKey) != nil {
+            return work()
+        }
+        return ioQueue.sync(execute: work)
+    }
+
+    private static func rotateIfNeededOnQueue() {
         let maxSize = maxFileSizeBytesOverride ?? defaultMaxFileSizeBytes
         let maxRotated = max(1, maxRotatedFilesOverride ?? defaultMaxRotatedFiles)
         let url = fileURL
@@ -140,7 +154,7 @@ public enum AppLog {
         try? fm.moveItem(at: url, to: first)
     }
 
-    private static func appendLocked(_ lineOut: String) {
+    private static func appendOnQueue(_ lineOut: String) {
         let url = fileURL
         guard let data = lineOut.data(using: .utf8) else { return }
         if FileManager.default.fileExists(atPath: url.path) {
@@ -154,7 +168,7 @@ public enum AppLog {
         }
     }
 
-    private static func tailLinesUnlocked(from url: URL, maxLines: Int, maxBytes: Int) -> [String] {
+    private static func tailLinesOnQueue(from url: URL, maxLines: Int, maxBytes: Int) -> [String] {
         guard FileManager.default.fileExists(atPath: url.path),
               let handle = try? FileHandle(forReadingFrom: url)
         else { return [] }

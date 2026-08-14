@@ -205,14 +205,14 @@ public struct DiagnosticsService: Sendable {
                 id: id,
                 status: refreshStatus(context.refresh),
                 detailKey: "diagnostics.detail.refresh.\(context.refresh.state)",
-                redactedDetail: "\(context.refresh.succeededCount)/\(context.refresh.failedCount)"
+                redactedDetail: DiagnosticReadableSummary.refreshLine(context.refresh)
             )
         case .providers:
             return DiagnosticCheck(
                 id: id,
                 status: .ok,
                 detailKey: "diagnostics.detail.providers.ok",
-                redactedDetail: String(context.providers.count)
+                redactedDetail: DiagnosticReadableSummary.providerLines(context.providers).joined(separator: "; ")
             )
         case .usage:
             let classification = context.usage.saveErrorClassification ?? "none"
@@ -221,7 +221,7 @@ public struct DiagnosticsService: Sendable {
                 id: id,
                 status: failed ? .warning : .ok,
                 detailKey: failed ? "diagnostics.detail.usage.warning" : "diagnostics.detail.usage.ok",
-                redactedDetail: "\(context.usage.recordCount) \(classification)"
+                redactedDetail: DiagnosticReadableSummary.usageLine(context.usage)
             )
         }
     }
@@ -319,12 +319,10 @@ public struct DiagnosticsService: Sendable {
         return (try? decoder.decode(UsageHistoryDocument.self, from: data)) != nil
     }
 
-    private static func classifySnapshots(in directory: URL) -> (migration: String, backup: String, restore: String) {
+    private static func classifySnapshots(in directory: URL) -> DiagnosticSnapshotOutcomes {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        return (
-            names.contains { $0.contains("schema-migration") } ? "ok" : "none",
-            names.contains { $0.contains("settings-write") } ? "ok" : "none",
-            names.contains { $0.contains("restore") } ? "ok" : "none"
-        )
+        let ledger = DiagnosticOutcomeStore(directory: directory).load()
+        let resolved: DiagnosticOutcomeLedger? = ledger == .empty ? nil : ledger
+        return DiagnosticSnapshotClassifier.classify(filenames: names, ledger: resolved)
     }
 }

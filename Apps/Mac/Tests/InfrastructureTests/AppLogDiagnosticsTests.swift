@@ -16,6 +16,7 @@ final class AppLogDiagnosticsTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        AppLog.flushForTests()
         AppLog.directoryOverride = previousOverride
         AppLog.resetForTests()
         if let directory {
@@ -37,6 +38,24 @@ final class AppLogDiagnosticsTests: XCTestCase {
         XCTAssertTrue(text.contains("event=smtp_send_failed"), text)
         XCTAssertFalse(text.contains("SuperFakeSMTP-Pass-0001"), text)
         XCTAssertFalse(text.contains("sk-test-fake-api-key-1234567890ABCDEF"), text)
+    }
+
+    func testRotationRunsOffTheCallingThread() throws {
+        let calling = Thread.current
+        let box = ThreadBox()
+        let done = expectation(description: "log-io")
+        AppLog.fileIOThreadObserverForTests = {
+            box.thread = Thread.current
+            done.fulfill()
+        }
+        AppLog.maxFileSizeBytesOverride = 200
+        try Data(repeating: 0x61, count: 240).write(to: AppLog.fileURL)
+        AppLog.info("force-rotate-off-caller")
+        wait(for: [done], timeout: 2)
+        AppLog.flushForTests()
+        XCTAssertNotNil(box.thread)
+        XCTAssertFalse(box.thread === calling, "rotation/write must leave the caller thread")
+        AppLog.fileIOThreadObserverForTests = nil
     }
 
     func testRotatesWhenFileExceedsSizeAndKeepsFixedRotatedCount() throws {
@@ -109,4 +128,8 @@ final class AppLogDiagnosticsTests: XCTestCase {
         )
         XCTAssertEqual(try Data(contentsOf: AppLog.fileURL), before)
     }
+}
+
+private final class ThreadBox: @unchecked Sendable {
+    var thread: Thread?
 }

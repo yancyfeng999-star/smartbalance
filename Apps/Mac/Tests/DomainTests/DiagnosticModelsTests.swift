@@ -115,6 +115,53 @@ final class DiagnosticModelsTests: XCTestCase {
         XCTAssertFalse(labels.contains("requestURL"))
     }
 
+    func testLatestFailedSnapshotOutcomeOverridesOlderSuccess() {
+        let names = [
+            "settings-20260814-150405-schema-migration.json",
+            "settings-20260814-120000-settings-write.json",
+        ]
+        let ledger = DiagnosticOutcomeLedger.empty.updated(
+            .migration,
+            result: .failed,
+            at: Date(timeIntervalSince1970: 1_787_100_000)
+        ).updated(
+            .backup,
+            result: .failed,
+            at: Date(timeIntervalSince1970: 1_787_100_100)
+        )
+        let outcomes = DiagnosticSnapshotClassifier.classify(filenames: names, ledger: ledger)
+        XCTAssertEqual(outcomes.migration, "failed")
+        XCTAssertEqual(outcomes.backup, "failed")
+        XCTAssertEqual(outcomes.restore, "none")
+    }
+
+    func testLaterSuccessfulOutcomeOverridesEarlierFailure() {
+        let names = ["settings-20260814-150405-settings-write.json"]
+        let ledger = DiagnosticOutcomeLedger(
+            migration: DiagnosticOutcomeEntry(result: .failed, at: Date(timeIntervalSince1970: 1)),
+            backup: DiagnosticOutcomeEntry(result: .ok, at: Date(timeIntervalSince1970: 2)),
+            restore: DiagnosticOutcomeEntry(result: .none)
+        )
+        let outcomes = DiagnosticSnapshotClassifier.classify(filenames: names, ledger: ledger)
+        XCTAssertEqual(outcomes.backup, "ok")
+        XCTAssertEqual(outcomes.migration, "failed")
+    }
+
+    func testReadableSummaryIncludesProviderUsageAndLastRefresh() {
+        let report = makeReport()
+        let providers = DiagnosticReadableSummary.providerLines(report.providers)
+        XCTAssertEqual(providers, ["deepseek enabled=true hasCredentialRef=true"])
+        XCTAssertEqual(
+            DiagnosticReadableSummary.usageLine(report.usage),
+            "records=2 range=2026-08-01/2026-08-10 units=CNY saveError=none"
+        )
+        XCTAssertTrue(
+            DiagnosticReadableSummary.refreshLine(report.refresh).contains("lastRefreshAt="),
+            DiagnosticReadableSummary.refreshLine(report.refresh)
+        )
+        XCTAssertTrue(DiagnosticReadableSummary.refreshLine(report.refresh).contains("succeeded"))
+    }
+
     func testRecoverableBannersOfferDiagnostics() {
         XCTAssertTrue(
             DiagnosticBannerPolicy.shouldOfferDiagnostics(
@@ -162,9 +209,22 @@ private extension DiagnosticModelsTests {
             ],
             keychainStatus: .available,
             notificationAuthorization: NotificationAuthorizationState.authorized.rawValue,
-            refresh: DiagnosticRefreshSummary(state: "idle"),
-            providers: [],
-            usage: DiagnosticUsageSummary(recordCount: 0),
+            refresh: DiagnosticRefreshSummary(
+                state: "succeeded",
+                lastRefreshAt: Date(timeIntervalSince1970: 1_787_000_100),
+                succeededCount: 1,
+                failedCount: 0
+            ),
+            providers: [
+                DiagnosticProviderSummary(kind: "deepseek", enabled: true, hasCredentialRef: true),
+            ],
+            usage: DiagnosticUsageSummary(
+                recordCount: 2,
+                earliestDate: "2026-08-01",
+                latestDate: "2026-08-10",
+                unitCategories: ["CNY"],
+                saveErrorClassification: "none"
+            ),
             directories: DiagnosticDirectories(
                 applicationSupport: DiagnosticDirectoryProbe(writable: true, posixPermissions: "700", fileSizeBytes: 12),
                 logs: DiagnosticDirectoryProbe(writable: true, posixPermissions: "755", fileSizeBytes: 40),
