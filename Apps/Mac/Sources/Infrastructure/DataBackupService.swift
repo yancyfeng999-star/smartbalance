@@ -1,45 +1,84 @@
 import Foundation
 import Domain
 
-/// 智余数据备份包：账号配置 + 本机密钥（含 API Key / SMTP 密码）。
-///
-/// 文件为 JSON，扩展名建议 `.json`；**含明文密钥**，勿上传公开网盘。
-public struct DataBackupPackage: Codable, Sendable {
-    public var format: String
+/// 旧版 `smartbalance.backup` v1 仅用于识别与隔离，不再作为默认导出格式。
+struct LegacyDataBackupPackage: Codable, Sendable {
+    var format: String
+    var formatVersion: Int
+    var exportedAt: Date
+    var appVersion: String
+    var settings: AppSettings
+    var secrets: [String: String]
+}
+
+public struct LegacySecretBackupWarning: Equatable, Sendable {
     public var formatVersion: Int
-    public var exportedAt: Date
     public var appVersion: String
-    public var settings: AppSettings
-    public var secrets: [String: String]
+    public var exportedAt: Date
+    public var preview: PortableSettings
+    public var secretEntryCount: Int
+    public var warningMessage: String
 
     public init(
-        format: String = DataBackupService.formatID,
-        formatVersion: Int = DataBackupService.currentVersion,
-        exportedAt: Date = Date(),
+        formatVersion: Int,
         appVersion: String,
-        settings: AppSettings,
-        secrets: [String: String]
+        exportedAt: Date,
+        preview: PortableSettings,
+        secretEntryCount: Int,
+        warningMessage: String
     ) {
-        self.format = format
         self.formatVersion = formatVersion
-        self.exportedAt = exportedAt
         self.appVersion = appVersion
-        self.settings = settings
-        self.secrets = secrets
+        self.exportedAt = exportedAt
+        self.preview = preview
+        self.secretEntryCount = secretEntryCount
+        self.warningMessage = warningMessage
     }
 }
 
-public enum DataBackupService {
-    public static let formatID = "smartbalance.backup"
-    public static let currentVersion = 1
+/// In-memory result of importing a backup.
+///
+/// `secrets` is never serialized or logged. It is only handed to the restore
+/// coordinator after the user explicitly confirms an old plaintext backup.
+public struct DataBackupImportResult: Sendable {
+    public var settings: AppSettings
+    public var secrets: [String: String]
+    public var credentialsNeedReentry: Bool
 
-    public enum BackupError: Error, LocalizedError {
+    public init(
+        settings: AppSettings,
+        secrets: [String: String] = [:],
+        credentialsNeedReentry: Bool
+    ) {
+        self.settings = settings
+        self.secrets = secrets
+        self.credentialsNeedReentry = credentialsNeedReentry
+    }
+}
+
+/// 默认导出非敏感 `smartbalance.portable-settings` v2；旧版 v1 仅在用户确认后导入 secrets。
+public enum DataBackupService {
+    public static let legacyFormatID = "smartbalance.backup"
+    public static let portableFormatID = PortableSettings.formatID
+    public static let formatID = PortableSettings.formatID
+    public static let currentVersion = PortableSettings.currentFormatVersion
+    public static let legacyVersion = 1
+
+    public enum BackupInspection: Equatable, Sendable {
+        case portable(PortableSettings)
+        case localRestore(LocalRestorePackage)
+        case legacySecret(LegacySecretBackupWarning)
+    }
+
+    public enum BackupError: Error, Equatable, LocalizedError {
         case invalidFormat
         case unsupportedVersion(Int)
         case encodeFailed(String)
         case decodeFailed(String)
         case writeFailed(String)
         case readFailed(String)
+        case legacyImportNotConfirmed
+        case corruptUsage
 
         public var errorDescription: String? {
             switch self {
@@ -55,57 +94,211 @@ public enum DataBackupService {
                 return "写入失败：\(m)"
             case .readFailed(let m):
                 return "读取失败：\(m)"
+            case .legacyImportNotConfirmed:
+                return "旧版明文备份默认不导入"
+            case .corruptUsage:
+                return "备份中的用量历史损坏"
             }
         }
     }
 
     public static func makePackage(
         settings: AppSettings,
-        secrets: [String: String],
-        appVersion: String
-    ) -> DataBackupPackage {
-        DataBackupPackage(
-            exportedAt: Date(),
-            appVersion: appVersion,
-            settings: settings,
-            secrets: secrets
-        )
+        appVersion: String,
+        now: Date = Date()
+    ) -> PortableSettings {
+        PortableSettings.make(from: settings, appVersion: appVersion, now: now)
     }
 
-    public static func encode(_ package: DataBackupPackage) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    public static func encode(_ package: PortableSettings) throws -> Data {
+        let data: Data
         do {
-            return try encoder.encode(package)
+            data = try PortableSettings.encode(package)
         } catch {
             throw BackupError.encodeFailed(error.localizedDescription)
         }
+        if PrivacyRedactor.containsForbiddenExportFields(data) {
+            throw BackupError.encodeFailed("portable settings contained forbidden fields")
+        }
+        return data
     }
 
-    public static func decode(_ data: Data) throws -> DataBackupPackage {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let package: DataBackupPackage
+    public static func inspect(_ data: Data) throws -> BackupInspection {
+        let decoder = SettingsDocument.makeDecoder()
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let format = object["format"] as? String else {
+            throw BackupError.invalidFormat
+        }
+
+        if format == legacyFormatID {
+            let package: LegacyDataBackupPackage
+            do {
+                package = try decoder.decode(LegacyDataBackupPackage.self, from: data)
+            } catch {
+                throw BackupError.decodeFailed(error.localizedDescription)
+            }
+            guard package.formatVersion >= 1 else {
+                throw BackupError.unsupportedVersion(package.formatVersion)
+            }
+            let preview = PortableSettings.make(
+                from: package.settings,
+                appVersion: package.appVersion,
+                now: package.exportedAt
+            )
+            return .legacySecret(
+                LegacySecretBackupWarning(
+                    formatVersion: package.formatVersion,
+                    appVersion: package.appVersion,
+                    exportedAt: package.exportedAt,
+                    preview: preview,
+                    secretEntryCount: package.secrets.count,
+                    warningMessage: TransferPreview.legacyPlaintextWarning
+                )
+            )
+        }
+
+        if format == LocalRestorePackage.formatID {
+            guard let version = object["formatVersion"] as? Int else {
+                throw BackupError.invalidFormat
+            }
+            guard version == LocalRestorePackage.currentFormatVersion else {
+                throw BackupError.unsupportedVersion(version)
+            }
+            if let usageObject = object["usageHistory"], !(usageObject is NSNull) {
+                guard JSONSerialization.isValidJSONObject(usageObject) else {
+                    throw BackupError.corruptUsage
+                }
+                do {
+                    let usageData = try JSONSerialization.data(withJSONObject: usageObject)
+                    _ = try SettingsDocument.makeDecoder().decode(UsageHistoryDocument.self, from: usageData)
+                } catch {
+                    throw BackupError.corruptUsage
+                }
+            }
+            let package: LocalRestorePackage
+            do {
+                package = try LocalRestorePackage.decode(data)
+            } catch {
+                throw BackupError.decodeFailed(error.localizedDescription)
+            }
+            return .localRestore(package)
+        }
+
+        if format == portableFormatID {
+            guard let version = object["formatVersion"] as? Int else {
+                throw BackupError.invalidFormat
+            }
+            guard version == PortableSettings.currentFormatVersion else {
+                throw BackupError.unsupportedVersion(version)
+            }
+            let portable: PortableSettings
+            do {
+                portable = try PortableSettings.decode(data)
+            } catch {
+                throw BackupError.decodeFailed(error.localizedDescription)
+            }
+            return .portable(portable)
+        }
+
+        throw BackupError.invalidFormat
+    }
+
+    public static func importSettings(
+        from data: Data,
+        allowLegacyNonSensitive: Bool = false
+    ) throws -> DataBackupImportResult {
+        switch try inspect(data) {
+        case .portable(let portable):
+            return makeImportResult(portable.importAsSettings())
+        case .localRestore(let package):
+            return makeImportResult(package.asPortableSettings.importAsSettings())
+        case .legacySecret(let warning):
+            guard allowLegacyNonSensitive else {
+                throw BackupError.legacyImportNotConfirmed
+            }
+            let imported = warning.preview.importAsSettings()
+            let package = try decodeLegacyPackage(from: data)
+            let secrets = remapLegacySecrets(
+                sourceSettings: package.settings,
+                importedSettings: imported.settings,
+                sourceSecrets: package.secrets
+            )
+            return makeImportResult(imported, secrets: secrets)
+        }
+    }
+
+    private static func makeImportResult(
+        _ imported: PortableImportResult,
+        secrets: [String: String] = [:]
+    ) -> DataBackupImportResult {
+        DataBackupImportResult(
+            settings: imported.settings,
+            secrets: secrets,
+            credentialsNeedReentry: credentialsNeedReentry(
+                for: imported.settings,
+                importedSecrets: secrets
+            )
+        )
+    }
+
+    private static func decodeLegacyPackage(from data: Data) throws -> LegacyDataBackupPackage {
         do {
-            package = try decoder.decode(DataBackupPackage.self, from: data)
+            return try SettingsDocument.makeDecoder().decode(LegacyDataBackupPackage.self, from: data)
         } catch {
             throw BackupError.decodeFailed(error.localizedDescription)
         }
-        guard package.format == formatID else {
-            throw BackupError.invalidFormat
-        }
-        guard package.formatVersion >= 1, package.formatVersion <= currentVersion else {
-            throw BackupError.unsupportedVersion(package.formatVersion)
-        }
-        return package
     }
 
-    public static func write(_ package: DataBackupPackage, to url: URL) throws {
+    /// v1 used the old account/password refs. Portable settings intentionally
+    /// mint new refs, so map the old values by stable account ID before the
+    /// restore coordinator writes them to the new ordinary Keychain service.
+    private static func remapLegacySecrets(
+        sourceSettings: AppSettings,
+        importedSettings: AppSettings,
+        sourceSecrets: [String: String]
+    ) -> [String: String] {
+        var importedSecretRefsByID: [UUID: String] = [:]
+        for account in importedSettings.accounts {
+            importedSecretRefsByID[account.id] = account.secretRef
+        }
+
+        var remapped: [String: String] = [:]
+        for sourceAccount in sourceSettings.accounts {
+            guard let sourceSecret = sourceSecrets[sourceAccount.secretRef],
+                  !sourceSecret.isEmpty,
+                  let importedRef = importedSecretRefsByID[sourceAccount.id]
+            else { continue }
+            remapped[importedRef] = sourceSecret
+        }
+
+        if let smtpSecret = sourceSecrets[sourceSettings.email.passwordRef],
+           !smtpSecret.isEmpty {
+            remapped[importedSettings.email.passwordRef] = smtpSecret
+        }
+        return remapped
+    }
+
+    private static func credentialsNeedReentry(
+        for settings: AppSettings,
+        importedSecrets: [String: String]
+    ) -> Bool {
+        if settings.accounts.contains(where: {
+            $0.kind.needsSecret && importedSecrets[$0.secretRef] == nil
+        }) {
+            return true
+        }
+
+        let emailNeedsPassword = settings.email.enabled
+            || settings.email.isConfigured
+            || !settings.email.smtpHost.isEmpty
+        return emailNeedsPassword && importedSecrets[settings.email.passwordRef] == nil
+    }
+
+    public static func write(_ package: PortableSettings, to url: URL) throws {
         let data = try encode(package)
         do {
             try data.write(to: url, options: .atomic)
-            try? FileManager.default.setAttributes(
+            try FileManager.default.setAttributes(
                 [.posixPermissions: 0o600],
                 ofItemAtPath: url.path
             )
@@ -114,14 +307,14 @@ public enum DataBackupService {
         }
     }
 
-    public static func read(from url: URL) throws -> DataBackupPackage {
+    public static func read(from url: URL) throws -> BackupInspection {
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
             throw BackupError.readFailed(error.localizedDescription)
         }
-        return try decode(data)
+        return try inspect(data)
     }
 
     public static func defaultFileName(now: Date = Date()) -> String {

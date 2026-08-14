@@ -239,6 +239,110 @@ final class UsageHistoryStoreTests: XCTestCase {
         XCTAssertTrue(current.dailyRecords.isEmpty)
     }
 
+    func testSchemaV1FixtureLoadsWithoutChangingDailyAmounts() async throws {
+        try writeFixture("usage-history-v1.json")
+        let store = UsageHistoryStore(directory: directory)
+
+        let result = try await store.load()
+
+        XCTAssertEqual(result.health, .available)
+        XCTAssertNil(result.recovery)
+        XCTAssertEqual(result.document.schemaVersion, UsageHistoryDocument.currentSchemaVersion)
+        XCTAssertEqual(result.document.dailyRecords.count, 2)
+        XCTAssertEqual(result.document.dailyRecords.first { $0.unit == "CNY" }?.estimatedAmount, 3.5)
+        XCTAssertEqual(result.document.dailyRecords.first { $0.unit == "USD" }?.providerAmount, 1.25)
+        XCTAssertEqual(Set(result.document.dailyRecords.map(\.unit)), ["CNY", "USD"])
+    }
+
+    func testFourHundredDayTrimDoesNotChangeKeptAmounts() async throws {
+        try writeFixture("usage-history-v1.json")
+        let store = UsageHistoryStore(directory: directory)
+        var document = try await store.load().document
+        let now = date(2026, 8, 10, 9)
+        let oldestKeptDate = calendar.date(byAdding: .day, value: -399, to: calendar.startOfDay(for: now))!
+        let expiredDate = calendar.date(byAdding: .day, value: -400, to: calendar.startOfDay(for: now))!
+        document.dailyRecords.append(contentsOf: [
+            UsageDailyRecord(
+                dayKey: dayKey(oldestKeptDate),
+                timeZoneIdentifier: "Asia/Shanghai",
+                accountId: accountID,
+                providerKind: .deepseek,
+                unit: "CNY",
+                providerAmount: 0,
+                estimatedAmount: 9,
+                sampleCount: 1,
+                hasBoundaryGap: false
+            ),
+            UsageDailyRecord(
+                dayKey: dayKey(expiredDate),
+                timeZoneIdentifier: "Asia/Shanghai",
+                accountId: accountID,
+                providerKind: .deepseek,
+                unit: "CNY",
+                providerAmount: 0,
+                estimatedAmount: 99,
+                sampleCount: 1,
+                hasBoundaryGap: false
+            ),
+        ])
+        try await store.replaceDocument(document)
+
+        let next = try await store.record(
+            snapshots: [],
+            knownAccountIDs: [accountID],
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertFalse(next.dailyRecords.contains { $0.dayKey == dayKey(expiredDate) })
+        XCTAssertEqual(
+            next.dailyRecords.first { $0.dayKey == dayKey(oldestKeptDate) }?.estimatedAmount,
+            9
+        )
+        XCTAssertEqual(
+            next.dailyRecords.first { $0.dayKey == "2026-08-10" }?.estimatedAmount,
+            3.5
+        )
+    }
+
+    func testUnknownUnitIsPreservedAndNotConverted() async throws {
+        try writeFixture("usage-history-unknown-unit.json")
+        let store = UsageHistoryStore(directory: directory)
+        let loaded = try await store.load().document
+
+        XCTAssertEqual(loaded.dailyRecords.map(\.unit), ["TOKENS"])
+        XCTAssertEqual(loaded.baselines.map(\.unit), ["TOKENS"])
+        XCTAssertEqual(loaded.dailyRecords.first?.estimatedAmount, 20)
+
+        let summary = UsageSummaryBuilder.build(
+            document: loaded,
+            period: .day,
+            anchor: date(2026, 8, 10, 12),
+            calendar: calendar
+        )
+        XCTAssertEqual(summary.currencies.map(\.unit), ["TOKENS"])
+        XCTAssertEqual(summary.currencies.first?.totalAmount, 20)
+        XCTAssertFalse(summary.currencies.contains { $0.unit == "CNY" || $0.unit == "USD" })
+    }
+
+    func testCorruptUsageFixtureBacksUpAndReturnsHealthWarning() async throws {
+        try writeFixture("corrupt-usage-history.json", as: "usage-history.json")
+        let store = UsageHistoryStore(directory: directory)
+
+        let result = try await store.load()
+        let filenames = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).map(\.lastPathComponent)
+
+        XCTAssertEqual(result.document, UsageHistoryDocument())
+        XCTAssertEqual(result.recovery, .corruptFileBackedUp)
+        XCTAssertEqual(result.health, .needsRestore)
+        XCTAssertEqual(result.health.messageKey, "usage.health.needs_restore")
+        XCTAssertTrue(result.health.isUserVisibleWarning)
+        XCTAssertTrue(filenames.contains { $0.hasPrefix("usage-history.corrupt-") && $0.hasSuffix(".json") })
+    }
+
     func testCancelledRecordDoesNotWriteHistory() async throws {
         let store = UsageHistoryStore(directory: directory)
         let gate = CancellationGate()
@@ -302,6 +406,23 @@ final class UsageHistoryStoreTests: XCTestCase {
             day: day,
             hour: hour
         ))!
+    }
+
+    private func dayKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private func writeFixture(_ name: String, as filename: String = "usage-history.json") throws {
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/CommonCapabilities/\(name)")
+        try Data(contentsOf: source).write(to: directory.appendingPathComponent(filename))
     }
 }
 

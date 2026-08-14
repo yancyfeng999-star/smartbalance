@@ -53,6 +53,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         model.pinWindowOpen = true
         model.settings.windowPinned = true
         model.persist()
+        model.noteWindowPinned()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self, self.openGeneration == generation, self.isOpening else { return }
@@ -103,6 +104,7 @@ final class PinnedBalanceWindowController: NSObject, NSWindowDelegate {
         model.pinWindowOpen = true
         model.settings.windowPinned = true
         model.persist()
+        model.noteWindowPinned()
         window?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: false)
         dismissMenuBarPopover()

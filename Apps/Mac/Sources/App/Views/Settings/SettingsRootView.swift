@@ -11,6 +11,7 @@ struct SettingsRootView: View {
 
     @State private var expandAPI = false
     @State private var expandAlert = false
+    @State private var expandCompat = false
 
     var body: some View {
         let _ = l10n.revision
@@ -19,7 +20,18 @@ struct SettingsRootView: View {
             LanguageSettingsCard(model: model)
             apiCard
             alertCard
+            compatibilityCard
+            diagnosticsCard
+            helpCard
+            transferCard
+            backupCard
             BackgroundSystemSection(model: model)
+        }
+        .onAppear {
+            if model.preferExpandAPIAccounts {
+                expandAPI = true
+                model.preferExpandAPIAccounts = false
+            }
         }
     }
 
@@ -40,6 +52,9 @@ struct SettingsRootView: View {
     private var apiSubtitle: String {
         let n = model.settings.accounts.count
         if n == 0 { return "先在这里添加 DeepSeek / Kimi / 手录…" }
+        if model.credentialReentryCount > 0 {
+            return "已添加 \(n) 个 · \(model.credentialReentryCount) 个需要重新填写密钥"
+        }
         return "已添加 \(n) 个 · 主页会显示余额卡"
     }
 
@@ -70,6 +85,173 @@ struct SettingsRootView: View {
         if model.settings.alertChannels.macNotificationEnabled { parts.append("Mac") }
         if model.settings.alertChannels.outboundEmailEnabled { parts.append("邮件") }
         return parts.isEmpty ? "均已关闭" : parts.joined(separator: " · ") + " 已开"
+    }
+
+    private var compatibilityCard: some View {
+        SettingsExpandableCard(
+            icon: "checkmark.shield.fill",
+            iconColors: [Color(red: 0.25, green: 0.62, blue: 0.78), Color(red: 0.18, green: 0.42, blue: 0.82)],
+            title: l10n.t("settings.compatibility"),
+            subtitle: compatibilitySubtitle,
+            isExpanded: $expandCompat
+        ) {
+            CompatibilityView(model: model, presentation: .settings)
+        }
+        .onChange(of: expandCompat) { _, open in
+            if open {
+                model.openCompatibilityFromSettings()
+            }
+        }
+    }
+
+    private var compatibilitySubtitle: String {
+        guard let report = model.compatibilityReport else {
+            return l10n.t("settings.compatibility_sub")
+        }
+        return report.hasBlockingIssue
+            ? l10n.t("settings.compatibility_sub.blocked")
+            : l10n.t("settings.compatibility_sub.ok")
+    }
+
+    private var diagnosticsCard: some View {
+        Button {
+            model.openDiagnosticsCenter()
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.35, green: 0.45, blue: 0.85),
+                                    Color(red: 0.22, green: 0.30, blue: 0.70),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "stethoscope")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l10n.t("settings.diagnostics"))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SBTheme.text)
+                    Text(l10n.t("settings.diagnostics_sub"))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.muted)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                    .fill(SBTheme.panel)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                            .stroke(SBTheme.cardStroke, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .supportButtonLabel(
+            l10n.t("settings.diagnostics"),
+            identifier: SupportAccessibilityID.navDiagnostics.rawValue
+        )
+    }
+
+    private var helpCard: some View {
+        navCard(
+            icon: "questionmark.circle.fill",
+            colors: [Color(red: 0.45, green: 0.40, blue: 0.85), Color(red: 0.30, green: 0.28, blue: 0.72)],
+            titleKey: "settings.help",
+            subtitleKey: "settings.help_sub"
+        ) {
+            model.openHelpCenter()
+        }
+        .supportButtonLabel(
+            l10n.t("help.open"),
+            identifier: SupportAccessibilityID.navHelp.rawValue
+        )
+    }
+
+    private var transferCard: some View {
+        navCard(
+            icon: "square.and.arrow.up.on.square",
+            colors: [Color(red: 0.28, green: 0.62, blue: 0.72), Color(red: 0.18, green: 0.46, blue: 0.66)],
+            titleKey: "settings.transfer",
+            subtitleKey: "settings.transfer_sub"
+        ) {
+            model.openSettingsTransfer()
+        }
+    }
+
+    private var backupCard: some View {
+        navCard(
+            icon: "externaldrive.fill.badge.timemachine",
+            colors: [Color(red: 0.35, green: 0.55, blue: 0.85), Color(red: 0.25, green: 0.4, blue: 0.75)],
+            titleKey: "settings.backup",
+            subtitleKey: "settings.backup_sub"
+        ) {
+            model.openBackupRestore()
+        }
+    }
+
+    private func navCard(
+        icon: String,
+        colors: [Color],
+        titleKey: String,
+        subtitleKey: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: colors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                    Image(systemName: icon)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l10n.t(titleKey))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SBTheme.text)
+                    Text(l10n.t(subtitleKey))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.muted)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                    .fill(SBTheme.panel)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                            .stroke(SBTheme.cardStroke, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(l10n.t(titleKey))
     }
 
     private func sectionLabel(_ text: String) -> some View {
