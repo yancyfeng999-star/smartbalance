@@ -25,19 +25,34 @@ struct MenuRootView: View {
         let _ = l10n.revision
         ZStack {
             // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
-            switch model.selectedTab {
+            switch model.sessionRoute {
+            case .onboarding:
+                FirstLaunchView(model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+            case .compatibility:
+                ScrollView(.vertical, showsIndicators: true) {
+                    CompatibilityView(model: model, presentation: .blocking)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .transition(.opacity)
             case .home:
-                homeShell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .transition(.opacity)
-            case .usage:
-                usageShell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .transition(.opacity)
-            case .settings:
-                settingsShell
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .transition(.opacity)
+                switch model.selectedTab {
+                case .home:
+                    homeShell
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                case .usage:
+                    usageShell
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                case .settings:
+                    settingsShell
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                }
             }
         }
         // 主题变化时强制整树重建，让 NSColor 动态 token 按新 appearance 重取
@@ -53,7 +68,8 @@ struct MenuRootView: View {
                 PinnedBalanceWindowController.shared.ensureDefaultSize()
             }
             // 打开弹层时若尚未出结果，且当前没在刷，补一次
-            if !model.isRefreshing,
+            if model.sessionRoute == .home,
+               !model.isRefreshing,
                model.snapshots.isEmpty
                 || model.snapshots.allSatisfy({ $0.status == .unknown && $0.amount == nil }) {
                 model.refresh()

@@ -24,6 +24,10 @@ final class AppModel: ObservableObject {
     @Published var selectedAccountId: UUID?
     /// Mac 通知授权状态文案（设置页展示）。
     @Published var notificationStatusCaption: String = "系统未授权通知 · 点测试可再次请求"
+    @Published private(set) var sessionRoute: SessionRoute = .home
+    @Published var onboardingStep: OnboardingStep = .privacy
+    @Published private(set) var compatibilityReport: CompatibilityReport?
+    @Published var preferExpandAPIAccounts = false
 
     enum Tab: String {
         case home
@@ -35,6 +39,9 @@ final class AppModel: ObservableObject {
     private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
     private let usageStore = UsageHistoryStore.shared
+    private let firstLaunchStore = FirstLaunchStore.shared
+    private let compatibilityChecker = CompatibilityChecker()
+    private var pendingOpenSettingsAfterOnboarding = false
     private var refreshTask: Task<Void, Never>?
     private var activeRefreshTask: Task<Void, Never>?
     private var usageBaselineResetTask: Task<Void, Never>?
@@ -148,17 +155,20 @@ final class AppModel: ObservableObject {
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         self.selectedAccountId = loaded.enabledAccounts.first?.id
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
+        prepareLaunchSession()
         // 对齐智额：通知图标只跟包内白底 AppIcon 走；不 setIcon（会写自定义 Icon 锁死旧图）
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
-            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
+            await refreshCompatibilityReport()
             rescheduleManualReminders()
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
-            // 普通 Keychain 不需要启动解锁，直接开始后台刷新。
-            self.startAutoRefreshIfNeeded()
+            // 普通 Keychain 不需要启动解锁。通知授权改到明确用户动作。
+            if self.sessionRoute == .home {
+                self.startAutoRefreshIfNeeded()
+            }
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -799,7 +809,6 @@ final class AppModel: ObservableObject {
             .filter { $0.enabled && $0.kind.isManualEntry && $0.wantsDailyReminder }
             .map(\.title)
         Task {
-            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await MacNotificationService.shared.scheduleDailyManualBalanceReminder(
                 hour: 10,
                 minute: 0,
@@ -817,6 +826,7 @@ final class AppModel: ObservableObject {
             Task {
                 _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
                 await refreshNotificationStatus()
+                rescheduleManualReminders()
             }
         }
     }
@@ -1278,6 +1288,131 @@ final class AppModel: ObservableObject {
 
     func persist() {
         try? store.save(settings)
+    }
+
+    // MARK: - First launch / compatibility
+
+    func prepareLaunchSession() {
+        let load = firstLaunchStore.load()
+        sessionRoute = FirstLaunchRouter.route(
+            loadResult: load,
+            hasExistingAccounts: !settings.accounts.isEmpty
+        )
+        onboardingStep = FirstLaunchRouter.initialStep(for: load)
+    }
+
+    func refreshCompatibilityReport() async {
+        let notification = await MacNotificationService.shared.authorizationState()
+        let context = CompatibilityChecker.makeLiveContext(
+            notificationAuthorization: notification,
+            settingsFileURL: store.fileURL,
+            usageHistoryFileURL: usageStore.fileURL
+        )
+        compatibilityReport = compatibilityChecker.evaluate(context)
+    }
+
+    func acknowledgePrivacy() {
+        persistPartialFirstLaunch(acknowledgedPrivacy: true)
+        onboardingStep = FirstLaunchRouter.nextStep(after: .privacy) ?? .compatibility
+        Task { await refreshCompatibilityReport() }
+    }
+
+    func continueFromCompatibility() {
+        if sessionRoute == .compatibility {
+            dismissCompatibilityToHome()
+            return
+        }
+        onboardingStep = FirstLaunchRouter.nextStep(after: .compatibility) ?? .addProvider
+    }
+
+    func skipCompatibilityForNow() {
+        continueFromCompatibility()
+    }
+
+    func chooseAddFirstProvider() {
+        pendingOpenSettingsAfterOnboarding = true
+        preferExpandAPIAccounts = true
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func chooseOpenExistingConfiguration() {
+        pendingOpenSettingsAfterOnboarding = true
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func continueFromProviderStep() {
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func enableNotificationsFromOnboarding() {
+        Task {
+            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            settings.alertChannels.macNotificationEnabled = true
+            persist()
+            await refreshNotificationStatus()
+            rescheduleManualReminders()
+            finishOnboarding(skippedNotifications: false)
+        }
+    }
+
+    func skipNotificationsFromOnboarding() {
+        finishOnboarding(skippedNotifications: true)
+    }
+
+    func openCompatibilityFromSettings() {
+        Task { await refreshCompatibilityReport() }
+    }
+
+    func openSettingsFromCompatibility() {
+        repairCorruptFirstLaunchStateIfNeeded()
+        sessionRoute = .home
+        selectedTab = .settings
+        startAutoRefreshIfNeeded()
+    }
+
+    func dismissCompatibilityToHome() {
+        repairCorruptFirstLaunchStateIfNeeded()
+        sessionRoute = .home
+        startAutoRefreshIfNeeded()
+    }
+
+    private func repairCorruptFirstLaunchStateIfNeeded() {
+        guard firstLaunchStore.load() == .corrupt else { return }
+        try? firstLaunchStore.save(
+            FirstLaunchState(
+                completedAt: Date(),
+                acknowledgedPrivacy: true,
+                lastCompatibilityReport: compatibilityReport
+            )
+        )
+    }
+
+    private func finishOnboarding(skippedNotifications: Bool) {
+        let state = FirstLaunchState(
+            completedAt: Date(),
+            acknowledgedPrivacy: true,
+            lastCompatibilityReport: compatibilityReport
+        )
+        try? firstLaunchStore.save(state)
+        sessionRoute = FirstLaunchRouter.route(
+            loadResult: .loaded(state),
+            hasExistingAccounts: !settings.accounts.isEmpty,
+            completedThisSession: true,
+            skippedNotifications: skippedNotifications
+        )
+        if pendingOpenSettingsAfterOnboarding {
+            selectedTab = .settings
+        }
+        startAutoRefreshIfNeeded()
+    }
+
+    private func persistPartialFirstLaunch(acknowledgedPrivacy: Bool) {
+        let state = FirstLaunchState(
+            completedAt: nil,
+            acknowledgedPrivacy: acknowledgedPrivacy,
+            lastCompatibilityReport: compatibilityReport
+        )
+        try? firstLaunchStore.save(state)
     }
 
     func quit() {

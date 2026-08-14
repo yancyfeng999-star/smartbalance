@@ -18,6 +18,9 @@ struct SmartBalanceApp: App {
                     PinnedBalanceWindowController.shared.bind(model: model)
                     MenuBarStatusItemDriver.shared.reassertPresentation()
                 }
+                .task {
+                    await model.refreshCompatibilityReport()
+                }
                 .onDisappear {
                     MenuBarStatusItemDriver.shared.reassertPresentation()
                 }

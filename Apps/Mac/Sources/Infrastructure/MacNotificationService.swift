@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import AppKit
+import Domain
 
 /// macOS 系统通知。
 public final class MacNotificationService: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
@@ -45,6 +46,10 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
     public func authorizationStatus() async -> UNAuthorizationStatus {
         let settings = await center.notificationSettings()
         return settings.authorizationStatus
+    }
+
+    public func authorizationState() async -> NotificationAuthorizationState {
+        NotificationAuthorizationState(unStatus: await authorizationStatus())
     }
 
     public static func statusCaption(for status: UNAuthorizationStatus) -> String {
@@ -153,5 +158,24 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
+    }
+}
+
+extension NotificationAuthorizationState {
+    public init(unStatus: UNAuthorizationStatus) {
+        switch unStatus {
+        case .notDetermined:
+            self = .notDetermined
+        case .denied:
+            self = .denied
+        case .authorized:
+            self = .authorized
+        case .provisional:
+            self = .provisional
+        case .ephemeral:
+            self = .authorized
+        @unknown default:
+            self = .unknown
+        }
     }
 }

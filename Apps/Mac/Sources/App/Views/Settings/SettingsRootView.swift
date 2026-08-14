@@ -11,6 +11,7 @@ struct SettingsRootView: View {
 
     @State private var expandAPI = false
     @State private var expandAlert = false
+    @State private var expandCompat = false
 
     var body: some View {
         let _ = l10n.revision
@@ -19,7 +20,14 @@ struct SettingsRootView: View {
             LanguageSettingsCard(model: model)
             apiCard
             alertCard
+            compatibilityCard
             BackgroundSystemSection(model: model)
+        }
+        .onAppear {
+            if model.preferExpandAPIAccounts {
+                expandAPI = true
+                model.preferExpandAPIAccounts = false
+            }
         }
     }
 
@@ -70,6 +78,32 @@ struct SettingsRootView: View {
         if model.settings.alertChannels.macNotificationEnabled { parts.append("Mac") }
         if model.settings.alertChannels.outboundEmailEnabled { parts.append("邮件") }
         return parts.isEmpty ? "均已关闭" : parts.joined(separator: " · ") + " 已开"
+    }
+
+    private var compatibilityCard: some View {
+        SettingsExpandableCard(
+            icon: "checkmark.shield.fill",
+            iconColors: [Color(red: 0.25, green: 0.62, blue: 0.78), Color(red: 0.18, green: 0.42, blue: 0.82)],
+            title: l10n.t("settings.compatibility"),
+            subtitle: compatibilitySubtitle,
+            isExpanded: $expandCompat
+        ) {
+            CompatibilityView(model: model, presentation: .settings)
+        }
+        .onChange(of: expandCompat) { _, open in
+            if open {
+                model.openCompatibilityFromSettings()
+            }
+        }
+    }
+
+    private var compatibilitySubtitle: String {
+        guard let report = model.compatibilityReport else {
+            return l10n.t("settings.compatibility_sub")
+        }
+        return report.hasBlockingIssue
+            ? l10n.t("settings.compatibility_sub.blocked")
+            : l10n.t("settings.compatibility_sub.ok")
     }
 
     private func sectionLabel(_ text: String) -> some View {
