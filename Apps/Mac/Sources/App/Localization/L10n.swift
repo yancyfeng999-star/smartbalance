@@ -1317,6 +1317,9 @@ final class L10n: ObservableObject {
         "update.action.confirm": [
             .zhHans: "确认安装并退出", .en: "Install and Quit",
         ],
+        "update.action.confirm_open": [
+            .zhHans: "打开安装包", .en: "Open package",
+        ],
         "update.action.cancel": [
             .zhHans: "取消", .en: "Cancel",
         ],
@@ -1331,6 +1334,9 @@ final class L10n: ObservableObject {
         ],
         "update.confirm.restart": [
             .zhHans: "安装将退出智余并替换当前应用。本机设置和密钥会保留。", .en: "Install will quit Zhiyu and replace the app. Local settings and secrets stay on this Mac.",
+        ],
+        "update.confirm.open_dmg": [
+            .zhHans: "将打开安装映像。智余不会退出或替换当前应用，请在访达中完成安装。", .en: "This opens the disk image. Zhiyu will not quit or replace itself; finish install in Finder.",
         ],
         "update.progress.downloading": [
             .zhHans: "正在下载 %@%%", .en: "Downloading %@%%",
@@ -1373,6 +1379,9 @@ final class L10n: ObservableObject {
         ],
         "update.error.checksumMissing": [
             .zhHans: "没有校验清单，无法验证", .en: "No checksum manifest; cannot verify",
+        ],
+        "update.error.checksumUnavailable": [
+            .zhHans: "校验清单下载失败，无法安装", .en: "Checksum manifest could not be downloaded. Install is blocked.",
         ],
         "update.error.packageSignatureInvalid": [
             .zhHans: "安装包签名无效", .en: "Package signature is invalid",

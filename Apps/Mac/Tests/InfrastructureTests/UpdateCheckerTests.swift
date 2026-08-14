@@ -107,6 +107,29 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertNotNil(result.openURL)
     }
 
+    func testListedChecksumHTTPFailureFailsClosedAndDoesNotCollapseToMissing() async throws {
+        let release = try fixtureData("github-release-latest.json")
+        let client = MockHTTPClient(responses: [
+            (200, release),
+            (503, Data("unavailable".utf8)),
+            (503, Data("unavailable".utf8)),
+        ])
+        let result = await UpdateChecker(client: client, currentVersion: "0.3.1").check()
+        XCTAssertEqual(result.status, .available)
+        XCTAssertNotNil(result.details?.checksumManifestURL)
+        XCTAssertNil(result.details?.checksumManifestText)
+        XCTAssertEqual(result.details?.checksumManifestFetchFailed, true)
+
+        let candidate = try XCTUnwrap(UpdateCandidate.make(details: result.details!, currentMacOS: "15.6.0"))
+        XCTAssertTrue(candidate.checksumManifestRequired)
+        XCTAssertTrue(candidate.checksumManifestFetchFailed)
+        let validation = UpdateSafetyValidator().validate(candidate)
+        XCTAssertFalse(validation.canInstall)
+        XCTAssertTrue(validation.issues.contains(.checksumUnavailable))
+        XCTAssertFalse(validation.issues.contains(.checksumMissing))
+        XCTAssertGreaterThanOrEqual(client.callCount, 3)
+    }
+
     func testParseReleaseSanitizesNotesAndRejectsZipPreference() throws {
         let data = try fixtureData("github-release-latest.json")
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])

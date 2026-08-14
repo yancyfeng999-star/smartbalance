@@ -46,8 +46,13 @@ public struct UpdateSafetyValidator: Sendable {
         var checksumDisplay: UpdateChecksumDisplay = .pending
         let digest = resolvedDigest(for: candidate)
         let manifest = candidate.checksumManifestText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let listedManifestMissing = candidate.checksumManifestRequired && manifest.isEmpty
 
-        if manifest.isEmpty {
+        if candidate.checksumManifestFetchFailed || listedManifestMissing {
+            checksumStatus = .unverifiable
+            checksumDisplay = .failed
+            issues.append(.checksumUnavailable)
+        } else if manifest.isEmpty {
             checksumStatus = .unverifiable
             checksumDisplay = .unverifiable
             issues.append(.checksumMissing)

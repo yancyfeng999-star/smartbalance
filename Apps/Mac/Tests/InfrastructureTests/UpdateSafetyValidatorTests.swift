@@ -84,6 +84,31 @@ final class UpdateSafetyValidatorTests: XCTestCase {
         XCTAssertTrue(result.issues.contains(.checksumMismatch))
     }
 
+    func testListedChecksumFetchFailureFailsClosedAndIsNotMissing() {
+        let result = validator.validate(
+            candidate(
+                manifest: nil,
+                required: true,
+                fetchFailed: true
+            )
+        )
+        XCTAssertFalse(result.canInstall)
+        XCTAssertTrue(result.issues.contains(.checksumUnavailable))
+        XCTAssertTrue(UpdateValidationIssue.checksumUnavailable.blocksInstall)
+        XCTAssertFalse(result.issues.contains(.checksumMissing))
+        XCTAssertNotEqual(result.checksumDisplay, .verified)
+        XCTAssertNotEqual(result.checksumDisplay.localizationKey, UpdateChecksumDisplay.verified.localizationKey)
+    }
+
+    func testListedChecksumWithEmptyBodyFailsClosed() {
+        let result = validator.validate(
+            candidate(manifest: "   ", required: true, fetchFailed: false)
+        )
+        XCTAssertFalse(result.canInstall)
+        XCTAssertTrue(result.issues.contains(.checksumUnavailable))
+        XCTAssertFalse(result.issues.contains(.checksumMissing))
+    }
+
     func testMissingChecksumIsUnverifiableNeverVerified() {
         let result = validator.validate(candidate(manifest: nil, sha: nil))
         XCTAssertTrue(result.canInstall)
@@ -144,6 +169,8 @@ final class UpdateSafetyValidatorTests: XCTestCase {
         size: Int64 = 12_345_678,
         max: Int64 = UpdateSafetyLimits.maxAssetBytes,
         manifest: String? = nil,
+        required: Bool = false,
+        fetchFailed: Bool = false,
         sha: String? = nil
     ) -> UpdateCandidate {
         UpdateCandidate(
@@ -156,6 +183,8 @@ final class UpdateSafetyValidatorTests: XCTestCase {
             assetByteSize: size,
             maxByteSize: max,
             checksumManifestText: manifest,
+            checksumManifestRequired: required,
+            checksumManifestFetchFailed: fetchFailed,
             downloadedFileSHA256: sha
         )
     }

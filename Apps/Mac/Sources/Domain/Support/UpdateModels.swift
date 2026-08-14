@@ -71,6 +71,8 @@ public struct UpdateReleaseDetails: Sendable, Equatable {
     public var releasePageURL: URL?
     public var checksumManifestURL: URL?
     public var checksumManifestText: String?
+    /// Release listed SHA256SUMS.txt but the fetch failed. Fail closed.
+    public var checksumManifestFetchFailed: Bool
 
     public init(
         currentVersion: String,
@@ -81,7 +83,8 @@ public struct UpdateReleaseDetails: Sendable, Equatable {
         minimumMacOS: String = UpdateSafetyLimits.defaultMinimumMacOS,
         releasePageURL: URL? = nil,
         checksumManifestURL: URL? = nil,
-        checksumManifestText: String? = nil
+        checksumManifestText: String? = nil,
+        checksumManifestFetchFailed: Bool = false
     ) {
         self.currentVersion = currentVersion
         self.targetVersion = targetVersion
@@ -92,6 +95,7 @@ public struct UpdateReleaseDetails: Sendable, Equatable {
         self.releasePageURL = releasePageURL
         self.checksumManifestURL = checksumManifestURL
         self.checksumManifestText = checksumManifestText
+        self.checksumManifestFetchFailed = checksumManifestFetchFailed
     }
 }
 
@@ -105,6 +109,8 @@ public struct UpdateCandidate: Sendable, Equatable {
     public var assetByteSize: Int64
     public var maxByteSize: Int64
     public var checksumManifestText: String?
+    public var checksumManifestRequired: Bool
+    public var checksumManifestFetchFailed: Bool
     public var downloadedFileSHA256: String?
     public var downloadedFileURL: URL?
 
@@ -118,6 +124,8 @@ public struct UpdateCandidate: Sendable, Equatable {
         assetByteSize: Int64,
         maxByteSize: Int64 = UpdateSafetyLimits.maxAssetBytes,
         checksumManifestText: String? = nil,
+        checksumManifestRequired: Bool = false,
+        checksumManifestFetchFailed: Bool = false,
         downloadedFileSHA256: String? = nil,
         downloadedFileURL: URL? = nil
     ) {
@@ -130,6 +138,8 @@ public struct UpdateCandidate: Sendable, Equatable {
         self.assetByteSize = assetByteSize
         self.maxByteSize = maxByteSize
         self.checksumManifestText = checksumManifestText
+        self.checksumManifestRequired = checksumManifestRequired
+        self.checksumManifestFetchFailed = checksumManifestFetchFailed
         self.downloadedFileSHA256 = downloadedFileSHA256
         self.downloadedFileURL = downloadedFileURL
     }
@@ -150,6 +160,8 @@ public struct UpdateCandidate: Sendable, Equatable {
             assetFileName: asset.fileName,
             assetByteSize: asset.byteSize,
             checksumManifestText: details.checksumManifestText,
+            checksumManifestRequired: details.checksumManifestURL != nil,
+            checksumManifestFetchFailed: details.checksumManifestFetchFailed,
             downloadedFileSHA256: downloadedSHA256,
             downloadedFileURL: downloadedFileURL
         )
@@ -265,5 +277,82 @@ public enum UpdateByteCountFormatter {
         let megabytes = kilobytes / 1024
         if megabytes < 1024 { return String(format: "%.1f MB", megabytes) }
         return String(format: "%.2f GB", megabytes / 1024)
+    }
+}
+
+public enum UpdateCheckStatus: String, Sendable, Equatable {
+    case upToDate
+    case available
+    case unknown
+    case failed
+}
+
+/// AppModel.checkForUpdates / applyCheckResult contract: inspect only.
+public struct UpdateCheckApplyDecision: Sendable, Equatable {
+    public var phase: UpdatePhase
+    public var available: Bool
+    public var shouldOpenDetails: Bool
+    public var startsDownload: Bool
+    public var startsInstall: Bool
+
+    public init(
+        phase: UpdatePhase,
+        available: Bool,
+        shouldOpenDetails: Bool,
+        startsDownload: Bool,
+        startsInstall: Bool
+    ) {
+        self.phase = phase
+        self.available = available
+        self.shouldOpenDetails = shouldOpenDetails
+        self.startsDownload = startsDownload
+        self.startsInstall = startsInstall
+    }
+}
+
+public enum UpdateCheckApplyPolicy {
+    public static func decision(for status: UpdateCheckStatus) -> UpdateCheckApplyDecision {
+        switch status {
+        case .available:
+            return UpdateCheckApplyDecision(
+                phase: .available,
+                available: true,
+                shouldOpenDetails: true,
+                startsDownload: false,
+                startsInstall: false
+            )
+        case .upToDate:
+            return UpdateCheckApplyDecision(
+                phase: .upToDate,
+                available: false,
+                shouldOpenDetails: false,
+                startsDownload: false,
+                startsInstall: false
+            )
+        case .unknown, .failed:
+            return UpdateCheckApplyDecision(
+                phase: .failed,
+                available: false,
+                shouldOpenDetails: false,
+                startsDownload: false,
+                startsInstall: false
+            )
+        }
+    }
+}
+
+public enum UpdateInstallConfirmCopy {
+    public static func messageKey(for kind: UpdateAssetKind) -> String {
+        switch kind {
+        case .pkg: return "update.confirm.restart"
+        case .dmg: return "update.confirm.open_dmg"
+        }
+    }
+
+    public static func confirmActionKey(for kind: UpdateAssetKind) -> String {
+        switch kind {
+        case .pkg: return "update.action.confirm"
+        case .dmg: return "update.action.confirm_open"
+        }
     }
 }

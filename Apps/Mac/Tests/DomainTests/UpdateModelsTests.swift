@@ -38,6 +38,22 @@ final class UpdateModelsTests: XCTestCase {
         XCTAssertEqual(UpdateValidationIssue.checksumMissing.localizationKey, "update.error.checksumMissing")
         XCTAssertFalse(UpdateValidationIssue.checksumMissing.blocksInstall)
         XCTAssertTrue(UpdateValidationIssue.checksumMismatch.blocksInstall)
+        XCTAssertTrue(UpdateValidationIssue.checksumUnavailable.blocksInstall)
+        XCTAssertNotEqual(
+            UpdateValidationIssue.checksumUnavailable.localizationKey,
+            UpdateValidationIssue.checksumMissing.localizationKey
+        )
+    }
+
+    func testInstallConfirmCopyDiffersForDMGAndPKG() {
+        XCTAssertEqual(UpdateInstallConfirmCopy.messageKey(for: .pkg), "update.confirm.restart")
+        XCTAssertEqual(UpdateInstallConfirmCopy.confirmActionKey(for: .pkg), "update.action.confirm")
+        XCTAssertEqual(UpdateInstallConfirmCopy.messageKey(for: .dmg), "update.confirm.open_dmg")
+        XCTAssertEqual(UpdateInstallConfirmCopy.confirmActionKey(for: .dmg), "update.action.confirm_open")
+        XCTAssertNotEqual(
+            UpdateInstallConfirmCopy.messageKey(for: .dmg),
+            UpdateInstallConfirmCopy.messageKey(for: .pkg)
+        )
     }
 
     func testAssetNameAllowlist() {

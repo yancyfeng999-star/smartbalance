@@ -2,14 +2,9 @@ import Foundation
 import Domain
 
 public struct UpdateCheckResult: Sendable, Equatable {
-    public enum Status: String, Sendable {
-        case upToDate
-        case available
-        case unknown
-        case failed
-    }
+    public typealias Status = UpdateCheckStatus
 
-    public var status: Status
+    public var status: UpdateCheckStatus
     public var currentVersion: String
     public var latestVersion: String?
     public var message: String
@@ -156,7 +151,14 @@ public struct UpdateChecker: Sendable {
         }
         var result = makeResult(from: json, current: current)
         if result.status == .available, let sumsURL = result.details?.checksumManifestURL {
-            result.details?.checksumManifestText = await fetchChecksumManifest(sumsURL)
+            switch await fetchChecksumManifest(sumsURL) {
+            case .success(let text):
+                result.details?.checksumManifestText = text
+                result.details?.checksumManifestFetchFailed = false
+            case .failure:
+                result.details?.checksumManifestText = nil
+                result.details?.checksumManifestFetchFailed = true
+            }
         }
         return result
     }
@@ -225,18 +227,37 @@ public struct UpdateChecker: Sendable {
         )
     }
 
-    private func fetchChecksumManifest(_ url: URL) async -> String? {
-        var request = URLRequest(url: url)
-        request.setValue("SmartBalance (update-check)", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = Self.requestTimeout
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        do {
-            let (data, response) = try await client.data(for: request)
-            guard (200...299).contains(response.statusCode) else { return nil }
-            return String(data: data, encoding: .utf8)
-        } catch {
-            return nil
+    private func fetchChecksumManifest(_ url: URL) async -> Result<String, Error> {
+        var lastError: Error = URLError(.cannotParseResponse)
+        for attempt in 1...Self.maxAttempts {
+            var request = URLRequest(url: url)
+            request.setValue("SmartBalance (update-check)", forHTTPHeaderField: "User-Agent")
+            request.timeoutInterval = Self.requestTimeout
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            do {
+                let (data, response) = try await client.data(for: request)
+                guard (200...299).contains(response.statusCode) else {
+                    lastError = URLError(.badServerResponse)
+                    if attempt < Self.maxAttempts {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                    }
+                    continue
+                }
+                guard let text = String(data: data, encoding: .utf8) else {
+                    return .failure(URLError(.cannotParseResponse))
+                }
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return .failure(URLError(.zeroByteResource))
+                }
+                return .success(text)
+            } catch {
+                lastError = error
+                if attempt < Self.maxAttempts {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                }
+            }
         }
+        return .failure(lastError)
     }
 
     private static func parsePublishedAt(_ raw: String?) -> Date? {

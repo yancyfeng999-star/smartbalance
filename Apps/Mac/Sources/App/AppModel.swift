@@ -1484,15 +1484,22 @@ final class AppModel: ObservableObject {
     }
 
     private func applyCheckResult(_ result: UpdateCheckResult) {
+        let decision = UpdateCheckApplyPolicy.decision(for: result.status)
         updateChecking = false
         updateOpenURL = result.openURL
         updateDownloadURL = result.downloadURL
-        updateAvailable = result.status == .available
+        updateAvailable = decision.available
         updateDetails = result.details
         updateMessage = localizedUpdateMessage(result)
+        updatePhase = decision.phase
         AppLog.info("Update check: \(result.messageKey) \(result.message)")
 
-        if result.status == .available, let details = result.details {
+        guard !decision.startsDownload, !decision.startsInstall else {
+            AppLog.error("Update check refused to auto-install")
+            return
+        }
+
+        if decision.shouldOpenDetails, let details = result.details {
             if let candidate = UpdateCandidate.make(details: details, currentMacOS: currentMacOSString) {
                 updateValidation = UpdateSafetyValidator().validate(candidate)
             } else {
@@ -1502,14 +1509,9 @@ final class AppModel: ObservableObject {
                     checksumDisplay: .unverifiable
                 )
             }
-            updatePhase = .available
             settingsSupportPage = .updates
             selectedTab = .settings
-        } else if result.status == .upToDate {
-            updatePhase = .upToDate
-            updateValidation = nil
-        } else {
-            updatePhase = .failed
+        } else if !decision.shouldOpenDetails {
             updateValidation = nil
         }
     }

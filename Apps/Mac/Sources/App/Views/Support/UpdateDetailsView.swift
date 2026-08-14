@@ -73,7 +73,7 @@ struct UpdateDetailsView: View {
     }
 
     private var confirmBlock: some View {
-        Text(l10n.t("update.confirm.restart"))
+        Text(l10n.t(UpdateInstallConfirmCopy.messageKey(for: assetKind)))
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(SBTheme.warn)
             .fixedSize(horizontal: false, vertical: true)
@@ -105,11 +105,11 @@ struct UpdateDetailsView: View {
                         .buttonStyle(SBButtonStyle(kind: .normal))
                         .accessibilityLabel(l10n.t("update.action.cancel"))
 
-                        Button(l10n.t("update.action.confirm")) {
+                        Button(l10n.t(UpdateInstallConfirmCopy.confirmActionKey(for: assetKind))) {
                             model.confirmInstallUpdate()
                         }
                         .buttonStyle(SBButtonStyle(kind: .accent))
-                        .accessibilityLabel(l10n.t("update.action.confirm"))
+                        .accessibilityLabel(l10n.t(UpdateInstallConfirmCopy.confirmActionKey(for: assetKind)))
                     }
                 } else {
                     Button(l10n.t("update.action.install")) {
@@ -124,6 +124,10 @@ struct UpdateDetailsView: View {
     }
 
     private var details: UpdateReleaseDetails? { model.updateDetails }
+
+    private var assetKind: UpdateAssetKind {
+        details?.asset?.kind ?? .pkg
+    }
 
     private var checksumKey: String {
         model.updateValidation?.checksumDisplay.localizationKey ?? UpdateChecksumDisplay.pending.localizationKey

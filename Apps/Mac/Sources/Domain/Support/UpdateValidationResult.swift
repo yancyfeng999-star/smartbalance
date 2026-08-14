@@ -10,6 +10,7 @@ public enum UpdateValidationIssue: String, Sendable, Equatable, CaseIterable {
     case sizeExceedsLimit
     case checksumMismatch
     case checksumMissing
+    case checksumUnavailable
     case packageSignatureInvalid
     case packageStructureInvalid
     case cancelled
