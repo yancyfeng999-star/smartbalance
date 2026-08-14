@@ -1,6 +1,6 @@
 # 项目状态
 
-**版本：** 0.3.1（build 82，以 `Apps/Mac/Sources/App/Info.plist` 为准）
+**版本：** 0.3.2（build 83，以 `Apps/Mac/Sources/App/Info.plist` 为准）
 **阶段：** 可安装使用；GitHub Releases 发版与应用内检查更新已通
 **远程：** https://github.com/yancyfeng999-star/smartbalance
 
