@@ -76,6 +76,18 @@ public actor BalanceService {
     }
 
     public func refreshAPI(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {
+        if !account.kind.isRecognized {
+            return BalanceSnapshot(
+                accountId: account.id,
+                providerKind: account.kind,
+                displayName: account.title,
+                source: .api,
+                unit: account.resolvedManualUnit,
+                status: .setup,
+                detail: "未识别的渠道，已跳过查询",
+                errorMessage: "unrecognized provider"
+            )
+        }
         if account.kind.isManualEntry {
             return await fetchViaProvider(
                 account: account,

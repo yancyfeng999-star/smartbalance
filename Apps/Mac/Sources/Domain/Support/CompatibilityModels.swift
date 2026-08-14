@@ -98,6 +98,7 @@ public struct CompatibilityContext: Sendable, Equatable {
     public var keychainAvailable: Bool
     public var notificationAuthorization: NotificationAuthorizationState
     public var currentSettingsSchemaVersion: Int
+    public var usageStorageHealth: UsageStorageHealth?
 
     public init(
         now: Date,
@@ -116,7 +117,8 @@ public struct CompatibilityContext: Sendable, Equatable {
         usageHistoryFileURL: URL,
         keychainAvailable: Bool,
         notificationAuthorization: NotificationAuthorizationState,
-        currentSettingsSchemaVersion: Int
+        currentSettingsSchemaVersion: Int,
+        usageStorageHealth: UsageStorageHealth? = nil
     ) {
         self.now = now
         self.macOSMajor = macOSMajor
@@ -135,5 +137,6 @@ public struct CompatibilityContext: Sendable, Equatable {
         self.keychainAvailable = keychainAvailable
         self.notificationAuthorization = notificationAuthorization
         self.currentSettingsSchemaVersion = currentSettingsSchemaVersion
+        self.usageStorageHealth = usageStorageHealth
     }
 }

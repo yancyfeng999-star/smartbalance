@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var usageHistory = UsageHistoryDocument()
     @Published private(set) var usageDataError: String?
     @Published private(set) var usageRecoveryNotice = false
+    @Published private(set) var usageStorageHealth: UsageStorageHealth = .available
+    @Published private(set) var compatibilityMigrationResult: CompatibilityMigrationResult?
     @Published private(set) var refreshNoticeKey: String?
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
@@ -233,9 +235,12 @@ final class AppModel: ObservableObject {
             do {
                 let result = try await self.usageStore.load()
                 self.usageHistory = result.document
-                self.usageRecoveryNotice = result.recovery == .corruptFileBackedUp
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: result.recovery == .corruptFileBackedUp
+                )
             } catch {
-                self.usageDataError = "load"
+                self.applyUsageHealth(lastError: .load)
                 AppLog.error("Usage history load failed", category: .usage, event: "usage_load_failed")
             }
         }
@@ -505,18 +510,22 @@ final class AppModel: ObservableObject {
         }
 
         if let warning = outcome?.usageWarning {
-            usageDataError = warning == .loadFailed ? "load" : "save"
+            applyUsageHealth(lastError: warning == .loadFailed ? .load : .save)
             refreshNoticeKey = warning.messageKey
             banner = L10n.shared.t(warning.messageKey)
             AppLog.error("Usage history persist failed", category: .usage, event: "usage_persist_failed")
         } else if let document = outcome?.usageDocument {
             usageHistory = document
-            usageDataError = nil
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let loadResult = try? await self.usageStore.load() {
-                    self.usageRecoveryNotice = self.usageRecoveryNotice
-                        || loadResult.recovery == .corruptFileBackedUp
+                    self.applyUsageHealth(
+                        lastError: nil,
+                        recovered: self.usageRecoveryNotice
+                            || loadResult.recovery == .corruptFileBackedUp
+                    )
+                } else {
+                    self.applyUsageHealth(lastError: nil)
                 }
             }
         }
@@ -575,9 +584,11 @@ final class AppModel: ObservableObject {
                 let loadResult = try await self.usageStore.load()
                 guard !Task.isCancelled, generation == self.refreshCoordinator.generation else { return }
                 self.usageHistory = history
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: self.usageRecoveryNotice
+                        || loadResult.recovery == .corruptFileBackedUp
+                )
                 self.pendingUsageBaselineResetIDs.subtract(accountIDs)
                 self.usageBaselineResetTask = nil
                 self.refreshLoadingOwner = .none
@@ -587,7 +598,7 @@ final class AppModel: ObservableObject {
                 return
             } catch {
                 guard generation == self.refreshCoordinator.generation else { return }
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                self.applyUsageHealth(lastError: error is UsageHistoryStoreError ? .load : .save)
                 self.usageBaselineResetTask = nil
                 self.refreshLoadingOwner = .none
                 self.isRefreshing = false
@@ -730,11 +741,13 @@ final class AppModel: ObservableObject {
                 )
                 self.usageHistory = history
                 let loadResult = try await self.usageStore.load()
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: self.usageRecoveryNotice
+                        || loadResult.recovery == .corruptFileBackedUp
+                )
             } catch {
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                self.applyUsageHealth(lastError: error is UsageHistoryStoreError ? .load : .save)
                 AppLog.error("Usage baseline cleanup failed: \(error.localizedDescription)")
             }
         }
@@ -1118,6 +1131,7 @@ final class AppModel: ObservableObject {
         let snapshotSettings = settings
         let snapshotUsage = usageHistory
         let usageError = usageDataError
+        let usageHealth = usageStorageHealth
         let version = appVersion
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         let settingsURL = store.fileURL
@@ -1128,6 +1142,7 @@ final class AppModel: ObservableObject {
                 settings: snapshotSettings,
                 usage: snapshotUsage,
                 usageSaveError: usageError,
+                usageHealth: usageHealth,
                 refresh: refreshSummary,
                 keychainStatus: keychain,
                 notificationAuthorization: notification,
@@ -1388,7 +1403,7 @@ final class AppModel: ObservableObject {
         }
         if outcome.includedUsage, let usage = outcome.usageHistory {
             usageHistory = usage
-            usageDataError = nil
+            applyUsageHealth(lastError: nil, recovered: false)
         }
         if RecoveryLaunchPolicy.allowsProviderCredentialRead(route: sessionRoute) {
             preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
@@ -1824,9 +1839,16 @@ final class AppModel: ObservableObject {
         let context = CompatibilityChecker.makeLiveContext(
             notificationAuthorization: notification,
             settingsFileURL: store.fileURL,
-            usageHistoryFileURL: usageStore.fileURL
+            usageHistoryFileURL: usageStore.fileURL,
+            usageStorageHealth: usageStorageHealth
         )
         compatibilityReport = compatibilityChecker.evaluate(context)
+        let data = try? Data(contentsOf: store.fileURL)
+        compatibilityMigrationResult = SettingsMigrationRunner().evaluateCompatibility(
+            data: data,
+            usageHealth: usageStorageHealth,
+            notification: notification
+        )
     }
 
     func acknowledgePrivacy() {
@@ -2102,6 +2124,7 @@ final class AppModel: ObservableObject {
             snapshots = []
             if outcome.resetUsageHistory {
                 usageHistory = UsageHistoryDocument()
+                applyUsageHealth(lastError: nil, recovered: false)
             }
             recoveryActionOutcome = RecoveryActionOutcome(
                 action: .resetSettings,
@@ -2131,7 +2154,21 @@ final class AppModel: ObservableObject {
         applyAppearancePreference()
         if outcome.includedUsage, let usage = outcome.usageHistory {
             usageHistory = usage
-            usageDataError = nil
+            applyUsageHealth(lastError: nil, recovered: false)
         }
+    }
+
+    private func applyUsageHealth(
+        lastError: UsageStorageLastError?,
+        recovered: Bool? = nil
+    ) {
+        if let recovered {
+            usageRecoveryNotice = recovered
+        }
+        usageDataError = lastError?.rawValue
+        usageStorageHealth = UsageStorageHealth.resolve(
+            recoveredFromCorruptFile: usageRecoveryNotice,
+            lastError: lastError
+        )
     }
 }

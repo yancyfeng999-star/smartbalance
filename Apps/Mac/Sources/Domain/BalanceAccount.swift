@@ -30,6 +30,8 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public var manualUpdatedAt: Date?
     /// 是否每日提醒录入；nil 时对手录平台默认 true。
     public var dailyReminderEnabled: Bool?
+    /// 未识别渠道的原始 kind 字符串；仅 `kind == .unsupported` 时有值。
+    public var unrecognizedKind: String?
     /// 未识别的账号 JSON 字段，读回写回时保留。
     public var extensions: [String: JSONValue]
 
@@ -48,10 +50,12 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         manualUnit: String? = nil,
         manualUpdatedAt: Date? = nil,
         dailyReminderEnabled: Bool? = nil,
+        unrecognizedKind: String? = nil,
         extensions: [String: JSONValue] = [:]
     ) {
         self.id = id
         self.kind = kind
+        self.unrecognizedKind = kind.isRecognized ? nil : unrecognizedKind
         self.displayName = displayName.isEmpty ? kind.displayName : displayName
         self.baseURL = baseURL ?? kind.defaultBaseURL
         let trimmedConsole = consoleURL?
@@ -76,7 +80,16 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
-        kind = try c.decode(ProviderKind.self, forKey: .kind)
+        let rawKind = try c.decode(String.self, forKey: .kind)
+        if let known = ProviderKind(rawValue: rawKind), known.isRecognized {
+            kind = known
+            unrecognizedKind = nil
+        } else {
+            kind = .unsupported
+            let stored = try c.decodeIfPresent(String.self, forKey: .unrecognizedKind)
+            let trimmedStored = stored?.trimmingCharacters(in: .whitespacesAndNewlines)
+            unrecognizedKind = (trimmedStored?.isEmpty == false) ? trimmedStored : rawKind
+        }
         let rawName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
         displayName = rawName.isEmpty ? kind.displayName : rawName
         baseURL = try c.decodeIfPresent(String.self, forKey: .baseURL) ?? kind.defaultBaseURL
@@ -100,7 +113,11 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
-        try c.encode(kind, forKey: .kind)
+        if kind == .unsupported, let original = unrecognizedKind, !original.isEmpty {
+            try c.encode(original, forKey: .kind)
+        } else {
+            try c.encode(kind, forKey: .kind)
+        }
         try c.encode(displayName, forKey: .displayName)
         try c.encodeIfPresent(baseURL, forKey: .baseURL)
         try c.encodeIfPresent(consoleURL, forKey: .consoleURL)
@@ -122,6 +139,7 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         case id, kind, displayName, baseURL, consoleURL, userId, secretRef, enabled
         case alertThreshold, alertPercentThreshold
         case manualAmount, manualUnit, manualUpdatedAt, dailyReminderEnabled
+        case unrecognizedKind
         case extensions
     }
 

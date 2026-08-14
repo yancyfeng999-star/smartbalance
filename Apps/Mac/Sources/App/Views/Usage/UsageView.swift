@@ -24,6 +24,8 @@ struct UsageView: View {
             periodPicker
             periodNavigator(summary: currentSummary)
 
+            usageHealthStatus
+
             if model.usageDataError != nil {
                 recoverableBanner(text: usageErrorText, systemImage: "exclamationmark.triangle.fill", tint: SBTheme.danger)
             }
@@ -34,7 +36,7 @@ struct UsageView: View {
                 recoverableBanner(text: l10n.t(key), systemImage: "clock.badge.xmark", tint: SBTheme.warn)
             }
 
-            if model.usageRecoveryNotice {
+            if model.usageRecoveryNotice, model.usageStorageHealth != .needsRestore {
                 recoverableBanner(
                     text: l10n.t("usage.history_recovered"),
                     systemImage: "arrow.counterclockwise.circle.fill",
@@ -188,6 +190,23 @@ struct UsageView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(l10n.t("diagnostics.banner.action"))
         }
+    }
+
+    private var usageHealthStatus: some View {
+        let health = model.usageStorageHealth
+        return HStack(alignment: .top, spacing: 6) {
+            Image(systemName: health.isUserVisibleWarning ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(health.isUserVisibleWarning ? SBTheme.warn : SBTheme.ok)
+                .accessibilityHidden(true)
+            Text(l10n.t(health.messageKey))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(health.isUserVisibleWarning ? SBTheme.warn : SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(l10n.t(health.messageKey))
     }
 
     private var usageErrorText: String {

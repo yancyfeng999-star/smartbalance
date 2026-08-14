@@ -153,7 +153,7 @@ final class DiagnosticModelsTests: XCTestCase {
         XCTAssertEqual(providers, ["deepseek enabled=true hasCredentialRef=true"])
         XCTAssertEqual(
             DiagnosticReadableSummary.usageLine(report.usage),
-            "records=2 range=2026-08-01/2026-08-10 units=CNY saveError=none"
+            "records=2 range=2026-08-01/2026-08-10 units=CNY saveError=none health=available"
         )
         XCTAssertTrue(
             DiagnosticReadableSummary.refreshLine(report.refresh).contains("lastRefreshAt="),

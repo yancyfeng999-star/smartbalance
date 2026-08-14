@@ -25,11 +25,11 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
     @MainActor
     public func requestAuthorizationIfNeeded() async -> Bool {
         installDelegateIfNeeded()
-        let status = await authorizationStatus()
-        switch status {
+        let mapped = NotificationAuthorizationState(unStatus: await authorizationStatus())
+        switch mapped {
         case .authorized, .provisional:
             return true
-        case .denied:
+        case .denied, .restricted, .unknown:
             return false
         case .notDetermined:
             do {
@@ -38,8 +38,6 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
                 AppLog.error("Notification auth error: \(error.localizedDescription)")
                 return false
             }
-        @unknown default:
-            return false
         }
     }
 
@@ -49,18 +47,20 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
     }
 
     public func authorizationState() async -> NotificationAuthorizationState {
-        NotificationAuthorizationState(unStatus: await authorizationStatus())
+        NotificationPermissionMapping.state(
+            from: NotificationPermissionInput(unStatus: await authorizationStatus())
+        )
     }
 
     public static func statusCaption(for status: UNAuthorizationStatus) -> String {
-        switch status {
+        switch NotificationPermissionMapping.state(from: NotificationPermissionInput(unStatus: status)) {
         case .authorized, .provisional:
             return "通知已开启"
         case .denied:
             return "请在 系统设置 → 通知 → 智余 中打开"
-        case .notDetermined:
-            return "系统未授权通知 · 点测试可再次请求"
-        @unknown default:
+        case .restricted:
+            return "系统限制通知 · 余额刷新不受影响"
+        case .notDetermined, .unknown:
             return "系统未授权通知 · 点测试可再次请求"
         }
     }
@@ -161,7 +161,7 @@ public final class MacNotificationService: NSObject, UNUserNotificationCenterDel
     }
 }
 
-extension NotificationAuthorizationState {
+extension NotificationPermissionInput {
     public init(unStatus: UNAuthorizationStatus) {
         switch unStatus {
         case .notDetermined:
@@ -173,9 +173,15 @@ extension NotificationAuthorizationState {
         case .provisional:
             self = .provisional
         case .ephemeral:
-            self = .authorized
+            self = .ephemeral
         @unknown default:
             self = .unknown
         }
+    }
+}
+
+extension NotificationAuthorizationState {
+    public init(unStatus: UNAuthorizationStatus) {
+        self = NotificationPermissionMapping.state(from: NotificationPermissionInput(unStatus: unStatus))
     }
 }

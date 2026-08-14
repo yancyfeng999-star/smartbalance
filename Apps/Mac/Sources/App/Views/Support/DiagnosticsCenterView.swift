@@ -72,6 +72,10 @@ struct DiagnosticsCenterView: View {
                     .foregroundStyle(SBTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Text(l10n.t(usageHealthKey(report.usage.health)))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(SBTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
             Text(DiagnosticReadableSummary.usageLine(report.usage))
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundStyle(SBTheme.muted)
@@ -79,6 +83,10 @@ struct DiagnosticsCenterView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(l10n.t("diagnostics.facts.title"))
+    }
+
+    private func usageHealthKey(_ raw: String) -> String {
+        UsageStorageHealth(rawValue: raw)?.messageKey ?? UsageStorageHealth.available.messageKey
     }
 
     private var actions: some View {

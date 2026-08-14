@@ -46,6 +46,7 @@ public struct DiagnosticsService: Sendable {
         settings: AppSettings,
         usage: UsageHistoryDocument,
         usageSaveError: String?,
+        usageHealth: UsageStorageHealth = .available,
         refresh: DiagnosticRefreshSummary,
         keychainStatus: DiagnosticKeychainStatus,
         notificationAuthorization: NotificationAuthorizationState,
@@ -92,7 +93,8 @@ public struct DiagnosticsService: Sendable {
             providers: settings.accounts.map(DiagnosticProviderSummary.init(account:)),
             usage: DiagnosticUsageSummary(
                 document: usage,
-                saveErrorClassification: usageSaveError ?? "none"
+                saveErrorClassification: usageSaveError ?? "none",
+                health: usageHealth
             ),
             logFileURL: AppLog.fileURL
         )
@@ -215,12 +217,25 @@ public struct DiagnosticsService: Sendable {
                 redactedDetail: DiagnosticReadableSummary.providerLines(context.providers).joined(separator: "; ")
             )
         case .usage:
+            let health = UsageStorageHealth(rawValue: context.usage.health) ?? .available
             let classification = context.usage.saveErrorClassification ?? "none"
-            let failed = classification != "none" && classification != "recovered"
+            let failed = health.isUserVisibleWarning
+                || (classification != "none" && classification != "recovered")
+            let detailKey: String
+            switch health {
+            case .needsRestore:
+                detailKey = "diagnostics.detail.usage.needs_restore"
+            case .lastSaveFailed:
+                detailKey = "diagnostics.detail.usage.save_failed"
+            case .loadFailed:
+                detailKey = "diagnostics.detail.usage.load_failed"
+            case .available:
+                detailKey = failed ? "diagnostics.detail.usage.warning" : "diagnostics.detail.usage.ok"
+            }
             return DiagnosticCheck(
                 id: id,
                 status: failed ? .warning : .ok,
-                detailKey: failed ? "diagnostics.detail.usage.warning" : "diagnostics.detail.usage.ok",
+                detailKey: detailKey,
                 redactedDetail: DiagnosticReadableSummary.usageLine(context.usage)
             )
         }

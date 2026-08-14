@@ -126,7 +126,8 @@ struct HomeView: View {
         DiagnosticBannerPolicy.shouldOfferDiagnostics(
             noticeKey: model.refreshNoticeKey,
             usageDataError: model.usageDataError,
-            usageRecoveryNotice: model.usageRecoveryNotice
+            usageRecoveryNotice: model.usageRecoveryNotice,
+            usageHealth: model.usageStorageHealth
         )
     }
 

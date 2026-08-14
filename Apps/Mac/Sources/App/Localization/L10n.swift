@@ -212,6 +212,26 @@ final class L10n: ObservableObject {
             .ru: "Повреждённая история сохранена в резервную копию. Учёт начат заново.", .ar: "تم نسخ سجل الاستخدام التالف احتياطيًا وبدأ التسجيل من جديد.", .fr: "L’historique endommagé a été sauvegardé. Le suivi a redémarré.", .de: "Der beschädigte Nutzungsverlauf wurde gesichert. Die Erfassung wurde neu gestartet.",
             .es: "Se guardó una copia del historial dañado. El seguimiento se reinició.", .pt: "O histórico danificado foi copiado. O acompanhamento foi reiniciado.",
         ],
+        "usage.health.available": [
+            .zhHans: "历史可用", .en: "History available", .ja: "履歴は利用できます", .ko: "기록 사용 가능",
+            .ru: "История доступна", .ar: "السجل متاح", .fr: "Historique disponible", .de: "Verlauf verfügbar",
+            .es: "Historial disponible", .pt: "Histórico disponível",
+        ],
+        "usage.health.needs_restore": [
+            .zhHans: "需要恢复", .en: "Needs restore", .ja: "復元が必要です", .ko: "복원 필요",
+            .ru: "Нужно восстановить", .ar: "يحتاج إلى استعادة", .fr: "Restauration requise", .de: "Wiederherstellung nötig",
+            .es: "Hay que restaurar", .pt: "Precisa restaurar",
+        ],
+        "usage.health.save_failed": [
+            .zhHans: "最近保存失败", .en: "Last save failed", .ja: "直前の保存に失敗", .ko: "최근 저장 실패",
+            .ru: "Последнее сохранение не удалось", .ar: "فشل آخر حفظ", .fr: "Dernier enregistrement échoué", .de: "Letztes Speichern fehlgeschlagen",
+            .es: "Falló el último guardado", .pt: "Falha no último salvamento",
+        ],
+        "usage.health.load_failed": [
+            .zhHans: "需要恢复", .en: "Needs restore", .ja: "復元が必要です", .ko: "복원 필요",
+            .ru: "Нужно восстановить", .ar: "يحتاج إلى استعادة", .fr: "Restauration requise", .de: "Wiederherstellung nötig",
+            .es: "Hay que restaurar", .pt: "Precisa restaurar",
+        ],
         "usage.points_count": [
             .zhHans: "%d 个数据点", .en: "%d data points", .ja: "%d データ点", .ko: "%d개 데이터 포인트",
             .ru: "Точек данных: %d", .ar: "%d نقاط بيانات", .fr: "%d points de données", .de: "%d Datenpunkte",
@@ -654,6 +674,31 @@ final class L10n: ObservableObject {
             .ru: "Не удалось прочитать историю расхода.", .ar: "تعذّرت قراءة سجل الاستخدام.", .fr: "Impossible de lire l’historique d’utilisation.", .de: "Der Nutzungsverlauf konnte nicht gelesen werden.",
             .es: "No se pudo leer el historial de uso.", .pt: "Não foi possível ler o histórico de uso.",
         ],
+        "compat.usage.needsRestore": [
+            .zhHans: "用量历史已损坏并完成备份，需要从备份恢复。不是零用量。", .en: "Usage history was damaged and backed up. Restore it; this is not zero usage.", .ja: "使用履歴は破損してバックアップ済みです。ゼロ使用量ではありません。", .ko: "사용 기록이 손상되어 백업되었습니다. 사용량 0이 아닙니다.",
+            .ru: "История повреждена и сохранена в копию. Это не нулевой расход.", .ar: "تلف سجل الاستخدام ونُسخ احتياطيًا. هذا ليس استخدامًا صفريًا.", .fr: "L’historique endommagé a été sauvegardé. Ce n’est pas une utilisation nulle.", .de: "Der Verlauf wurde beschädigt und gesichert. Das ist nicht null Nutzung.",
+            .es: "El historial dañado se respaldó. No es uso cero.", .pt: "O histórico danificado foi copiado. Não é uso zero.",
+        ],
+        "compat.usage.saveFailed": [
+            .zhHans: "最近一次用量保存失败。余额查询不受影响。", .en: "The last usage save failed. Balance queries are unaffected.", .ja: "直前の使用量保存に失敗しました。残高照会には影響しません。", .ko: "최근 사용량 저장에 실패했습니다. 잔액 조회는 영향 없습니다.",
+            .ru: "Не удалось сохранить расход. Запросы баланса не затронуты.", .ar: "فشل آخر حفظ للاستخدام. استعلامات الرصيد غير متأثرة.", .fr: "Le dernier enregistrement a échoué. Les soldes restent disponibles.", .de: "Letztes Speichern fehlgeschlagen. Saldos bleiben unberührt.",
+            .es: "Falló el último guardado. Las consultas de saldo no se ven afectadas.", .pt: "Falha no último salvamento. As consultas de saldo não são afetadas.",
+        ],
+        "compat.usage.deletedAccount.dropBaselineKeepDaily": [
+            .zhHans: "删除账号会丢掉该账号基线，已写入的每日记录会保留。", .en: "Deleting an account drops its baseline and keeps already written daily records.", .ja: "アカウント削除で基線は消えますが、日次記録は残ります。", .ko: "계정 삭제 시 기준선은 제거되고 일별 기록은 유지됩니다.",
+            .ru: "Удаление аккаунта снимает базовую линию, дневные записи сохраняются.", .ar: "حذف الحساب يزيل خط الأساس ويُبقي السجلات اليومية.", .fr: "Supprimer un compte retire la baseline et conserve les journaux quotidiens.", .de: "Kontolöschung entfernt die Baseline, Tagesdaten bleiben.",
+            .es: "Borrar una cuenta quita la línea base y conserva los diarios.", .pt: "Apagar uma conta remove a linha de base e mantém os diários.",
+        ],
+        "compat.providers.ok": [
+            .zhHans: "已配置渠道均可识别。", .en: "Configured providers are recognized.", .ja: "設定済みチャネルは識別できます。", .ko: "구성된 채널을 식별할 수 있습니다.",
+            .ru: "Настроенные каналы распознаны.", .ar: "المزوّدون المضبوطون معروفون.", .fr: "Les canaux configurés sont reconnus.", .de: "Konfigurierte Kanäle sind erkannt.",
+            .es: "Los proveedores configurados se reconocen.", .pt: "Os provedores configurados são reconhecidos.",
+        ],
+        "compat.providers.unknown": [
+            .zhHans: "存在未识别渠道，已保留配置但不发起查询。", .en: "An unrecognized provider was kept and will not be queried.", .ja: "未対応チャネルを保持し、照会はしません。", .ko: "인식되지 않은 채널을 유지하며 조회하지 않습니다.",
+            .ru: "Неизвестный канал сохранён и не запрашивается.", .ar: "تم الإبقاء على مزوّد غير معروف ولن يُستعلم.", .fr: "Un canal inconnu a été conservé et ne sera pas interrogé.", .de: "Ein unbekannter Kanal bleibt erhalten und wird nicht abgefragt.",
+            .es: "Se conservó un proveedor no reconocido; no se consulta.", .pt: "Um provedor não reconhecido foi mantido e não será consultado.",
+        ],
         "compat.schema.ok": [
             .zhHans: "当前设置 schema 可用。", .en: "The current settings schema is supported.", .ja: "現在の設定スキーマは利用できます。", .ko: "현재 설정 스키마를 사용할 수 있습니다.",
             .ru: "Текущая схема настроек поддерживается.", .ar: "مخطط الإعدادات الحالي مدعوم.", .fr: "Le schéma de réglages actuel est pris en charge.", .de: "Das aktuelle Einstellungsschema wird unterstützt.",
@@ -1035,6 +1080,15 @@ final class L10n: ObservableObject {
         ],
         "diagnostics.detail.usage.warning": [
             .zhHans: "用量保存或读取出现问题。", .en: "Usage save or load reported a problem.",
+        ],
+        "diagnostics.detail.usage.needs_restore": [
+            .zhHans: "用量历史需要恢复（损坏文件已备份）。", .en: "Usage history needs restore (corrupt file was backed up).",
+        ],
+        "diagnostics.detail.usage.save_failed": [
+            .zhHans: "最近一次用量保存失败。", .en: "The last usage save failed.",
+        ],
+        "diagnostics.detail.usage.load_failed": [
+            .zhHans: "用量历史无法读取。", .en: "Usage history could not be read.",
         ],
         "settings.transfer": [
             .zhHans: "设置迁移", .en: "Transfer settings", .ja: "設定の移行", .ko: "설정 이전",

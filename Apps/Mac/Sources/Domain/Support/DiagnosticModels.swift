@@ -134,22 +134,29 @@ public struct DiagnosticUsageSummary: Codable, Sendable, Equatable {
     public var latestDate: String?
     public var unitCategories: [String]
     public var saveErrorClassification: String?
+    public var health: String
 
     public init(
         recordCount: Int,
         earliestDate: String? = nil,
         latestDate: String? = nil,
         unitCategories: [String] = [],
-        saveErrorClassification: String? = nil
+        saveErrorClassification: String? = nil,
+        health: String = UsageStorageHealth.available.rawValue
     ) {
         self.recordCount = recordCount
         self.earliestDate = earliestDate
         self.latestDate = latestDate
         self.unitCategories = unitCategories
         self.saveErrorClassification = saveErrorClassification
+        self.health = health
     }
 
-    public init(document: UsageHistoryDocument, saveErrorClassification: String? = nil) {
+    public init(
+        document: UsageHistoryDocument,
+        saveErrorClassification: String? = nil,
+        health: UsageStorageHealth = .available
+    ) {
         let days = document.dailyRecords.map(\.dayKey)
         let units = Set(document.dailyRecords.map { UsageUnit.normalize($0.unit) }).sorted()
         self.init(
@@ -157,7 +164,8 @@ public struct DiagnosticUsageSummary: Codable, Sendable, Equatable {
             earliestDate: days.min(),
             latestDate: days.max(),
             unitCategories: units,
-            saveErrorClassification: saveErrorClassification
+            saveErrorClassification: saveErrorClassification,
+            health: health.rawValue
         )
     }
 }
@@ -491,7 +499,7 @@ public enum DiagnosticReadableSummary: Sendable {
         let latest = usage.latestDate ?? "-"
         let units = usage.unitCategories.isEmpty ? "-" : usage.unitCategories.joined(separator: ",")
         let error = usage.saveErrorClassification ?? "none"
-        return "records=\(usage.recordCount) range=\(earliest)/\(latest) units=\(units) saveError=\(error)"
+        return "records=\(usage.recordCount) range=\(earliest)/\(latest) units=\(units) saveError=\(error) health=\(usage.health)"
     }
 
     public static func refreshLine(_ refresh: DiagnosticRefreshSummary) -> String {
@@ -504,8 +512,10 @@ public enum DiagnosticBannerPolicy: Sendable {
     public static func shouldOfferDiagnostics(
         noticeKey: String?,
         usageDataError: String?,
-        usageRecoveryNotice: Bool
+        usageRecoveryNotice: Bool,
+        usageHealth: UsageStorageHealth? = nil
     ) -> Bool {
+        if let usageHealth, usageHealth.isUserVisibleWarning { return true }
         if usageDataError != nil { return true }
         if usageRecoveryNotice { return true }
         guard let noticeKey else { return false }

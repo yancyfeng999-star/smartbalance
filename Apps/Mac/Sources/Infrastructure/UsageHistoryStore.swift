@@ -9,10 +9,18 @@ public enum UsageHistoryRecovery: Equatable, Sendable {
 public struct UsageHistoryLoadResult: Equatable, Sendable {
     public var document: UsageHistoryDocument
     public var recovery: UsageHistoryRecovery?
+    public var health: UsageStorageHealth
 
-    public init(document: UsageHistoryDocument, recovery: UsageHistoryRecovery? = nil) {
+    public init(
+        document: UsageHistoryDocument,
+        recovery: UsageHistoryRecovery? = nil,
+        health: UsageStorageHealth? = nil
+    ) {
         self.document = document
         self.recovery = recovery
+        self.health = health ?? UsageStorageHealth.resolve(
+            recoveredFromCorruptFile: recovery == .corruptFileBackedUp
+        )
     }
 }
 

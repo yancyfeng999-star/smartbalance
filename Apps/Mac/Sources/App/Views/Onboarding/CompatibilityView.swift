@@ -36,7 +36,21 @@ struct CompatibilityView: View {
                 ForEach(report.checks) { item in
                     checkRow(item)
                 }
-            } else {
+            }
+            if let migration = model.compatibilityMigrationResult {
+                Text(l10n.t(migration.deletedAccountScope.messageKey))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(SBTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(l10n.t(migration.deletedAccountScope.messageKey))
+                if !migration.unknownProviderKinds.isEmpty {
+                    Text(l10n.t("compat.providers.unknown"))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.warn)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if model.compatibilityReport == nil && model.compatibilityMigrationResult == nil {
                 Text(l10n.t("compat.loading"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(SBTheme.muted)

@@ -39,7 +39,7 @@ struct APIAccountsSection: View {
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ForEach(ProviderKind.allCases) { kind in
+            ForEach(ProviderKind.selectableCases) { kind in
                 platformCard(kind)
             }
         }
@@ -591,6 +591,7 @@ struct APIAccountsSection: View {
         case .mimo: "iphone"
         case .minimax: "waveform"
         case .apinebula: "cloud.fill"
+        case .unsupported: "questionmark.circle"
         }
     }
 
@@ -607,6 +608,7 @@ struct APIAccountsSection: View {
         case .mimo: [Color(red: 0.95, green: 0.30, blue: 0.25), Color(red: 0.85, green: 0.2, blue: 0.2)]
         case .minimax: [Color(red: 0.55, green: 0.25, blue: 0.95), Color(red: 0.4, green: 0.15, blue: 0.85)]
         case .apinebula: [Color(red: 0.20, green: 0.55, blue: 0.90), Color(red: 0.12, green: 0.35, blue: 0.75)]
+        case .unsupported: [Color(red: 0.45, green: 0.45, blue: 0.48), Color(red: 0.32, green: 0.32, blue: 0.35)]
         }
     }
 

@@ -8,4 +8,41 @@ public struct SettingsMigrationRunner: Sendable {
     public func migrate(data: Data, now: Date = Date()) throws -> SettingsMigrationOutcome {
         try SettingsMigration.migrate(data: data, now: now)
     }
+
+    public func evaluateCompatibility(
+        data: Data?,
+        usageHealth: UsageStorageHealth,
+        notification: NotificationAuthorizationState,
+        now: Date = Date()
+    ) -> CompatibilityMigrationResult {
+        guard let data else {
+            return CompatibilityMigrationResult.inspect(
+                settingsOutcome: nil,
+                usageHealth: usageHealth,
+                notification: notification
+            )
+        }
+        do {
+            let outcome = try migrate(data: data, now: now)
+            return CompatibilityMigrationResult.inspect(
+                settingsOutcome: outcome,
+                usageHealth: usageHealth,
+                notification: notification
+            )
+        } catch let error as SettingsMigrationError {
+            return CompatibilityMigrationResult.inspect(
+                settingsOutcome: nil,
+                settingsError: error,
+                usageHealth: usageHealth,
+                notification: notification
+            )
+        } catch {
+            return CompatibilityMigrationResult.inspect(
+                settingsOutcome: nil,
+                settingsError: .invalidJSON,
+                usageHealth: usageHealth,
+                notification: notification
+            )
+        }
+    }
 }

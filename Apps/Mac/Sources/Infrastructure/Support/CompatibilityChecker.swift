@@ -41,7 +41,7 @@ public struct CompatibilityChecker: Sendable {
             case .settings:
                 return makeCheck(id, settingsInspection.settings)
             case .usageHistory:
-                return makeCheck(id, usage)
+                return makeCheck(id, usageHealth(context.usageStorageHealth) ?? usage)
             case .schema:
                 return makeCheck(id, settingsInspection.schema)
             }
@@ -60,7 +60,8 @@ public struct CompatibilityChecker: Sendable {
         notificationAuthorization: NotificationAuthorizationState,
         now: Date = Date(),
         settingsFileURL: URL? = nil,
-        usageHistoryFileURL: URL? = nil
+        usageHistoryFileURL: URL? = nil,
+        usageStorageHealth: UsageStorageHealth? = nil
     ) -> CompatibilityContext {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("SmartBalance", isDirectory: true)
@@ -84,7 +85,8 @@ public struct CompatibilityChecker: Sendable {
             usageHistoryFileURL: usageHistoryFileURL ?? support.appendingPathComponent("usage-history.json"),
             keychainAvailable: probePlainKeychain(),
             notificationAuthorization: notificationAuthorization,
-            currentSettingsSchemaVersion: SettingsDocument.currentSchemaVersion
+            currentSettingsSchemaVersion: SettingsDocument.currentSchemaVersion,
+            usageStorageHealth: usageStorageHealth
         )
     }
 
@@ -214,6 +216,20 @@ public struct CompatibilityChecker: Sendable {
             return ((.ok, "compat.settings.ok"), (.failed, "compat.schema.unsupported"), version)
         } catch {
             return ((.failed, "compat.settings.corrupt"), (.warning, "compat.schema.unreadable"), nil)
+        }
+    }
+
+    private func usageHealth(_ health: UsageStorageHealth?) -> (CompatibilityStatus, String)? {
+        guard let health else { return nil }
+        switch health {
+        case .available:
+            return nil
+        case .needsRestore:
+            return (.warning, "compat.usage.needsRestore")
+        case .lastSaveFailed:
+            return (.warning, "compat.usage.saveFailed")
+        case .loadFailed:
+            return (.warning, "compat.usage.unreadable")
         }
     }
 
