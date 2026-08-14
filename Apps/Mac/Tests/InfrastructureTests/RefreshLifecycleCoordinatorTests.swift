@@ -154,7 +154,29 @@ final class RefreshLifecycleCoordinatorTests: XCTestCase {
         XCTAssertLessThanOrEqual(scheduled.count, RefreshFetchLimits.thirtyMinuteMaxRefreshes)
         let peak = await fetcher.peakConcurrency
         XCTAssertLessThanOrEqual(peak, RefreshFetchLimits.maxConcurrentAccounts)
+        XCTAssertEqual(
+            metrics.snapshot().peakConcurrency,
+            peak,
+            "coordinator must record measured in-flight peak, not min(cap, accountCount)"
+        )
         XCTAssertEqual(coordinator.acceptedSnapshots.count, accounts.count)
+        let retainedBytes = RefreshMemoryBudget.estimateRetainedBytes(
+            snapshotCount: coordinator.acceptedSnapshots.count
+        )
+        XCTAssertLessThanOrEqual(
+            retainedBytes,
+            RefreshMemoryBudget.maxThirtyMinuteRetainedBytes,
+            "20 accounts × 3 interval passes must not grow retained snapshot memory"
+        )
+        XCTAssertLessThanOrEqual(
+            coordinator.acceptedSnapshots.count,
+            accounts.count * RefreshMemoryBudget.maxRetainedSnapshotsPerAccount
+        )
+        XCTAssertLessThan(
+            coordinator.acceptedSnapshots.count,
+            accounts.count * max(2, scheduled.count),
+            "memory proxy: live snapshots must not accumulate per refresh pass"
+        )
         XCTAssertLessThanOrEqual(metrics.snapshot().sampleCount, RefreshFetchLimits.maxMetricsSamples)
         XCTAssertEqual(metrics.snapshot().successCount, scheduled.count)
         XCTAssertTrue(metrics.debugFieldNames().allSatisfy { name in
@@ -165,6 +187,35 @@ final class RefreshLifecycleCoordinatorTests: XCTestCase {
                 && !lowered.contains("credential")
                 && !lowered.contains("secret")
         })
+    }
+
+    func testLimiterCancelDoesNotWaitForQueuedPermits() async {
+        let limiter = RefreshConcurrencyLimiter(limit: 4)
+        let bodies = BodyCounter()
+        let parent = Task {
+            await withTaskGroup(of: Void.self) { group in
+                for _ in 0..<20 {
+                    group.addTask {
+                        _ = try? await limiter.withPermit {
+                            await bodies.increment()
+                            try? await Task.sleep(nanoseconds: 5_000_000_000)
+                            return 0
+                        }
+                    }
+                }
+                await group.waitForAll()
+            }
+        }
+        await waitUntil { await bodies.value == 4 }
+        let started = Date()
+        parent.cancel()
+        _ = await parent.result
+        let elapsed = Date().timeIntervalSince(started)
+        let bodyCount = await bodies.value
+        let queued = await limiter.queuedWaiterCount
+        XCTAssertLessThan(elapsed, 0.25, "queued acquire waiters must cancel without draining the permit queue")
+        XCTAssertEqual(bodyCount, 4, "cancelled waiters must not run the fetch body")
+        XCTAssertEqual(queued, 0)
     }
 
     func testCancelDoesNotApplyStaleWriteFromFinishedTask() async {
@@ -295,17 +346,27 @@ private final class CappedCountingRefreshFetcher: RefreshBalanceFetching, @unche
         await withTaskGroup(of: BalanceSnapshot.self) { group in
             for account in accounts {
                 group.addTask {
-                    await self.limiter.withPermit {
-                        await self.stats.enter()
-                        await Task.yield()
-                        await self.stats.leave()
+                    do {
+                        return try await self.limiter.withPermit {
+                            await self.stats.enter()
+                            await Task.yield()
+                            await self.stats.leave()
+                            return BalanceSnapshot(
+                                accountId: account.id,
+                                providerKind: account.kind,
+                                displayName: account.title,
+                                amount: 1,
+                                unit: "¥",
+                                status: .healthy
+                            )
+                        }
+                    } catch {
                         return BalanceSnapshot(
                             accountId: account.id,
                             providerKind: account.kind,
                             displayName: account.title,
-                            amount: 1,
-                            unit: "¥",
-                            status: .healthy
+                            source: .api,
+                            status: .unknown
                         )
                     }
                 }
@@ -314,7 +375,15 @@ private final class CappedCountingRefreshFetcher: RefreshBalanceFetching, @unche
                 snapshots.append(snap)
             }
         }
-        return RefreshFetchPayload(snapshots: snapshots)
+        return RefreshFetchPayload(snapshots: snapshots, peakConcurrency: await stats.peak)
+    }
+}
+
+private actor BodyCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
     }
 }
 

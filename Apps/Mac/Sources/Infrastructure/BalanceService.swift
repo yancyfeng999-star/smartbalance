@@ -23,7 +23,7 @@ public actor BalanceService {
         self.notifications = notifications
     }
 
-    public func refreshAll(settings: AppSettings) async -> (snapshots: [BalanceSnapshot], alerts: [AlertEvent], settings: AppSettings) {
+    public func refreshAll(settings: AppSettings) async -> (snapshots: [BalanceSnapshot], alerts: [AlertEvent], settings: AppSettings, peakConcurrency: Int) {
         var updated = settings
         let accounts = settings.enabledAccounts
 
@@ -32,9 +32,24 @@ public actor BalanceService {
         await withTaskGroup(of: (UUID, BalanceSnapshot).self) { group in
             for account in accounts {
                 group.addTask {
-                    await self.fetchLimiter.withPermit {
-                        let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
-                        return (account.id, snap)
+                    do {
+                        return try await self.fetchLimiter.withPermit {
+                            let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
+                            return (account.id, snap)
+                        }
+                    } catch {
+                        return (
+                            account.id,
+                            BalanceSnapshot(
+                                accountId: account.id,
+                                providerKind: account.kind,
+                                displayName: account.title,
+                                source: .api,
+                                status: .unknown,
+                                detail: "",
+                                errorMessage: nil
+                            )
+                        )
                     }
                 }
             }
@@ -57,7 +72,7 @@ public actor BalanceService {
             }
         }
 
-        return (snapshots, alerts, updated)
+        return (snapshots, alerts, updated, await fetchLimiter.peak)
     }
 
     private func refreshAPIWithTimeout(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {

@@ -148,6 +148,18 @@ final class RefreshModelsTests: XCTestCase {
         )
     }
 
+    func testMemoryBudgetCapsRetainedSnapshotsNotRefreshPasses() {
+        let onePass = RefreshMemoryBudget.estimateRetainedBytes(snapshotCount: 20)
+        let threePassesSameSnapshots = RefreshMemoryBudget.estimateRetainedBytes(snapshotCount: 20)
+        XCTAssertEqual(onePass, threePassesSameSnapshots)
+        XCTAssertLessThanOrEqual(onePass, RefreshMemoryBudget.maxThirtyMinuteRetainedBytes)
+        XCTAssertEqual(RefreshMemoryBudget.maxRetainedSnapshotsPerAccount, 1)
+        XCTAssertLessThan(
+            RefreshMemoryBudget.estimateRetainedBytes(snapshotCount: 20),
+            RefreshMemoryBudget.estimateRetainedBytes(snapshotCount: 20 * 3)
+        )
+    }
+
     func testLifecycleUIEventsDoNotCreateTimersAndWakeDoesNotCancel() {
         XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .didWake))
         XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .menuAppear))

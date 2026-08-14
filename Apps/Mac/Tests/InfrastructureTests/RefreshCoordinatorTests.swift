@@ -349,6 +349,26 @@ final class RefreshCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.acceptedWriteCount, 0)
     }
 
+    func testCoordinatorRecordsFetcherPeakNotAccountCap() async {
+        let metrics = PerformanceSample()
+        let fetcher = FixedPeakRefreshFetcher(peak: 2, accountID: accountA)
+        let coordinator = RefreshCoordinator(
+            clock: ControllableRefreshClock(clockStart),
+            fetcher: fetcher,
+            metrics: metrics,
+            maxConcurrentAccounts: 4
+        )
+
+        XCTAssertEqual(
+            coordinator.request(.init(trigger: .manual), settings: settings([accountA, accountB])),
+            .started
+        )
+        _ = await coordinator.waitForCompletion()
+
+        XCTAssertEqual(metrics.snapshot().peakConcurrency, 2)
+        XCTAssertNotEqual(metrics.snapshot().peakConcurrency, coordinator.maxConcurrentAccounts)
+    }
+
     func testNoAccountsDoesNotTouchProvidersOrHTTP() async {
         let http = MockHTTPClient(statusCode: 200, json: Self.deepSeekJSON)
         let provider = DeepSeekBalanceProvider(http: http)
@@ -514,6 +534,30 @@ private final class ControllableFakeProvider: BalanceProvider, @unchecked Sendab
         lock.lock()
         _callCount += 1
         lock.unlock()
+    }
+}
+
+private struct FixedPeakRefreshFetcher: RefreshBalanceFetching {
+    let peak: Int
+    let accountID: UUID
+
+    func fetchBalances(
+        accounts: [BalanceAccount],
+        settings: AppSettings
+    ) async -> RefreshFetchPayload {
+        RefreshFetchPayload(
+            snapshots: accounts.map { account in
+                BalanceSnapshot(
+                    accountId: account.id,
+                    providerKind: account.kind,
+                    displayName: account.title,
+                    amount: 1,
+                    unit: "¥",
+                    status: .healthy
+                )
+            },
+            peakConcurrency: peak
+        )
     }
 }
 

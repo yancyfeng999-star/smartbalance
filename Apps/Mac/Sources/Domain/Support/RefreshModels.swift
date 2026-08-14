@@ -226,6 +226,18 @@ public enum RefreshFetchLimits: Sendable {
     public static let maxMetricsSamples = 8
 }
 
+/// Testable memory proxy: RSS in XCTest is process-wide and noisy.
+/// Budget is live snapshot slots only, not historical refresh passes.
+public enum RefreshMemoryBudget: Sendable {
+    public static let bytesPerSnapshotEstimate = 512
+    public static let maxThirtyMinuteRetainedBytes = 32 * 1024
+    public static let maxRetainedSnapshotsPerAccount = 1
+
+    public static func estimateRetainedBytes(snapshotCount: Int) -> Int {
+        max(0, snapshotCount) * bytesPerSnapshotEstimate
+    }
+}
+
 public enum RefreshSnapshotClassification: Sendable {
     public static func isFailure(_ snapshot: BalanceSnapshot) -> Bool {
         snapshot.errorMessage != nil || snapshot.status == .error || snapshot.status == .setup

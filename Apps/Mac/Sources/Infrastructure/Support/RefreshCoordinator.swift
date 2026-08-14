@@ -38,7 +38,8 @@ public struct BalanceServiceRefreshFetcher: RefreshBalanceFetching {
         return RefreshFetchPayload(
             snapshots: result.snapshots,
             alerts: result.alerts,
-            lastAlertAtByAccount: result.settings.lastAlertAtByAccount
+            lastAlertAtByAccount: result.settings.lastAlertAtByAccount,
+            peakConcurrency: result.peakConcurrency
         )
     }
 }
@@ -167,7 +168,7 @@ public final class RefreshCoordinator {
             self.lastAcceptedOutcome = outcome
             self.hasAcceptedCurrentGeneration = true
             self.acceptedWriteCount += 1
-            self.recordMetrics(for: outcome, startedAt: startedAt)
+            self.recordMetrics(for: outcome, startedAt: startedAt, peakConcurrency: payload.peakConcurrency)
             self.onSnapshotsAccepted?(outcome)
 
             let persist = await self.usageRecorder.recordUsage(
@@ -255,7 +256,7 @@ public final class RefreshCoordinator {
         await activeTask?.value
     }
 
-    private func recordMetrics(for outcome: RefreshOutcome, startedAt: Date) {
+    private func recordMetrics(for outcome: RefreshOutcome, startedAt: Date, peakConcurrency: Int) {
         let duration = max(0, clock.now.timeIntervalSince(startedAt))
         let result: PerformanceSampleResult
         switch outcome.state {
@@ -270,7 +271,7 @@ public final class RefreshCoordinator {
             accountSuccesses: outcome.succeededCount,
             accountFailures: outcome.failedCount
         )
-        metrics.recordConcurrency(min(maxConcurrentAccounts, outcome.snapshots.count))
+        metrics.recordConcurrency(peakConcurrency)
     }
 
     private func recordCancel(startedAt: Date) {

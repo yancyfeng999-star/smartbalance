@@ -124,38 +124,78 @@ public final class ControllableRefreshScheduler: @unchecked Sendable {
 extension ControllableRefreshScheduler: RefreshDelayScheduling {}
 
 public actor RefreshConcurrencyLimiter {
+    private struct Waiter {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Error>
+    }
+
     private let limit: Int
     private var inFlight = 0
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [Waiter] = []
+    private var pendingIDs: Set<UUID> = []
     public private(set) var peak = 0
 
     public init(limit: Int = RefreshFetchLimits.maxConcurrentAccounts) {
         self.limit = max(1, limit)
     }
 
-    public func withPermit<T: Sendable>(_ body: @Sendable () async -> T) async -> T {
-        await acquire()
-        defer { release() }
-        return await body()
+    public var queuedWaiterCount: Int { waiters.count }
+    public var inFlightCount: Int { inFlight }
+
+    public func withPermit<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+        try await acquire()
+        do {
+            try Task.checkCancellation()
+            let value = try await body()
+            release()
+            return value
+        } catch {
+            release()
+            throw error
+        }
     }
 
-    private func acquire() async {
-        if inFlight < limit {
-            inFlight += 1
-            peak = max(peak, inFlight)
+    private func acquire() async throws {
+        let id = UUID()
+        pendingIDs.insert(id)
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                enqueue(id: id, continuation: continuation)
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id: id) }
+        }
+    }
+
+    private func enqueue(id: UUID, continuation: CheckedContinuation<Void, Error>) {
+        guard pendingIDs.contains(id) else {
+            continuation.resume(throwing: CancellationError())
             return
         }
-        await withCheckedContinuation { continuation in
-            waiters.append(continuation)
+        if inFlight < limit {
+            pendingIDs.remove(id)
+            inFlight += 1
+            peak = max(peak, inFlight)
+            continuation.resume()
+            return
         }
+        waiters.append(Waiter(id: id, continuation: continuation))
+    }
+
+    private func cancelWaiter(id: UUID) {
+        pendingIDs.remove(id)
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else { return }
+        waiters.remove(at: index).continuation.resume(throwing: CancellationError())
     }
 
     private func release() {
-        if waiters.isEmpty {
-            inFlight = max(0, inFlight - 1)
+        if let waiter = waiters.first {
+            waiters.removeFirst()
+            pendingIDs.remove(waiter.id)
+            waiter.continuation.resume()
             return
         }
-        waiters.removeFirst().resume()
+        inFlight = max(0, inFlight - 1)
     }
 }
 

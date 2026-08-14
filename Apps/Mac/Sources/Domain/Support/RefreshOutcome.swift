@@ -18,15 +18,18 @@ public struct RefreshFetchPayload: Sendable, Equatable {
     public var snapshots: [BalanceSnapshot]
     public var alerts: [AlertEvent]
     public var lastAlertAtByAccount: [String: Date]
+    public var peakConcurrency: Int
 
     public init(
         snapshots: [BalanceSnapshot],
         alerts: [AlertEvent] = [],
-        lastAlertAtByAccount: [String: Date] = [:]
+        lastAlertAtByAccount: [String: Date] = [:],
+        peakConcurrency: Int = 0
     ) {
         self.snapshots = snapshots
         self.alerts = alerts
         self.lastAlertAtByAccount = lastAlertAtByAccount
+        self.peakConcurrency = max(0, peakConcurrency)
     }
 }
 
