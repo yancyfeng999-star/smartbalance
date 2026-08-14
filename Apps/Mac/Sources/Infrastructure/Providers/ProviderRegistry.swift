@@ -15,6 +15,29 @@ public enum ProviderRegistry {
         case .mimo: MiMoBalanceProvider()
         case .minimax: MiniMaxBalanceProvider()
         case .apinebula: ApinebulaBalanceProvider()
+        case .unsupported: UnsupportedBalanceProvider()
         }
+    }
+}
+
+public struct UnsupportedBalanceProvider: BalanceProvider {
+    public let kind: ProviderKind = .unsupported
+
+    public init() {}
+
+    public func fetchBalance(
+        account: BalanceAccount,
+        credentials: ProviderCredentials
+    ) async throws -> BalanceSnapshot {
+        BalanceSnapshot(
+            accountId: account.id,
+            providerKind: account.kind,
+            displayName: account.title,
+            source: .api,
+            unit: account.resolvedManualUnit,
+            status: .setup,
+            detail: "未识别的渠道，已跳过查询",
+            errorMessage: "unrecognized provider"
+        )
     }
 }

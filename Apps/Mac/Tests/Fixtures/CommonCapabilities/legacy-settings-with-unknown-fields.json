@@ -1,0 +1,59 @@
+{
+  "accounts": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "kind": "mimo",
+      "displayName": "Fixture MiMo",
+      "baseURL": "https://platform.xiaomimimo.com",
+      "consoleURL": "https://platform.xiaomimimo.com",
+      "userId": "fixture-user-42",
+      "secretRef": "44444444-4444-4444-8444-444444444444",
+      "enabled": true,
+      "alertThreshold": 80,
+      "alertPercentThreshold": null,
+      "manualAmount": 12.5,
+      "manualUnit": "CNY",
+      "manualUpdatedAt": "2026-01-15T08:00:00Z",
+      "dailyReminderEnabled": true,
+      "legacyNotes": "keep-unknown-account-field",
+      "futureExperimentalFlag": true
+    }
+  ],
+  "email": {
+    "enabled": false,
+    "smtpHost": "",
+    "smtpPort": 465,
+    "useTLS": true,
+    "username": "",
+    "passwordRef": "smtp-password",
+    "fromAddress": "",
+    "toAddresses": [],
+    "defaultAmountThreshold": 10,
+    "defaultPercentThreshold": 20,
+    "cooldownSeconds": 3600
+  },
+  "alertChannels": {
+    "macNotificationEnabled": true,
+    "outboundEmailEnabled": false,
+    "quotaThresholdAlertsEnabled": true,
+    "warningAmount": 100,
+    "midAmount": 50,
+    "criticalAmount": 20,
+    "warningPercent": 30,
+    "midPercent": 15,
+    "criticalPercent": 10,
+    "cooldownSeconds": 3600
+  },
+  "apiQueryEnabled": true,
+  "refreshIntervalSecs": 1800,
+  "lastAlertAtByAccount": {},
+  "windowPinned": false,
+  "themeMode": "dark",
+  "appLanguage": "en",
+  "unknownTopLevelSetting": "keep-me",
+  "experimentalCloudSync": false,
+  "futureSchemaHint": {
+    "vendor": "fixture-only",
+    "note": "must-survive-round-trip"
+  }
+}

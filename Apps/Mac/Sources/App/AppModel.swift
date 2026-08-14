@@ -1,22 +1,30 @@
 import Foundation
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import Domain
 import Infrastructure
 
 @MainActor
-final class AppModel: ObservableObject {
+final class AppModel: ObservableObject, AppSleepWakeHandling {
     @Published var settings: AppSettings
     @Published var snapshots: [BalanceSnapshot] = []
     @Published var recentAlerts: [AlertEvent] = []
     @Published private(set) var usageHistory = UsageHistoryDocument()
     @Published private(set) var usageDataError: String?
     @Published private(set) var usageRecoveryNotice = false
+    @Published private(set) var usageStorageHealth: UsageStorageHealth = .available
+    @Published private(set) var compatibilityMigrationResult: CompatibilityMigrationResult?
+    @Published private(set) var refreshNoticeKey: String?
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
     @Published var banner: String? {
-        didSet { scheduleBannerAutoDismiss() }
+        didSet {
+            if banner == nil { bannerKey = nil }
+            scheduleBannerAutoDismiss()
+        }
     }
+    @Published private(set) var bannerKey: String?
     /// 黄条提示自动消失任务（成功/失败提示约 3.5s；「正在…」不自动关）
     private var bannerDismissTask: Task<Void, Never>?
     @Published var selectedTab: Tab = .home
@@ -24,23 +32,63 @@ final class AppModel: ObservableObject {
     @Published var selectedAccountId: UUID?
     /// Mac 通知授权状态文案（设置页展示）。
     @Published var notificationStatusCaption: String = "系统未授权通知 · 点测试可再次请求"
+    @Published private(set) var sessionRoute: SessionRoute = .home
+    @Published var onboardingStep: OnboardingStep = .privacy
+    @Published private(set) var compatibilityReport: CompatibilityReport?
+    @Published private(set) var diagnosticReport: DiagnosticReport?
+    @Published private(set) var isCollectingDiagnostics = false
+    @Published var preferExpandAPIAccounts = false
+    @Published var helpPage: HelpPage?
+    @Published var settingsSupportPage: SettingsSupportPage?
+    @Published var restorePreview: TransferPreview?
+    @Published var restoreOutcome: RestoreOutcome?
+    @Published var restoreIncludeUsage = true
+    @Published var restoreLegacyAcknowledged = false
+    @Published var restoreBusy = false
+    @Published private(set) var recoveryDecision = RecoveryDecision.normal
+    @Published var recoveryActionOutcome: RecoveryActionOutcome?
+    @Published var pendingRecoveryAction: RecoveryAction?
+    @Published var recoveryResetIncludeUsage = false
+    @Published var recoveryBusy = false
+    private var diagnosticsReturnTab: Tab = .home
+    private var pendingRestoreData: Data?
+    private var pendingRestoreMode: SettingsSupportPage = .transfer
+    private var restoreSession = RestoreSession()
+    private var restoreTask: Task<Void, Never>?
 
     enum Tab: String {
         case home
         case usage
         case settings
+        case diagnostics
+    }
+
+    enum SettingsSupportPage: String {
+        case transfer
+        case backup
+        case updates
+    }
+
+    enum HelpPage: Equatable {
+        case index
+        case topic(HelpTopicID)
     }
 
     private let store = SettingsStore.shared
     private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
     private let usageStore = UsageHistoryStore.shared
-    private var refreshTask: Task<Void, Never>?
-    private var activeRefreshTask: Task<Void, Never>?
+    private let firstLaunchStore = FirstLaunchStore.shared
+    private let compatibilityChecker = CompatibilityChecker()
+    private let restoreCoordinator: RestoreCoordinator
+    private let crashRecovery: CrashRecoveryStore
+    private var pendingOpenSettingsAfterOnboarding = false
+    private let refreshScheduler = TaskRefreshScheduler()
+    private let refreshLifecycle: RefreshLifecycleCoordinator
+    private let refreshCoordinator: RefreshCoordinator
     private var usageBaselineResetTask: Task<Void, Never>?
     private var pendingUsageBaselineResetIDs: Set<UUID> = []
-    /// 刷新代数：避免慢请求后到覆盖新结果 / 新设置
-    private var refreshGeneration: UInt64 = 0
+    private var refreshLoadingOwner: RefreshLoadingOwner = .none
 
     @Published var launchAtLoginEnabled: Bool = LaunchAtLogin.isEnabled
     @Published var updateChecking = false
@@ -50,12 +98,17 @@ final class AppModel: ObservableObject {
     @Published var updateAvailable = false
     /// 0…1 下载进度；nil 表示未在下载
     @Published var updateDownloadProgress: Double?
+    @Published var updatePhase: UpdatePhase = .idle
+    @Published var updateDetails: UpdateReleaseDetails?
+    @Published var updateValidation: UpdateValidationResult?
+    @Published var updateAwaitingInstallConfirm = false
+    @Published var updateErrorSummary: String?
     /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
     @Published var browserImporting = false
-    /// 密钥库是否已解锁
-    @Published var isUnlocked = false
-    
     private let updateChecker = UpdateChecker()
+    private var releaseDownloader: ReleaseDownloader?
+    private var updateTask: Task<Void, Never>?
+    private var updateTempURL: URL?
 
     /// 非进度类 banner 数秒后自动清除。
     private func scheduleBannerAutoDismiss() {
@@ -63,7 +116,7 @@ final class AppModel: ObservableObject {
         bannerDismissTask = nil
         guard let text = banner, !text.isEmpty else { return }
         // 进行中的提示由后续成功/失败覆盖，不自动关
-        if text.contains("正在") || text.contains("请稍候") || text.contains("查询中") {
+        if text.contains("正在") || text.contains("请稍候") || text.contains("查询中") || text.contains("Refreshing") {
             return
         }
         let snapshot = text
@@ -132,6 +185,13 @@ final class AppModel: ObservableObject {
     }
 
     init() {
+        let supportDirectory = SettingsStore.shared.fileURL.deletingLastPathComponent()
+        self.restoreCoordinator = RestoreCoordinator(
+            directory: supportDirectory,
+            settingsStore: SettingsStore.shared,
+            usageStore: UsageHistoryStore.shared
+        )
+        self.crashRecovery = CrashRecoveryStore.shared
         var loaded = SettingsStore.shared.load()
         // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
         if !loaded.apiQueryEnabled {
@@ -146,46 +206,70 @@ final class AppModel: ObservableObject {
         self.settings = loaded
         self.pinWindowOpen = false
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        let coordinator = RefreshCoordinator(
+            fetcher: BalanceServiceRefreshFetcher(service: service),
+            usageRecorder: UsageHistoryRefreshRecorder(store: usageStore)
+        )
+        self.refreshCoordinator = coordinator
+        let lifecycle = RefreshLifecycleCoordinator(
+            scheduler: refreshScheduler,
+            allowsRefresh: false,
+            intervalSecs: loaded.refreshIntervalSecs
+        )
+        self.refreshLifecycle = lifecycle
+        lifecycle.onScheduleRefresh = { [weak self] trigger in
+            self?.refresh(trigger: trigger)
+        }
+        lifecycle.onCancelInFlight = { [weak self] reason in
+            self?.cancelRefresh(reason: reason)
+        }
         L10n.shared.setLanguage(loaded.resolvedLanguage)
         // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         self.selectedAccountId = loaded.enabledAccounts.first?.id
+        coordinator.seedAcceptedSnapshots(self.snapshots)
+        coordinator.onSnapshotsAccepted = { [weak self] outcome in
+            self?.applyAcceptedRefreshSnapshots(outcome)
+        }
+        coordinator.onTerminal = { [weak self] outcome in
+            self?.applyRefreshTerminal(outcome)
+        }
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
+        prepareLaunchSession()
+        registerRefreshLifecycleObservers()
         // 对齐智额：通知图标只跟包内白底 AppIcon 走；不 setIcon（会写自定义 Icon 锁死旧图）
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
-            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await refreshNotificationStatus()
-            rescheduleManualReminders()
+            await refreshCompatibilityReport()
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
-            // 请求生物识别认证
-            await authenticateSecretStore()
+            // 普通 Keychain 不需要启动解锁。通知授权改到明确用户动作。
+            if RecoveryLaunchPolicy.allowsNotificationDelivery(route: self.sessionRoute) {
+                self.rescheduleManualReminders()
+            }
+            if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: self.sessionRoute) {
+                self.startAutoRefreshIfNeeded()
+            }
         }
-        startAutoRefreshIfNeeded()
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 let result = try await self.usageStore.load()
                 self.usageHistory = result.document
-                self.usageRecoveryNotice = result.recovery == .corruptFileBackedUp
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: result.recovery == .corruptFileBackedUp
+                )
             } catch {
-                self.usageDataError = "load"
-                AppLog.error("Usage history load failed: \(error.localizedDescription)")
+                self.applyUsageHealth(lastError: .load)
+                AppLog.error("Usage history load failed", category: .usage, event: "usage_load_failed")
             }
         }
     }
     
-    /// 请求生物识别认证
-    func authenticateSecretStore() async {
-        isUnlocked = await secrets.authenticate()
-        if !isUnlocked {
-            banner = "请使用 Touch ID 或密码解锁智余"
-        }
-    }
-
-    /// 有账号时的占位卡（加载中 / 待解锁），保证首页直接进卡片而不是「去添加账号」。
+    /// 有账号时的占位卡（加载中），保证首页直接进卡片而不是「去添加账号」。
     /// 顺序与 `settings.accounts`（用户排序）一致。
     private static func placeholderSnapshots(from settings: AppSettings) -> [BalanceSnapshot] {
         settings.enabledAccounts.map { account in
@@ -195,7 +279,7 @@ final class AppModel: ObservableObject {
                 displayName: account.title,
                 source: .api,
                 status: .unknown,
-                detail: "查询中…",
+                detail: L10n.shared.t("refresh.running"),
                 errorMessage: nil
             )
         }
@@ -268,9 +352,13 @@ final class AppModel: ObservableObject {
         if let lastRefreshAt {
             let f = DateFormatter()
             f.dateFormat = "HH:mm"
-            return "刷新 \(f.string(from: lastRefreshAt))"
+            return "\(L10n.shared.t(RefreshPresentation.lastRefreshPrefixKey)) \(f.string(from: lastRefreshAt))"
         }
         return "—"
+    }
+
+    var refreshButtonHelpKey: String {
+        RefreshPresentation.refreshButtonHelpKey(refreshCoordinator.state)
     }
 
     /// 选中首页账号（高亮 +「打开后台」目标）。
@@ -322,25 +410,77 @@ final class AppModel: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
+        refresh(trigger: .manual)
+    }
+
+    func refresh(trigger: RefreshTrigger) {
+        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else { return }
         guard pendingUsageBaselineResetIDs.isEmpty else {
             resetPendingUsageBaselinesAndRefresh()
             return
         }
-        activeRefreshTask?.cancel()
-        isRefreshing = true
-        banner = nil
-        refreshGeneration &+= 1
-        let generation = refreshGeneration
-        // 兼容旧设置：若用户曾关掉「数据源」总开关，强制恢复（产品本职就是查余额）
         if !settings.apiQueryEnabled {
             settings.apiQueryEnabled = true
             try? store.save(settings)
         }
-        // 刷新过程中始终保留卡片骨架，绝不闪回「去添加账号」
+        prepareSnapshotsForRefresh()
+        let admission = refreshCoordinator.request(
+            RefreshRequest(scope: .all, trigger: trigger),
+            settings: settings,
+            currentSnapshots: snapshots
+        )
+        switch admission {
+        case .ignoredSameScope:
+            AppLog.info("Refresh coalesced · trigger=\(trigger.rawValue)")
+        case .skippedNoAccounts:
+            if refreshLoadingOwner == .refresh {
+                isRefreshing = false
+                refreshLoadingOwner = .none
+            }
+            AppLog.info("Refresh skipped · no accounts")
+        case .started:
+            refreshLoadingOwner = .refresh
+            isRefreshing = true
+            if trigger == .manual {
+                banner = nil
+                refreshNoticeKey = nil
+            }
+            AppLog.info(
+                "Refresh start · accounts=\(settings.enabledAccounts.count) trigger=\(trigger.rawValue) gen=\(refreshCoordinator.generation)"
+            )
+        }
+    }
+
+    func handleRefreshButton() {
+        if RefreshPresentation.refreshButtonCancels(refreshCoordinator.state) {
+            cancelRefresh(reason: .user)
+        } else {
+            refresh(trigger: .manual)
+        }
+    }
+
+    func cancelRefresh(reason: RefreshCancelReason = .user) {
+        refreshCoordinator.cancel(reason: reason)
+        if RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: refreshLoadingOwner) {
+            isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+        }
+    }
+
+    func dismissRefreshNotice() {
+        refreshNoticeKey = nil
+        banner = nil
+        bannerKey = nil
+    }
+
+    func presentLocalizedBanner(_ key: String) {
+        bannerKey = ActionableErrorPolicy.kind(messageKey: key) != nil ? key : nil
+        banner = L10n.shared.t(key)
+    }
+
+    private func prepareSnapshotsForRefresh() {
         if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
             snapshots = Self.placeholderSnapshots(from: settings)
         } else if !settings.enabledAccounts.isEmpty {
-            // 已有结果的卡保持金额；仅无结果的显示查询中
             snapshots = orderedSnapshots(
                 settings.enabledAccounts.map { account in
                     if let existing = snapshots.first(where: { $0.accountId == account.id }),
@@ -353,76 +493,118 @@ final class AppModel: ObservableObject {
                         displayName: account.title,
                         source: .api,
                         status: .unknown,
-                        detail: "查询中…"
+                        detail: L10n.shared.t("refresh.running")
                     )
                 }
             )
         }
-        // 快照：只把「开始时」的设置交给 Service；返回后禁止整表覆盖
-        let settingsSnapshot = settings
-        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) gen=\(generation)")
-        activeRefreshTask = Task { @MainActor in
-            defer {
-                if generation == self.refreshGeneration {
-                    self.isRefreshing = false
-                    self.activeRefreshTask = nil
+    }
+
+    private func applyAcceptedRefreshSnapshots(_ outcome: RefreshOutcome) {
+        snapshots = orderedSnapshots(outcome.snapshots)
+        if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
+            snapshots = Self.placeholderSnapshots(from: settings)
+        }
+        if !outcome.alerts.isEmpty {
+            recentAlerts = Array((outcome.alerts + recentAlerts).prefix(RefreshFetchLimits.maxRetainedRecentAlerts))
+            if let fail = outcome.alerts.first(where: {
+                !$0.emailed && $0.message.hasPrefix("邮件发送失败")
+            }) {
+                let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
+                banner = firstLine
+                AppLog.error(firstLine)
+            }
+            for alert in outcome.alerts {
+                AppLog.info("Alert: \(alert.title) notified=\(alert.notified) emailed=\(alert.emailed)")
+            }
+        }
+        settings.lastAlertAtByAccount = outcome.lastAlertAtByAccount
+        lastRefreshAt = Date()
+        try? store.save(settings)
+        AppLog.info("Refresh snapshots accepted · cards=\(snapshots.count) gen=\(outcome.generation)")
+    }
+
+    private func applyRefreshTerminal(_ outcome: RefreshOutcome?) {
+        if case .running = refreshCoordinator.state { return }
+        let applyLoading = RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(
+            owner: refreshLoadingOwner
+        )
+        if applyLoading {
+            isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+            if !isRefreshing {
+                refreshLoadingOwner = .none
+            }
+        } else {
+            return
+        }
+
+        if let warning = outcome?.usageWarning {
+            applyUsageHealth(lastError: warning == .loadFailed ? .load : .save)
+            refreshNoticeKey = warning.messageKey
+            presentLocalizedBanner(warning.messageKey)
+            AppLog.error("Usage history persist failed", category: .usage, event: "usage_persist_failed")
+        } else if let document = outcome?.usageDocument {
+            usageHistory = document
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let loadResult = try? await self.usageStore.load() {
+                    self.applyUsageHealth(
+                        lastError: nil,
+                        recovered: self.usageRecoveryNotice
+                            || loadResult.recovery == .corruptFileBackedUp
+                    )
+                } else {
+                    self.applyUsageHealth(lastError: nil)
                 }
             }
-            let result = await service.refreshAll(settings: settingsSnapshot)
-            guard !Task.isCancelled, generation == self.refreshGeneration else {
-                AppLog.info("Refresh stale gen=\(generation) discarded")
-                return
-            }
-            self.snapshots = orderedSnapshots(result.snapshots)
-            if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
-                self.snapshots = Self.placeholderSnapshots(from: self.settings)
-            }
-            do {
-                let history = try await usageStore.record(
-                    snapshots: self.snapshots,
-                    knownAccountIDs: Set(settingsSnapshot.accounts.map(\.id)),
-                    now: Date(),
-                    calendar: .current
-                )
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
-                self.usageHistory = history
-                let loadResult = try await self.usageStore.load()
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
-            } catch is CancellationError {
-                return
-            } catch {
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
-                AppLog.error("Usage history save failed: \(error.localizedDescription)")
-            }
-            if !result.alerts.isEmpty {
-                self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
-                if let fail = result.alerts.first(where: {
-                    !$0.emailed && $0.message.hasPrefix("邮件发送失败")
-                }) {
-                    let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
-                    self.banner = firstLine
-                    AppLog.error(firstLine)
-                }
-                for a in result.alerts {
-                    AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
-                }
-            }
-            // 只合并报警冷却时间戳，不回滚用户中途改的主题/账号/阈值
-            self.settings.lastAlertAtByAccount = result.settings.lastAlertAtByAccount
-            self.lastRefreshAt = Date()
-            try? store.save(self.settings)
-            AppLog.info("Refresh done · cards=\(self.snapshots.count) gen=\(generation)")
+        }
+
+        if outcome?.usageWarning == nil,
+           let key = RefreshPresentation.statusMessageKey(refreshCoordinator.state) {
+            refreshNoticeKey = key
+            presentLocalizedBanner(key)
+        } else if outcome?.usageWarning == nil, outcome != nil {
+            refreshNoticeKey = nil
         }
     }
 
+    private func registerRefreshLifecycleObservers() {
+        AppLifecycleCenter.shared.handler = self
+        MacNotificationService.shared.authorizationTouchHandler = { [weak self] in
+            self?.noteNotificationStateChange()
+        }
+    }
+
+    func handleSystemWillSleep() {
+        refreshLifecycle.handle(.willSleep)
+    }
+
+    func handleSystemDidWake() {
+        refreshLifecycle.handle(.didWake)
+    }
+
+    func noteMenuAppeared() {
+        let needsCatchUp = sessionRoute == .home
+            && !isRefreshing
+            && (snapshots.isEmpty || snapshots.allSatisfy { $0.status == .unknown && $0.amount == nil })
+        refreshLifecycle.handle(.menuAppear, prefersRefresh: needsCatchUp)
+    }
+
+    func noteWindowPinned() {
+        refreshLifecycle.handle(.windowPinned)
+    }
+
+    func notePageSwitch() {
+        refreshLifecycle.handle(.pageSwitch)
+    }
+
+    func noteNotificationStateChange() {
+        refreshLifecycle.handle(.notificationStateChange)
+        Task { await refreshNotificationStatus() }
+    }
+
     private func invalidateActiveRefresh() {
-        refreshGeneration &+= 1
-        activeRefreshTask?.cancel()
-        activeRefreshTask = nil
-        isRefreshing = false
+        refreshCoordinator.cancel(reason: .superseded)
     }
 
     private func requestUsageBaselineResetAndRefresh(for accountIDs: Set<UUID>) {
@@ -439,32 +621,37 @@ final class AppModel: ObservableObject {
             refresh()
             return
         }
+        refreshLoadingOwner = .usageBaselineReset
         invalidateActiveRefresh()
         usageBaselineResetTask?.cancel()
         isRefreshing = true
         let accountIDs = pendingUsageBaselineResetIDs
-        let generation = refreshGeneration
+        let generation = refreshCoordinator.generation
         usageBaselineResetTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 let history = try await self.usageStore.resetBaselines(for: accountIDs)
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                guard !Task.isCancelled, generation == self.refreshCoordinator.generation else { return }
                 let loadResult = try await self.usageStore.load()
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                guard !Task.isCancelled, generation == self.refreshCoordinator.generation else { return }
                 self.usageHistory = history
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: self.usageRecoveryNotice
+                        || loadResult.recovery == .corruptFileBackedUp
+                )
                 self.pendingUsageBaselineResetIDs.subtract(accountIDs)
                 self.usageBaselineResetTask = nil
+                self.refreshLoadingOwner = .none
                 self.isRefreshing = false
                 self.refresh()
             } catch is CancellationError {
                 return
             } catch {
-                guard generation == self.refreshGeneration else { return }
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                guard generation == self.refreshCoordinator.generation else { return }
+                self.applyUsageHealth(lastError: error is UsageHistoryStoreError ? .load : .save)
                 self.usageBaselineResetTask = nil
+                self.refreshLoadingOwner = .none
                 self.isRefreshing = false
                 AppLog.error("Usage baseline reset failed: \(error.localizedDescription)")
             }
@@ -502,23 +689,15 @@ final class AppModel: ObservableObject {
     }
 
     func startAutoRefreshIfNeeded() {
-        refreshTask?.cancel()
-        guard settings.refreshIntervalSecs > 0 else {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                self?.refresh()
-            }
-            return
-        }
-        let interval = settings.refreshIntervalSecs
-        refreshTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            self?.refresh()
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
-                guard !Task.isCancelled else { break }
-                self?.refresh()
-            }
+        let allowed = RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute)
+        refreshLifecycle.updatePolicy(
+            allowsRefresh: allowed,
+            intervalSecs: settings.refreshIntervalSecs
+        )
+        if allowed {
+            refreshLifecycle.start()
+        } else {
+            refreshLifecycle.stop()
         }
     }
 
@@ -533,14 +712,6 @@ final class AppModel: ObservableObject {
         secret: String,
         manualAmount: Double? = nil
     ) async {
-        if !isUnlocked {
-            let success = await secrets.authenticate()
-            if !success {
-                banner = "请先使用 Touch ID 或密码解锁"
-                return
-            }
-            isUnlocked = true
-        }
         let normalized = normalizeSessionCredential(kind: kind, secret: secret, userId: userId)
         let account = BalanceAccount(
             kind: kind,
@@ -575,7 +746,7 @@ final class AppModel: ObservableObject {
                     displayName: account.title,
                     source: .api,
                     status: .unknown,
-                    detail: "查询中…"
+                    detail: L10n.shared.t("refresh.running")
                 )
             )
             snapshots = orderedSnapshots(snapshots)
@@ -609,11 +780,13 @@ final class AppModel: ObservableObject {
                 )
                 self.usageHistory = history
                 let loadResult = try await self.usageStore.load()
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
+                self.applyUsageHealth(
+                    lastError: nil,
+                    recovered: self.usageRecoveryNotice
+                        || loadResult.recovery == .corruptFileBackedUp
+                )
             } catch {
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
+                self.applyUsageHealth(lastError: error is UsageHistoryStoreError ? .load : .save)
                 AppLog.error("Usage baseline cleanup failed: \(error.localizedDescription)")
             }
         }
@@ -621,14 +794,6 @@ final class AppModel: ObservableObject {
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
     func updateAccountSecret(id: UUID, secret: String) async {
-        if !isUnlocked {
-            let success = await secrets.authenticate()
-            if !success {
-                banner = "请先使用 Touch ID 或密码解锁"
-                return
-            }
-            isUnlocked = true
-        }
         guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
         let acc = settings.accounts[idx]
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -811,7 +976,7 @@ final class AppModel: ObservableObject {
                     displayName: acc.title,
                     source: .api,
                     status: .unknown,
-                    detail: "查询中…"
+                    detail: L10n.shared.t("refresh.running")
                 )
             )
             snapshots = orderedSnapshots(snapshots)
@@ -823,11 +988,11 @@ final class AppModel: ObservableObject {
 
     /// 每天 10:00 提醒手录账号打开网页核对并更新金额。
     func rescheduleManualReminders() {
+        guard RecoveryLaunchPolicy.allowsNotificationDelivery(route: sessionRoute) else { return }
         let names = settings.accounts
             .filter { $0.enabled && $0.kind.isManualEntry && $0.wantsDailyReminder }
             .map(\.title)
         Task {
-            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             await MacNotificationService.shared.scheduleDailyManualBalanceReminder(
                 hour: 10,
                 minute: 0,
@@ -841,10 +1006,12 @@ final class AppModel: ObservableObject {
     func setMacNotificationEnabled(_ on: Bool) {
         settings.alertChannels.macNotificationEnabled = on
         persist()
+        noteNotificationStateChange()
         if on {
             Task {
+                guard RecoveryLaunchPolicy.allowsNotificationAuthorization(route: sessionRoute) else { return }
                 _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
-                await refreshNotificationStatus()
+                rescheduleManualReminders()
             }
         }
     }
@@ -973,109 +1140,379 @@ final class AppModel: ObservableObject {
         AppLog.revealInFinder()
     }
 
-    // MARK: - 数据导出 / 导入
+    func openDiagnosticsCenter() {
+        if selectedTab != .diagnostics {
+            diagnosticsReturnTab = selectedTab
+        }
+        selectedTab = .diagnostics
+        Task { await refreshDiagnostics() }
+    }
 
-    /// 导出设置 + 密钥到用户选择的 JSON（含明文 API Key，仅本机保管）。
-    func exportDataBackup() {
-        let secretsMap = secrets.exportAll()
-        let package = DataBackupService.makePackage(
-            settings: settings,
-            secrets: secretsMap,
-            appVersion: appVersion
+    func closeDiagnosticsCenter() {
+        selectedTab = diagnosticsReturnTab == .diagnostics ? .home : diagnosticsReturnTab
+    }
+
+    func openSettingsFromDiagnostics() {
+        selectedTab = .settings
+    }
+
+    func refreshDiagnostics() async {
+        guard !isCollectingDiagnostics else { return }
+        isCollectingDiagnostics = true
+        defer { isCollectingDiagnostics = false }
+        let notification = await MacNotificationService.shared.authorizationState()
+        let refreshSummary = DiagnosticRefreshSummary(
+            refreshState: refreshCoordinator.state,
+            lastRefreshAt: lastRefreshAt,
+            succeededCount: refreshCoordinator.lastAcceptedOutcome?.succeededCount ?? 0,
+            failedCount: refreshCoordinator.lastAcceptedOutcome?.failedCount ?? 0
         )
+        let snapshotSettings = settings
+        let snapshotUsage = usageHistory
+        let usageError = usageDataError
+        let usageHealth = usageStorageHealth
+        let version = appVersion
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        let settingsURL = store.fileURL
+        let usageURL = usageStore.fileURL
+        let report = await Task.detached(priority: .userInitiated) {
+            let keychain = LocalSecretStore.shared.availabilityStatus()
+            let context = DiagnosticsService.makeLiveContext(
+                settings: snapshotSettings,
+                usage: snapshotUsage,
+                usageSaveError: usageError,
+                usageHealth: usageHealth,
+                refresh: refreshSummary,
+                keychainStatus: keychain,
+                notificationAuthorization: notification,
+                appVersion: version,
+                build: build,
+                settingsFileURL: settingsURL,
+                usageHistoryFileURL: usageURL
+            )
+            return DiagnosticsService().collect(context)
+        }.value
+        diagnosticReport = report
+    }
 
+    func copyDiagnosticsSummary() {
+        guard let report = diagnosticReport else { return }
+        let text = PrivacyRedactor.redact(DiagnosticArchiveWriter.textSummary(report))
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        presentLocalizedBanner("diagnostics.copied")
+    }
+
+    func exportDiagnostics() {
+        guard let report = diagnosticReport else { return }
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        panel.title = "导出智余数据"
-        panel.message = "备份包含全部账号配置与 API 密钥（明文）。请妥善保管，勿上传公开网盘。"
-        panel.nameFieldStringValue = DataBackupService.defaultFileName()
-        panel.allowedContentTypes = [.json]
-
-        // 菜单栏 App：把面板提到前台
+        panel.title = L10n.shared.t("diagnostics.export.title")
+        panel.nameFieldStringValue = "smartbalance-diagnostics.zip"
+        panel.allowedContentTypes = [.zip]
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
         do {
-            try DataBackupService.write(package, to: url)
-            let secretCount = secretsMap.count
-            let accountCount = settings.accounts.count
-            let msg = "已导出 \(accountCount) 个账号 · \(secretCount) 条密钥\n\(url.path)"
-            banner = "数据已导出"
-            presentAlert(title: "导出成功", message: msg)
-            AppLog.info("Data backup exported · accounts=\(accountCount) secrets=\(secretCount) → \(url.lastPathComponent)")
+            try DiagnosticArchiveWriter().writeZip(report, to: url)
+            presentLocalizedBanner("diagnostics.export.success")
+            AppLog.info("Diagnostic archive exported")
         } catch {
-            banner = "导出失败：\(error.localizedDescription)"
-            presentAlert(title: "导出失败", message: error.localizedDescription)
-            AppLog.error("Data backup export failed: \(error.localizedDescription)")
+            presentLocalizedBanner("diagnostics.export.failed")
+            AppLog.error("Diagnostic export failed", category: .filesystem, event: "diagnostics_export_failed")
         }
     }
 
-    /// 从备份 JSON 恢复；会覆盖当前设置与密钥库。
-    func importDataBackup() {
+    func openDiagnosticsHelp() {
+        openHelpCenter()
+    }
+
+    func openHelpCenter(topic: HelpTopicID? = nil) {
+        helpPage = topic.map { .topic($0) } ?? .index
+    }
+
+    func openHelpTopic(_ id: HelpTopicID) {
+        helpPage = .topic(id)
+    }
+
+    func closeHelpCenter() {
+        switch helpPage {
+        case .topic:
+            helpPage = .index
+        case .index, .none:
+            helpPage = nil
+        }
+    }
+
+    func performErrorAction(_ action: ErrorNextAction, kind: ActionableErrorKind) {
+        switch SupportViewMapping.destination(for: action, kind: kind, bannerKey: bannerKey) {
+        case .refresh:
+            refresh(trigger: .manual)
+        case .settings:
+            helpPage = nil
+            selectedTab = .settings
+        case .settingsAPIAccounts:
+            helpPage = nil
+            preferExpandAPIAccounts = true
+            selectedTab = .settings
+        case .logs:
+            openLogs()
+        case .diagnostics:
+            openDiagnosticsCenter()
+        case .backupRestore:
+            helpPage = nil
+            selectedTab = .settings
+            openBackupRestore()
+        case .help:
+            openHelpCenter(topic: ActionableErrorPolicy.presentation(for: kind).helpTopic)
+        case .retryExportDiagnostics:
+            exportDiagnostics()
+        case .retryExportTransfer:
+            if bannerKey == "recovery.result.export_failed" {
+                exportRecoverySettings()
+            } else {
+                exportSettingsTransfer()
+            }
+        case .retryExportBackup:
+            exportLocalBackup()
+        case .retryUpdateCheck:
+            checkForUpdates()
+        case .retryUpdateInstall:
+            requestInstallUpdate()
+        }
+    }
+
+    func handleSupportEscape() {
+        if helpPage != nil {
+            closeHelpCenter()
+            return
+        }
+        if selectedTab == .diagnostics {
+            closeDiagnosticsCenter()
+            return
+        }
+        if settingsSupportPage != nil || restorePreview != nil || restoreOutcome != nil {
+            closeSettingsSupport()
+            return
+        }
+        if selectedTab == .usage || selectedTab == .settings {
+            selectedTab = .home
+        }
+    }
+
+    func handleSupportReturn() {
+        if helpPage != nil { return }
+        if restorePreview != nil {
+            confirmPendingRestore()
+            return
+        }
+        if settingsSupportPage == .updates, updateAwaitingInstallConfirm {
+            confirmInstallUpdate()
+            return
+        }
+        if selectedTab == .settings, settingsSupportPage == nil, restoreOutcome == nil {
+            selectedTab = .home
+        }
+    }
+
+    // MARK: - Settings transfer / local restore
+
+    func openSettingsTransfer() {
+        settingsSupportPage = .transfer
+        clearRestorePreview(resetPage: false)
+    }
+
+    func openBackupRestore() {
+        settingsSupportPage = .backup
+        clearRestorePreview(resetPage: false)
+    }
+
+    func closeSettingsSupport() {
+        if settingsSupportPage == .updates {
+            if updatePhase == .downloading || updatePhase == .validating {
+                cancelUpdateDownload()
+            }
+            updateAwaitingInstallConfirm = false
+            settingsSupportPage = nil
+            return
+        }
+        abortInFlightRestore()
+        if restorePreview != nil || restoreOutcome != nil {
+            clearRestorePreview(resetPage: false)
+            return
+        }
+        settingsSupportPage = nil
+    }
+
+    func exportSettingsTransfer() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("settings.transfer.export_title")
+        panel.message = L10n.shared.t("settings.transfer.export_message")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.transfer.file_prefix")
+        )
+        panel.allowedContentTypes = [.json]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try SettingsTransferService.writeExport(
+                settings: settings,
+                appVersion: appVersion,
+                to: url
+            )
+            presentLocalizedBanner("settings.transfer.export_ok")
+            AppLog.info("Settings transfer exported")
+        } catch {
+            presentLocalizedBanner("settings.transfer.export_failed")
+            AppLog.error("Settings transfer export failed", category: .backup, event: "settings_export_failed")
+        }
+    }
+
+    func exportLocalBackup() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("settings.backup.export_title")
+        panel.message = L10n.shared.t("settings.backup.export_message")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.backup.file_prefix")
+        )
+        panel.allowedContentTypes = [.json]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try SettingsTransferService.writeLocalRestore(
+                settings: settings,
+                usage: restoreIncludeUsage ? usageHistory : nil,
+                appVersion: appVersion,
+                to: url
+            )
+            presentLocalizedBanner("settings.backup.export_ok")
+            AppLog.info("Local restore package exported")
+        } catch {
+            presentLocalizedBanner("settings.backup.export_failed")
+            AppLog.error("Local restore export failed", category: .backup, event: "restore_export_failed")
+        }
+    }
+
+    func pickSettingsImport() {
+        pickRestoreFile(mode: .transfer)
+    }
+
+    func pickLocalRestore() {
+        pickRestoreFile(mode: .backup)
+    }
+
+    func confirmPendingRestore() {
+        guard let data = pendingRestoreData, !restoreBusy else { return }
+        let preview = restorePreview
+        if preview?.isLegacySecretBackup == true && !restoreLegacyAcknowledged {
+            return
+        }
+        restoreBusy = true
+        let includeUsage = pendingRestoreMode == .backup && restoreIncludeUsage
+        let allowLegacy = preview?.isLegacySecretBackup == true && restoreLegacyAcknowledged
+        var prepared = preview
+        prepared?.settings.windowPinned = false
+        prepared?.settings.apiQueryEnabled = true
+        let token = restoreSession.begin()
+        restoreTask?.cancel()
+        restoreTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let outcome: RestoreOutcome
+            if let prepared {
+                outcome = await self.restoreCoordinator.restore(
+                    preview: prepared,
+                    confirmed: true,
+                    includeUsage: includeUsage,
+                    allowLegacyNonSensitive: allowLegacy
+                )
+            } else {
+                outcome = await self.restoreCoordinator.restore(
+                    from: data,
+                    confirmed: true,
+                    includeUsage: includeUsage,
+                    allowLegacyNonSensitive: allowLegacy
+                )
+            }
+            guard self.restoreSession.isCurrent(token), !Task.isCancelled else { return }
+            self.restoreBusy = false
+            self.restoreTask = nil
+            self.restoreOutcome = outcome
+            if outcome.status == .succeeded {
+                self.applyRestoredState(outcome)
+                self.presentLocalizedBanner("restore.result.ok")
+            } else if outcome.status == .cancelled {
+                self.presentLocalizedBanner("restore.result.cancelled")
+            } else {
+                self.presentLocalizedBanner(self.restoreFailureKey(outcome.failureReason))
+            }
+        }
+    }
+
+    func cancelPendingRestore() {
+        abortInFlightRestore()
+        restoreOutcome = RestoreOutcome.cancelled()
+        pendingRestoreData = nil
+        restorePreview = nil
+        restoreLegacyAcknowledged = false
+        presentLocalizedBanner("restore.result.cancelled")
+    }
+
+    func openBackupDirectory() {
+        let directory = store.fileURL.deletingLastPathComponent()
+        NSWorkspace.shared.activateFileViewerSelecting([directory])
+        AppLog.info("Opened backup directory")
+    }
+
+    func isCredentialMissing(for account: BalanceAccount) -> Bool {
+        secrets.credentialPresence(for: account.secretRef) == .missing
+    }
+
+    private func pickRestoreFile(mode: SettingsSupportPage) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = "导入智余数据"
-        panel.message = "选择之前导出的备份 JSON。导入后会覆盖本机现有账号与密钥。"
+        panel.title = L10n.shared.t(mode == .transfer ? "settings.transfer.import_title" : "settings.backup.restore_title")
+        panel.message = L10n.shared.t(mode == .transfer ? "settings.transfer.import_message" : "settings.backup.restore_message")
         panel.allowedContentTypes = [.json]
-
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        let package: DataBackupPackage
+        let data: Data
         do {
-            package = try DataBackupService.read(from: url)
+            data = try Data(contentsOf: url)
         } catch {
-            banner = "导入失败：\(error.localizedDescription)"
-            presentAlert(title: "导入失败", message: error.localizedDescription)
-            AppLog.error("Data backup import read failed: \(error.localizedDescription)")
+            presentLocalizedBanner("restore.error.read")
+            AppLog.error("Restore file read failed", category: .backup, event: "restore_read_failed")
             return
         }
-
-        let confirm = NSAlert()
-        confirm.messageText = "确认导入并覆盖？"
-        confirm.informativeText = """
-        将恢复 \(package.settings.accounts.count) 个账号、\(package.secrets.count) 条密钥（导出自 \(package.appVersion)）。
-
-        当前本机数据会被替换。若只想试装 App，请先导出再卸载。
-        """
-        confirm.alertStyle = .warning
-        confirm.addButton(withTitle: "导入并覆盖")
-        confirm.addButton(withTitle: "取消")
-        NSApp.activate(ignoringOtherApps: true)
-        guard confirm.runModal() == .alertFirstButtonReturn else { return }
-
         do {
-            try applyImportedBackup(package)
-            let msg = "已导入 \(package.settings.accounts.count) 个账号 · \(package.secrets.count) 条密钥"
-            banner = "数据已导入 · 正在刷新余额"
-            presentAlert(title: "导入成功", message: msg)
-            AppLog.info("Data backup imported · accounts=\(package.settings.accounts.count) secrets=\(package.secrets.count)")
-            requestUsageBaselineResetAndRefresh(for: Set(package.settings.accounts.map(\.id)))
+            let preview = try SettingsTransferService.preview(from: data)
+            pendingRestoreData = data
+            pendingRestoreMode = mode
+            restoreIncludeUsage = mode == .backup && preview.includesUsageHistory
+            restoreLegacyAcknowledged = false
+            restoreOutcome = nil
+            restorePreview = preview
+            AppLog.info(
+                "Restore preview format=\(preview.format) v\(preview.formatVersion) legacy=\(preview.isLegacySecretBackup)"
+            )
+        } catch SettingsTransferError.formatMismatch {
+            presentLocalizedBanner("restore.error.format")
+        } catch SettingsTransferError.versionTooNew {
+            presentLocalizedBanner("restore.error.version")
+        } catch SettingsTransferError.corruptUsage {
+            presentLocalizedBanner("restore.error.usage")
         } catch {
-            banner = "导入失败：\(error.localizedDescription)"
-            presentAlert(title: "导入失败", message: error.localizedDescription)
-            AppLog.error("Data backup import apply failed: \(error.localizedDescription)")
+            presentLocalizedBanner("restore.error.decode")
         }
     }
 
-    private func applyImportedBackup(_ package: DataBackupPackage) throws {
-        var next = package.settings
-        next.windowPinned = false
-        next.apiQueryEnabled = true
-
-        // 导入事务：settings 失败则回滚 vault
-        let vaultBefore = secrets.snapshot()
-        try secrets.replaceAll(package.secrets)
-        do {
-            try store.save(next)
-        } catch {
-            try? secrets.replaceAll(vaultBefore)
-            throw error
-        }
-
+    private func applyRestoredState(_ outcome: RestoreOutcome) {
+        let next = outcome.settings ?? store.reloadFromDisk()
         invalidateActiveRefresh()
         settings = next
         pinWindowOpen = false
@@ -1086,92 +1523,284 @@ final class AppModel: ObservableObject {
         L10n.shared.setLanguage(next.resolvedLanguage)
         applyAppearancePreference()
         rescheduleManualReminders()
-        startAutoRefreshIfNeeded()
+        if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) {
+            startAutoRefreshIfNeeded()
+        }
+        if outcome.includedUsage, let usage = outcome.usageHistory {
+            usageHistory = usage
+            applyUsageHealth(lastError: nil, recovered: false)
+        }
+        if RecoveryLaunchPolicy.allowsProviderCredentialRead(route: sessionRoute) {
+            preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
+        }
         objectWillChange.send()
+        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else { return }
+        if RestoreApplyPolicy.shouldResetUsageBaselines(includedUsage: outcome.includedUsage) {
+            requestUsageBaselineResetAndRefresh(for: Set(next.accounts.map(\.id)))
+        } else {
+            refresh()
+        }
     }
 
-    /// 一点「检查更新」：有新版本则直接下 pkg 静默安装，中间不弹任何窗。
+    private func abortInFlightRestore() {
+        restoreSession.cancel()
+        restoreTask?.cancel()
+        restoreTask = nil
+        restoreBusy = false
+    }
+
+    private func clearRestorePreview(resetPage: Bool) {
+        abortInFlightRestore()
+        restorePreview = nil
+        restoreOutcome = nil
+        pendingRestoreData = nil
+        restoreLegacyAcknowledged = false
+        if resetPage {
+            settingsSupportPage = nil
+        }
+    }
+
+    private func restoreFailureKey(_ reason: RestoreFailureReason?) -> String {
+        reason?.localizationKey ?? "restore.result.failed"
+    }
+
+    /// Check only. Never downloads or installs.
     func checkForUpdates() {
         guard !updateChecking else { return }
         updateChecking = true
-        updateMessage = "正在检查更新…"
+        updatePhase = .checking
+        updateMessage = L10n.shared.t("update.check.checking")
         updateOpenURL = nil
         updateDownloadURL = nil
         updateAvailable = false
         updateDownloadProgress = nil
-        Task {
-            let result = await updateChecker.check()
-            await MainActor.run {
-                self.updateMessage = result.message
-                self.updateOpenURL = result.openURL
-                self.updateDownloadURL = result.downloadURL
-                self.updateAvailable = result.status == .available
-                AppLog.info("Update check: \(result.message)")
-            }
-            if result.status == .available {
-                await downloadAndInstallUpdate(result: result)
-            } else {
-                await MainActor.run { self.updateChecking = false }
-            }
+        updateAwaitingInstallConfirm = false
+        updateErrorSummary = nil
+        updateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let result = await self.updateChecker.check()
+            self.applyCheckResult(result)
         }
     }
 
+    func openUpdateDetails() {
+        settingsSupportPage = .updates
+        selectedTab = .settings
+    }
+
+    func requestInstallUpdate() {
+        guard let validation = updateValidation, validation.canInstall else { return }
+        updateAwaitingInstallConfirm = true
+        updatePhase = .awaitingInstallConfirm
+    }
+
+    func cancelInstallConfirmation() {
+        updateAwaitingInstallConfirm = false
+        if updateAvailable {
+            updatePhase = .available
+        }
+    }
+
+    func confirmInstallUpdate() {
+        guard RecoveryLaunchPolicy.allowsUpdateInstall(route: sessionRoute) else { return }
+        guard updateAwaitingInstallConfirm else { return }
+        updateAwaitingInstallConfirm = false
+        updateTask = Task { @MainActor [weak self] in
+            await self?.performDownloadValidateInstall()
+        }
+    }
+
+    func cancelUpdateDownload() {
+        releaseDownloader?.cancel()
+        updateTask?.cancel()
+        updateTask = nil
+        if let temp = updateTempURL {
+            releaseDownloader?.cleanup(temp)
+            updateTempURL = nil
+        }
+        updateChecking = false
+        updateDownloadProgress = nil
+        updatePhase = updateAvailable ? .available : .idle
+        updateMessage = L10n.shared.t("update.error.cancelled")
+    }
+
+    func copyUpdateErrorSummary() {
+        let text = updateErrorSummary
+            ?? updateValidation?.errorSummaryKeys.map { L10n.shared.t($0) }.joined(separator: "\n")
+            ?? updateMessage
+            ?? ""
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        presentLocalizedBanner("update.error.copied")
+    }
+
+    func openUpdateURL() {
+        let url = updateDetails?.releasePageURL ?? updateOpenURL ?? UpdateChecker.releasesPage
+        guard let url else { return }
+        if url.isFileURL {
+            NSWorkspace.shared.open(url)
+        } else {
+            BrowserLauncher.open(url)
+        }
+    }
+
+    private func applyCheckResult(_ result: UpdateCheckResult) {
+        let decision = UpdateCheckApplyPolicy.decision(for: result.status)
+        updateChecking = false
+        updateOpenURL = result.openURL
+        updateDownloadURL = result.downloadURL
+        updateAvailable = decision.available
+        updateDetails = result.details
+        updateMessage = localizedUpdateMessage(result)
+        updatePhase = decision.phase
+        AppLog.info("Update check: \(result.messageKey) \(result.message)")
+
+        guard !decision.startsDownload, !decision.startsInstall else {
+            AppLog.error("Update check refused to auto-install")
+            return
+        }
+
+        if decision.shouldOpenDetails, let details = result.details {
+            if let candidate = UpdateCandidate.make(details: details, currentMacOS: currentMacOSString) {
+                updateValidation = UpdateSafetyValidator().validate(candidate)
+            } else {
+                updateValidation = UpdateValidationResult.making(
+                    issues: [.assetExtensionNotAllowed],
+                    checksumStatus: .unverifiable,
+                    checksumDisplay: .unverifiable
+                )
+            }
+            settingsSupportPage = .updates
+            selectedTab = .settings
+        } else if !decision.shouldOpenDetails {
+            updateValidation = nil
+        }
+    }
+
+    private func localizedUpdateMessage(_ result: UpdateCheckResult) -> String {
+        if result.messageKey.isEmpty {
+            return result.message
+        }
+        return L10n.shared.format(result.messageKey, result.messageArguments)
+    }
+
+    private var currentMacOSString: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
     @MainActor
-    private func downloadAndInstallUpdate(result: UpdateCheckResult) async {
-        guard let remote = result.downloadURL else {
-            updateChecking = false
-            updateMessage = (result.message) + "（无安装包）"
+    private func performDownloadValidateInstall() async {
+        guard RecoveryLaunchPolicy.allowsUpdateInstall(route: sessionRoute) else { return }
+        guard let details = updateDetails, let asset = details.asset else {
+            updateMessage = L10n.shared.t("update.check.no_package")
+            updatePhase = .failed
             return
         }
-        guard remote.scheme?.lowercased() == "https" else {
-            updateChecking = false
-            updateMessage = "下载地址必须为 HTTPS"
-            return
-        }
-        let ver = result.latestVersion ?? ""
-        updateMessage = "正在下载 \(ver)…"
+        updateChecking = true
+        updatePhase = .downloading
         updateDownloadProgress = 0
+        updateErrorSummary = nil
+        let downloader = ReleaseDownloader()
+        releaseDownloader = downloader
         do {
-            let file = try await ReleaseDownloader().download(from: remote) { [weak self] fraction in
+            let temp = try await downloader.downloadToTemporaryFile(
+                from: asset.downloadURL,
+                fileName: asset.fileName,
+                expectedSize: asset.byteSize
+            ) { [weak self] fraction in
                 Task { @MainActor in
                     self?.updateDownloadProgress = fraction
-                    self?.updateMessage = "下载 \(ver)  \(Int((fraction * 100).rounded()))%"
+                    self?.updateMessage = L10n.shared.format(
+                        "update.progress.downloading",
+                        ["\(Int((fraction * 100).rounded()))"]
+                    )
                 }
             }
-            updateDownloadProgress = 1
-            let ext = file.pathExtension.lowercased()
-            if ext == "pkg" {
-                updateMessage = "正在安装 \(ver)…"
-                try PackageSilentInstaller.scheduleReplace(pkgURL: file)
-                updateMessage = "安装中，即将重启…"
+            if Task.isCancelled {
+                downloader.cleanup(temp)
+                return
+            }
+            updateTempURL = temp
+            updatePhase = .validating
+            updateMessage = L10n.shared.t("update.progress.validating")
+
+            let actualSize = (try? FileManager.default.attributesOfItem(atPath: temp.path)[.size] as? NSNumber)?.int64Value ?? asset.byteSize
+            var candidate = try makeDownloadedCandidate(details: details, fileURL: temp, byteSize: actualSize)
+            candidate.downloadedFileSHA256 = try SHA256Verifier.hexDigest(ofFile: temp)
+            let integrity = DefaultPackageIntegrityInspector().inspect(fileURL: temp)
+            let validation = UpdateSafetyValidator().validate(candidate, integrity: integrity)
+            updateValidation = validation
+            guard validation.canInstall else {
+                downloader.cleanup(temp)
+                updateTempURL = nil
+                updateChecking = false
+                updateDownloadProgress = nil
+                updatePhase = .failed
+                updateErrorSummary = validation.errorSummaryKeys.map { L10n.shared.t($0) }.joined(separator: "\n")
+                updateMessage = L10n.shared.t(validation.blockingIssues.first?.localizationKey ?? "update.error.validationFailed")
+                AppLog.error("Update validation failed: \(updateErrorSummary ?? "")")
+                return
+            }
+
+            let promoted = try downloader.promoteToDownloads(tempURL: temp, fileName: asset.fileName)
+            updateTempURL = nil
+            if asset.kind == .pkg {
+                updatePhase = .installing
+                updateMessage = L10n.shared.t("update.progress.installing")
+                try PackageSilentInstaller.scheduleReplace(
+                    pkgURL: promoted,
+                    candidate: candidate,
+                    environment: PackageInstallEnvironment(
+                        markerDirectory: crashRecovery.directory
+                    )
+                )
+                updateMessage = L10n.shared.t("update.progress.restarting")
                 updateChecking = false
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 NSApp.terminate(nil)
                 return
             }
-            // dmg / zip 回退：无确认框直接打开文件
-            updateMessage = "已下载，正在打开安装包…"
-            updateChecking = false
-            NSWorkspace.shared.open(file)
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            NSApp.terminate(nil)
-        } catch {
+            updatePhase = .available
             updateChecking = false
             updateDownloadProgress = nil
-            updateMessage = "更新失败：\(error.localizedDescription)"
-            AppLog.error("Update failed: \(error.localizedDescription)")
+            updateMessage = L10n.shared.t("update.progress.opened_package")
+            NSWorkspace.shared.open(promoted)
+        } catch is CancellationError {
+            cancelUpdateDownload()
+        } catch let error as ReleaseDownloadError {
+            finishUpdateFailure(key: error.localizationKey, detail: error.localizedDescription)
+        } catch let error as PackageSilentInstaller.InstallError {
+            finishUpdateFailure(key: error.localizationKey, detail: error.localizedDescription)
+        } catch {
+            finishUpdateFailure(key: "update.error.validationFailed", detail: error.localizedDescription)
         }
     }
 
-    func openUpdateURL() {
-        if let url = updateDownloadURL ?? updateOpenURL {
-            // 本地文件仍用系统打开；网页优先 Chrome
-            if url.isFileURL {
-                NSWorkspace.shared.open(url)
-            } else {
-                BrowserLauncher.open(url)
-            }
+    private func makeDownloadedCandidate(details: UpdateReleaseDetails, fileURL: URL, byteSize: Int64) throws -> UpdateCandidate {
+        guard var candidate = UpdateCandidate.make(
+            details: details,
+            currentMacOS: currentMacOSString,
+            downloadedFileURL: fileURL
+        ) else {
+            throw ReleaseDownloadError.validationFailed
         }
+        candidate.assetByteSize = byteSize
+        return candidate
+    }
+
+    private func finishUpdateFailure(key: String, detail: String) {
+        if let temp = updateTempURL {
+            releaseDownloader?.cleanup(temp)
+            updateTempURL = nil
+        }
+        updateChecking = false
+        updateDownloadProgress = nil
+        updatePhase = .failed
+        updateMessage = L10n.shared.t(key)
+        updateErrorSummary = [L10n.shared.t(key), detail].joined(separator: "\n")
+        AppLog.error("Update failed: \(detail)")
     }
 
     var appVersion: String {
@@ -1286,7 +1915,7 @@ final class AppModel: ObservableObject {
     }
 
     func hasSecret(for account: BalanceAccount) -> Bool {
-        secrets.contains(account: account.secretRef)
+        secrets.credentialPresence(for: account.secretRef) == .present
     }
 
     func hasSMTPPassword() -> Bool {
@@ -1297,7 +1926,374 @@ final class AppModel: ObservableObject {
         try? store.save(settings)
     }
 
+    // MARK: - First launch / compatibility
+
+    func prepareLaunchSession() {
+        let started = crashRecovery.beginSession()
+        recoveryDecision = started.decision
+        let load = firstLaunchStore.load()
+        let hasExistingAccounts = !settings.accounts.isEmpty
+        let firstLaunchRoute = FirstLaunchRouter.route(
+            loadResult: load,
+            hasExistingAccounts: hasExistingAccounts
+        )
+        onboardingStep = FirstLaunchRouter.initialStep(for: load)
+        if FirstLaunchRouter.shouldSeedCompletedState(
+            loadResult: load,
+            hasExistingAccounts: hasExistingAccounts
+        ) {
+            try? firstLaunchStore.save(
+                FirstLaunchState(
+                    completedAt: Date(),
+                    acknowledgedPrivacy: true,
+                    lastCompatibilityReport: compatibilityReport
+                )
+            )
+        }
+        sessionRoute = RecoveryRouter.route(
+            decision: started.decision,
+            firstLaunchRoute: firstLaunchRoute
+        )
+        if sessionRoute != .safeMode {
+            crashRecovery.markSessionHealthy()
+        }
+    }
+
+    func refreshCompatibilityReport() async {
+        let notification = await MacNotificationService.shared.authorizationState()
+        let context = CompatibilityChecker.makeLiveContext(
+            notificationAuthorization: notification,
+            settingsFileURL: store.fileURL,
+            usageHistoryFileURL: usageStore.fileURL,
+            usageStorageHealth: usageStorageHealth
+        )
+        compatibilityReport = compatibilityChecker.evaluate(context)
+        let data = try? Data(contentsOf: store.fileURL)
+        compatibilityMigrationResult = SettingsMigrationRunner().evaluateCompatibility(
+            data: data,
+            usageHealth: usageStorageHealth,
+            notification: notification
+        )
+    }
+
+    func acknowledgePrivacy() {
+        persistPartialFirstLaunch(acknowledgedPrivacy: true)
+        onboardingStep = FirstLaunchRouter.nextStep(after: .privacy) ?? .compatibility
+        Task { await refreshCompatibilityReport() }
+    }
+
+    func continueFromCompatibility() {
+        if sessionRoute == .compatibility {
+            dismissCompatibilityToHome()
+            return
+        }
+        onboardingStep = FirstLaunchRouter.nextStep(after: .compatibility) ?? .addProvider
+    }
+
+    func skipCompatibilityForNow() {
+        continueFromCompatibility()
+    }
+
+    func chooseAddFirstProvider() {
+        pendingOpenSettingsAfterOnboarding = true
+        preferExpandAPIAccounts = true
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func chooseOpenExistingConfiguration() {
+        pendingOpenSettingsAfterOnboarding = true
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func continueFromProviderStep() {
+        onboardingStep = FirstLaunchRouter.nextStep(after: .addProvider) ?? .notifications
+    }
+
+    func enableNotificationsFromOnboarding() {
+        Task {
+            guard RecoveryLaunchPolicy.allowsNotificationAuthorization(route: sessionRoute) else { return }
+            _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
+            settings.alertChannels.macNotificationEnabled = true
+            persist()
+            await refreshNotificationStatus()
+            rescheduleManualReminders()
+            finishOnboarding()
+        }
+    }
+
+    func skipNotificationsFromOnboarding() {
+        finishOnboarding()
+    }
+
+    func openCompatibilityFromSettings() {
+        Task { await refreshCompatibilityReport() }
+    }
+
+    func openSettingsFromCompatibility() {
+        repairCorruptFirstLaunchStateIfNeeded()
+        sessionRoute = .home
+        selectedTab = .settings
+        startAutoRefreshIfNeeded()
+    }
+
+    func dismissCompatibilityToHome() {
+        repairCorruptFirstLaunchStateIfNeeded()
+        sessionRoute = .home
+        startAutoRefreshIfNeeded()
+    }
+
+    private func repairCorruptFirstLaunchStateIfNeeded() {
+        guard firstLaunchStore.load() == .corrupt else { return }
+        try? firstLaunchStore.save(
+            FirstLaunchState(
+                completedAt: Date(),
+                acknowledgedPrivacy: true,
+                lastCompatibilityReport: compatibilityReport
+            )
+        )
+    }
+
+    private func finishOnboarding() {
+        let state = FirstLaunchState(
+            completedAt: Date(),
+            acknowledgedPrivacy: true,
+            lastCompatibilityReport: compatibilityReport
+        )
+        try? firstLaunchStore.save(state)
+        sessionRoute = FirstLaunchRouter.route(
+            loadResult: .loaded(state),
+            hasExistingAccounts: !settings.accounts.isEmpty,
+            completedThisSession: true
+        )
+        if pendingOpenSettingsAfterOnboarding {
+            selectedTab = .settings
+        }
+        startAutoRefreshIfNeeded()
+    }
+
+    private func persistPartialFirstLaunch(acknowledgedPrivacy: Bool) {
+        let state = FirstLaunchState(
+            completedAt: nil,
+            acknowledgedPrivacy: acknowledgedPrivacy,
+            lastCompatibilityReport: compatibilityReport
+        )
+        try? firstLaunchStore.save(state)
+    }
+
     func quit() {
+        crashRecovery.markCleanQuit()
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Safe mode
+
+    func requestRecoveryAction(_ action: RecoveryAction) {
+        guard sessionRoute == .safeMode else { return }
+        if RecoveryActionPolicy.requiresConfirmation(action) {
+            pendingRecoveryAction = action
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .confirming,
+                messageKey: RecoveryActionPolicy.confirmMessageKey(for: action)
+            )
+            return
+        }
+        performRecoveryAction(action)
+    }
+
+    func cancelRecoveryAction() {
+        pendingRecoveryAction = nil
+        if recoveryActionOutcome?.status == .confirming {
+            recoveryActionOutcome = nil
+        }
+    }
+
+    func confirmRecoveryAction() {
+        guard let action = pendingRecoveryAction else { return }
+        pendingRecoveryAction = nil
+        performRecoveryAction(action)
+    }
+
+    func continueFromSafeMode() {
+        let firstLaunchRoute = FirstLaunchRouter.route(
+            loadResult: firstLaunchStore.load(),
+            hasExistingAccounts: !settings.accounts.isEmpty
+        )
+        recoveryDecision = crashRecovery.continueNormalStart()
+        sessionRoute = RecoveryRouter.routeAfterContinue(firstLaunchRoute: firstLaunchRoute)
+        crashRecovery.markSessionHealthy()
+        pendingRecoveryAction = nil
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .continueNormalStart,
+            status: .succeeded,
+            messageKey: "recovery.result.entered_normal"
+        )
+        if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) {
+            startAutoRefreshIfNeeded()
+        }
+    }
+
+    private func performRecoveryAction(_ action: RecoveryAction) {
+        switch action {
+        case .openDiagnostics:
+            openDiagnosticsCenter()
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .succeeded,
+                messageKey: "recovery.result.diagnostics"
+            )
+        case .openLogs:
+            openLogs()
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .succeeded,
+                messageKey: "recovery.result.logs"
+            )
+        case .exportSettings:
+            exportRecoverySettings()
+        case .restoreLatestSnapshot:
+            Task { await restoreLatestRecoverySnapshot() }
+        case .resetSettings:
+            Task { await resetSettingsFromSafeMode() }
+        case .continueNormalStart:
+            continueFromSafeMode()
+        }
+    }
+
+    private func exportRecoverySettings() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("recovery.action.exportSettings")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.transfer.file_prefix")
+        )
+        panel.allowedContentTypes = [.json]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try crashRecovery.exportNonSensitiveSettings(to: url, appVersion: appVersion)
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .exportSettings,
+                status: .succeeded,
+                messageKey: "recovery.result.export_ok"
+            )
+            presentLocalizedBanner("recovery.result.export_ok")
+        } catch {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .exportSettings,
+                status: .failed,
+                messageKey: "recovery.result.export_failed"
+            )
+            presentLocalizedBanner("recovery.result.export_failed")
+        }
+    }
+
+    private func restoreLatestRecoverySnapshot() async {
+        guard !recoveryBusy else { return }
+        recoveryBusy = true
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .restoreLatestSnapshot,
+            status: .running,
+            messageKey: "recovery.result.restore_running"
+        )
+        let outcome = await crashRecovery.restoreLatestSnapshot(includeUsage: recoveryResetIncludeUsage)
+        recoveryBusy = false
+        if outcome.status == .succeeded {
+            applyRecoveredDiskState(outcome)
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .restoreLatestSnapshot,
+                status: .succeeded,
+                messageKey: "recovery.result.restore_ok"
+            )
+            presentLocalizedBanner("recovery.result.restore_ok")
+        } else {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .restoreLatestSnapshot,
+                status: .failed,
+                messageKey: outcome.failureReason == nil
+                    ? "recovery.result.no_snapshot"
+                    : "recovery.result.restore_failed"
+            )
+            presentLocalizedBanner("recovery.result.restore_failed")
+        }
+    }
+
+    private func resetSettingsFromSafeMode() async {
+        guard !recoveryBusy else { return }
+        recoveryBusy = true
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .resetSettings,
+            status: .running,
+            messageKey: "recovery.result.reset_running"
+        )
+        let outcome: RecoveryResetOutcome
+        do {
+            outcome = try await crashRecovery.resetSettings(
+                includeUsageHistory: recoveryResetIncludeUsage
+            )
+        } catch {
+            recoveryBusy = false
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .failed,
+                messageKey: "recovery.result.reset_failed"
+            )
+            presentLocalizedBanner("recovery.result.reset_failed")
+            return
+        }
+        recoveryBusy = false
+        if outcome.succeeded {
+            settings = store.reloadFromDisk()
+            selectedAccountId = nil
+            snapshots = []
+            if outcome.resetUsageHistory {
+                usageHistory = UsageHistoryDocument()
+                applyUsageHealth(lastError: nil, recovered: false)
+            }
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .succeeded,
+                messageKey: "recovery.result.reset_ok"
+            )
+            presentLocalizedBanner("recovery.result.reset_ok")
+        } else {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .failed,
+                messageKey: "recovery.result.reset_failed"
+            )
+            presentLocalizedBanner("recovery.result.reset_failed")
+        }
+    }
+
+    private func applyRecoveredDiskState(_ outcome: RestoreOutcome) {
+        let next = outcome.settings ?? store.reloadFromDisk()
+        settings = next
+        pinWindowOpen = false
+        selectedAccountId = next.enabledAccounts.first?.id
+        snapshots = Self.placeholderSnapshots(from: next)
+        lastRefreshAt = nil
+        recentAlerts = []
+        L10n.shared.setLanguage(next.resolvedLanguage)
+        applyAppearancePreference()
+        if outcome.includedUsage, let usage = outcome.usageHistory {
+            usageHistory = usage
+            applyUsageHealth(lastError: nil, recovered: false)
+        }
+    }
+
+    private func applyUsageHealth(
+        lastError: UsageStorageLastError?,
+        recovered: Bool? = nil
+    ) {
+        if let recovered {
+            usageRecoveryNotice = recovered
+        }
+        usageDataError = lastError?.rawValue
+        usageStorageHealth = UsageStorageHealth.resolve(
+            recoveredFromCorruptFile: usageRecoveryNotice,
+            lastError: lastError
+        )
     }
 }

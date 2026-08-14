@@ -25,6 +25,8 @@
 | 仅文档 / 注释 / Agent 说明 | `git commit` + `git push origin main`（可不升版本） |
 | 编译都不过 | 禁止发版；修到能编过 |
 
+**覆盖（`docs/superpowers/plans/2026-08-14-mac-common-capabilities.md`）：** 该计划执行期间（工作树 `.worktrees/mac-common-capabilities`，分支 `feat/mac-common-capabilities`）**不**跑 `release.sh`、**不** `git push`、**不**创建 GitHub Release，除非用户明确要求上传/发版。版本源仍是 `Apps/Mac/Sources/App/Info.plist`。验证证据见 `docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md`。代码存在 ≠ 已发布。
+
 ---
 
 ## 二、环境前提
@@ -161,7 +163,7 @@ releases/Mac/vX.Y.Z/
 - [ ] 功能/修复已 commit，或将由 `release.sh` 一并纳入 Sources
 - [ ] Debug 或 Release 能编过
 - [ ] `NOTES` 写清楚用户能看懂的变更
-- [ ] 无密钥 / `settings.json` / `secrets.vault` 被 `git add`
+- [ ] 无密钥 / `settings.json` / 本机运行数据被 `git add`
 
 发版后：
 

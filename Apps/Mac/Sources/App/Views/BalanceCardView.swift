@@ -12,12 +12,15 @@ struct BalanceCardView: View {
     /// 点按选中（供首页高亮与「打开后台」）；与展开同时发生。
     var onSelect: (() -> Void)? = nil
     var onLongPress: (() -> Void)? = nil
+    var onErrorAction: ((ErrorNextAction) -> Void)? = nil
     /// 默认折叠，与设置页折叠卡一致。
     @State private var isExpanded = false
     @State private var isHovering = false
     @State private var isPressing = false
     /// 长按成功后吞掉随后的 tap，避免展开
     @State private var suppressNextTap = false
+    @ObservedObject private var l10n = L10n.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         cardContent
@@ -57,7 +60,7 @@ struct BalanceCardView: View {
                     }
                     guard !isReorderMode else { return }
                     onSelect?()
-                    AppMotion.toggleExpand($isExpanded)
+                    AppMotion.toggleExpand($isExpanded, reduceMotion: reduceMotion)
                 }
             )
             .contextMenu {
@@ -65,17 +68,21 @@ struct BalanceCardView: View {
                     Button {
                         onLongPress?()
                     } label: {
-                        Label("排序卡片", systemImage: "arrow.up.arrow.down")
+                        Label(l10n.t("card.reorder"), systemImage: "arrow.up.arrow.down")
                     }
                 }
             }
             .onHover { hovering in
-                withAnimation(AppMotion.hover) {
+                if let animation = AppMotion.animation(AppMotion.hover, reduceMotion: reduceMotion) {
+                    withAnimation(animation) {
+                        isHovering = hovering
+                    }
+                } else {
                     isHovering = hovering
                 }
             }
-            .animation(AppMotion.hover, value: isHovering)
-            .animation(.easeOut(duration: 0.1), value: isPressing)
+            .animation(AppMotion.animation(AppMotion.hover, reduceMotion: reduceMotion), value: isHovering)
+            .animation(AppMotion.animation(.easeOut(duration: 0.1), reduceMotion: reduceMotion), value: isPressing)
             // 禁止内容 ideal 宽度撑破固定面板
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -87,7 +94,18 @@ struct BalanceCardView: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     metersRow
-                    if let err = snapshot.errorMessage, !err.isEmpty {
+                    if snapshot.status == .error || snapshot.status == .setup, let onErrorAction {
+                        let kind = SupportViewMapping.cardKind(
+                            status: snapshot.status,
+                            errorMessage: snapshot.errorMessage
+                        ) ?? .refreshFailed
+                        ActionableErrorView(
+                            presentation: ActionableErrorPolicy.presentation(for: kind),
+                            messageOverride: snapshot.errorMessage
+                        ) { action in
+                            onErrorAction(action)
+                        }
+                    } else if let err = snapshot.errorMessage, !err.isEmpty {
                         Text(err)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(SBTheme.danger)
@@ -110,8 +128,13 @@ struct BalanceCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous))
         // 展开只动卡片内部，不带动外层窗体
-        .animation(AppMotion.expand, value: isExpanded)
-        .animation(AppMotion.hover, value: isHovering)
+        .animation(AppMotion.animation(AppMotion.expand, reduceMotion: reduceMotion), value: isExpanded)
+        .animation(AppMotion.animation(AppMotion.hover, reduceMotion: reduceMotion), value: isHovering)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(snapshot.displayName)
+        .accessibilityValue("\(collapsedSubtitle), \(l10n.t("status.\(snapshot.status.rawValue)"))")
+        .accessibilityAddTraits(emphasized ? .isSelected : [])
+        .accessibilityHint(isExpanded ? l10n.t("a11y.expanded") : l10n.t("a11y.collapsed"))
     }
 
     // MARK: - Header（折叠时也完整可见）
@@ -175,7 +198,7 @@ struct BalanceCardView: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(SBTheme.muted)
                 .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                .animation(AppMotion.chevron, value: isExpanded)
+                .animation(AppMotion.animation(AppMotion.chevron, reduceMotion: reduceMotion), value: isExpanded)
         }
     }
 
@@ -184,7 +207,7 @@ struct BalanceCardView: View {
             return err
         }
         if snapshot.status == .unknown, snapshot.amount == nil {
-            return snapshot.detail.isEmpty ? "查询中…" : snapshot.detail
+            return snapshot.detail.isEmpty ? l10n.t("refresh.running") : snapshot.detail
         }
         // primaryText 已带 ¥ / $ / 单位
         return snapshot.primaryText
@@ -195,7 +218,7 @@ struct BalanceCardView: View {
     private var metersRow: some View {
         HStack(alignment: .top, spacing: 10) {
             meterColumn(
-                title: "可用",
+                title: l10n.t("card.available"),
                 value: snapshot.primaryText,
                 progress: progressPercent,
                 color: SBTheme.statusColor(snapshot.status)
@@ -203,20 +226,20 @@ struct BalanceCardView: View {
 
             if let total = snapshot.total, let used = snapshot.used {
                 meterColumn(
-                    title: "已用",
+                    title: l10n.t("card.used"),
                     value: formatNum(used),
                     progress: total > 0 ? min(1, used / total) : 0,
                     color: SBTheme.muted
                 )
                 meterColumn(
-                    title: "总额",
+                    title: l10n.t("card.total"),
                     value: formatNum(total),
                     progress: 1,
                     color: SBTheme.accent.opacity(0.55)
                 )
             } else if let pct = snapshot.remainingPercent {
                 meterColumn(
-                    title: "剩余",
+                    title: l10n.t("card.remaining"),
                     value: String(format: "%.0f%%", pct),
                     progress: CGFloat(pct / 100),
                     color: SBTheme.statusColor(snapshot.status)
@@ -256,7 +279,7 @@ struct BalanceCardView: View {
 
     private var statusPill: some View {
         let color = SBTheme.statusColor(snapshot.status)
-        return Text(SBTheme.statusLabel(snapshot.status))
+        return Text(l10n.t("status.\(snapshot.status.rawValue)"))
             .font(.system(size: 10, weight: .bold))
             .foregroundStyle(color)
             .padding(.horizontal, 7)

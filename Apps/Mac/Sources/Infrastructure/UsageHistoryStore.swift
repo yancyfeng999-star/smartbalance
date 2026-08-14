@@ -9,10 +9,18 @@ public enum UsageHistoryRecovery: Equatable, Sendable {
 public struct UsageHistoryLoadResult: Equatable, Sendable {
     public var document: UsageHistoryDocument
     public var recovery: UsageHistoryRecovery?
+    public var health: UsageStorageHealth
 
-    public init(document: UsageHistoryDocument, recovery: UsageHistoryRecovery? = nil) {
+    public init(
+        document: UsageHistoryDocument,
+        recovery: UsageHistoryRecovery? = nil,
+        health: UsageStorageHealth? = nil
+    ) {
         self.document = document
         self.recovery = recovery
+        self.health = health ?? UsageStorageHealth.resolve(
+            recoveredFromCorruptFile: recovery == .corruptFileBackedUp
+        )
     }
 }
 
@@ -28,6 +36,17 @@ public enum UsageHistoryStoreError: LocalizedError, Sendable {
             "Unable to back up corrupt usage history: \(detail)"
         }
     }
+}
+
+public enum UsageHistoryPersistFailure: String, Sendable, Equatable {
+    case load
+    case save
+    case cancelled
+}
+
+public enum UsageHistoryPersistResult: Sendable, Equatable {
+    case saved(UsageHistoryDocument)
+    case failed(UsageHistoryPersistFailure)
 }
 
 public actor UsageHistoryStore {
@@ -83,6 +102,30 @@ public actor UsageHistoryStore {
         return result
     }
 
+    public func persistRecord(
+        snapshots: [BalanceSnapshot],
+        knownAccountIDs: Set<UUID>,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> UsageHistoryPersistResult {
+        do {
+            return .saved(
+                try record(
+                    snapshots: snapshots,
+                    knownAccountIDs: knownAccountIDs,
+                    now: now,
+                    calendar: calendar
+                )
+            )
+        } catch is CancellationError {
+            return .failed(.cancelled)
+        } catch is UsageHistoryStoreError {
+            return .failed(.load)
+        } catch {
+            return .failed(.save)
+        }
+    }
+
     public func record(
         snapshots: [BalanceSnapshot],
         knownAccountIDs: Set<UUID>,
@@ -133,6 +176,28 @@ public actor UsageHistoryStore {
 
     public func currentDocument() -> UsageHistoryDocument {
         cached
+    }
+
+    public func replaceDocument(_ document: UsageHistoryDocument) throws {
+        let data = try encoder.encode(document)
+        try replaceEncodedDocument(data)
+    }
+
+    public func replaceEncodedDocument(_ data: Data) throws {
+        try Task.checkCancellation()
+        let document = try decoder.decode(UsageHistoryDocument.self, from: data)
+        try writer(data, fileURL)
+        cached = document
+        hasLoaded = true
+        recovery = nil
+    }
+
+    @discardableResult
+    public func reloadFromDisk() throws -> UsageHistoryLoadResult {
+        hasLoaded = false
+        recovery = nil
+        cached = UsageHistoryDocument()
+        return try load()
     }
 
     private func loadFromDisk() throws -> UsageHistoryLoadResult {

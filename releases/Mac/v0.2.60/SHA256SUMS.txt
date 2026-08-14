@@ -1,0 +1,4 @@
+4c47ea3c9b028c28f85b682bbba223ffbf1a99fddda3f2389f92325df2fb1ef6  智余-0.2.60.dmg
+c29e8679faedf7bd1fa1d67941db3fb58f5bb7fb1db14504d64617e9cf757c30  智余-0.2.60.pkg
+4c47ea3c9b028c28f85b682bbba223ffbf1a99fddda3f2389f92325df2fb1ef6  SmartBalance-0.2.60.dmg
+c29e8679faedf7bd1fa1d67941db3fb58f5bb7fb1db14504d64617e9cf757c30  SmartBalance-0.2.60.pkg
