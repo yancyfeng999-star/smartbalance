@@ -90,6 +90,7 @@ public final class RefreshCoordinator {
     private let usageRecorder: any RefreshUsageRecording
     private var activeTask: Task<RefreshOutcome?, Never>?
     private var activeRequest: RefreshRequest?
+    private var hasAcceptedCurrentGeneration = false
 
     public init(
         clock: any RefreshClock = SystemRefreshClock(),
@@ -135,6 +136,7 @@ public final class RefreshCoordinator {
 
         generation &+= 1
         let gen = generation
+        hasAcceptedCurrentGeneration = false
         activeRequest = request
         state = .running(scope: request.scope, startedAt: clock.now)
         let knownIDs = Set(settings.accounts.map(\.id))
@@ -155,6 +157,7 @@ public final class RefreshCoordinator {
             )
             self.acceptedSnapshots = payload.snapshots
             self.lastAcceptedOutcome = outcome
+            self.hasAcceptedCurrentGeneration = true
             self.onSnapshotsAccepted?(outcome)
 
             let persist = await self.usageRecorder.recordUsage(
@@ -193,6 +196,8 @@ public final class RefreshCoordinator {
     public func cancel(reason: RefreshCancelReason) {
         guard case .running(let scope, _) = state else { return }
         let trigger = activeRequest?.trigger ?? .manual
+        let didAccept = hasAcceptedCurrentGeneration
+        let accepted = lastAcceptedOutcome
         state = .cancelling
         generation &+= 1
         let cancelledGen = generation
@@ -203,7 +208,10 @@ public final class RefreshCoordinator {
         activeTask = Task { [weak self] in
             _ = await previousTask?.value
             guard let self, self.generation == cancelledGen else { return nil }
-            if reason.showsCancelledMessage {
+            if RefreshCancelPresentation.messageKey(
+                reason: reason,
+                didAcceptSnapshots: didAccept
+            ) != nil {
                 let outcome = RefreshOutcome.cancelled(
                     generation: cancelledGen,
                     scope: scope,
@@ -216,6 +224,13 @@ public final class RefreshCoordinator {
                 self.activeRequest = nil
                 self.onTerminal?(outcome)
                 return outcome
+            }
+            if didAccept, let accepted {
+                self.state = accepted.state
+                self.activeTask = nil
+                self.activeRequest = nil
+                self.onTerminal?(accepted)
+                return accepted
             }
             self.state = .idle
             self.activeTask = nil

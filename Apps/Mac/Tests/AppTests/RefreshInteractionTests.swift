@@ -98,4 +98,21 @@ final class RefreshInteractionTests: XCTestCase {
         )
         XCTAssertEqual(RefreshPresentation.lastRefreshPrefixKey, "refresh.last_prefix")
     }
+
+    func testResignActiveAndThemeRebuildDoNotCancelRefresh() {
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .applicationDidResignActive))
+        XCTAssertNil(RefreshLifecyclePolicy.cancelReason(for: .themeIdentityRebuild))
+        XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .windowClosed), .windowClosed)
+        XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .willSleep), .sleepWake)
+        XCTAssertEqual(RefreshLifecyclePolicy.cancelReason(for: .userCancel), .user)
+    }
+
+    func testSupersededTerminalMustNotClearBaselineResetLoading() {
+        XCTAssertFalse(
+            RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: .usageBaselineReset)
+        )
+        XCTAssertTrue(
+            RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: .refresh)
+        )
+    }
 }

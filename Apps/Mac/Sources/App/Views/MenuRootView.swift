@@ -24,39 +24,40 @@ struct MenuRootView: View {
     var body: some View {
         let _ = l10n.revision
         ZStack {
-            // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
-            switch model.sessionRoute {
-            case .onboarding:
-                FirstLaunchView(model: model)
+            Group {
+                // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
+                switch model.sessionRoute {
+                case .onboarding:
+                    FirstLaunchView(model: model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                case .compatibility:
+                    ScrollView(.vertical, showsIndicators: true) {
+                        CompatibilityView(model: model, presentation: .blocking)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
-            case .compatibility:
-                ScrollView(.vertical, showsIndicators: true) {
-                    CompatibilityView(model: model, presentation: .blocking)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .transition(.opacity)
-            case .home:
-                switch model.selectedTab {
                 case .home:
-                    homeShell
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .transition(.opacity)
-                case .usage:
-                    usageShell
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .transition(.opacity)
-                case .settings:
-                    settingsShell
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .transition(.opacity)
+                    switch model.selectedTab {
+                    case .home:
+                        homeShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    case .usage:
+                        usageShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    case .settings:
+                        settingsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    }
                 }
             }
+            .id("theme-\(model.settings.themeMode)")
         }
-        // 主题变化时强制整树重建，让 NSColor 动态 token 按新 appearance 重取
-        .id("theme-\(model.settings.themeMode)")
         .background(SBTheme.shellBackground(for: resolvedShellScheme).ignoresSafeArea())
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
         .preferredColorScheme(model.preferredColorScheme)
@@ -76,8 +77,9 @@ struct MenuRootView: View {
             }
         }
         .onDisappear {
-            if runsInPinnedWindow || !model.pinWindowOpen {
-                model.cancelRefresh(reason: .windowClosed)
+            if runsInPinnedWindow || !model.pinWindowOpen,
+               let reason = RefreshLifecyclePolicy.cancelReason(for: .windowClosed) {
+                model.cancelRefresh(reason: reason)
             }
         }
         .onChange(of: model.settings.themeMode) { _, _ in

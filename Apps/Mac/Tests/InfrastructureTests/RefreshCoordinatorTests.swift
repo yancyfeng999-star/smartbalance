@@ -247,6 +247,72 @@ final class RefreshCoordinatorTests: XCTestCase {
         XCTAssertEqual(failing.callCount, 2)
     }
 
+    func testCancelAfterSnapshotAcceptKeepsNewBalancesWithoutCancelledCopy() async {
+        let usageGate = AsyncGate()
+        let usage = FakeUsageRecorder(gate: usageGate)
+        let provider = ControllableFakeProvider(
+            kind: .deepseek,
+            snapshot: snapshot(id: accountA, amount: 77, status: .healthy)
+        )
+        let coordinator = makeCoordinator(
+            fetcher: ProviderBackedRefreshFetcher(providers: [accountA: provider]),
+            usage: usage
+        )
+        coordinator.seedAcceptedSnapshots([snapshot(id: accountA, amount: 10, status: .healthy)])
+
+        XCTAssertEqual(
+            coordinator.request(.init(trigger: .manual), settings: settings([accountA])),
+            .started
+        )
+        await waitUntil { usage.calls == 1 }
+        XCTAssertEqual(coordinator.acceptedSnapshots.first?.amount, 77)
+
+        coordinator.cancel(reason: .user)
+        await usageGate.release()
+        let outcome = await coordinator.waitForCompletion()
+
+        XCTAssertEqual(coordinator.acceptedSnapshots.first?.amount, 77)
+        XCTAssertNotEqual(
+            RefreshPresentation.statusMessageKey(coordinator.state),
+            RefreshMessageKey.cancelledKeptLast
+        )
+        XCTAssertEqual(outcome?.state, .succeeded(completedAt: clockStart, refreshedCount: 1))
+        XCTAssertNil(outcome?.usageWarning)
+    }
+
+    func testSupersededCancelAfterAcceptDoesNotEmitCancelledCopy() async {
+        let usageGate = AsyncGate()
+        let usage = FakeUsageRecorder(gate: usageGate)
+        let provider = ControllableFakeProvider(
+            kind: .deepseek,
+            snapshot: snapshot(id: accountA, amount: 21, status: .healthy)
+        )
+        var terminalKeys: [String?] = []
+        let coordinator = makeCoordinator(
+            fetcher: ProviderBackedRefreshFetcher(providers: [accountA: provider]),
+            usage: usage
+        )
+        coordinator.onTerminal = { outcome in
+            terminalKeys.append(RefreshPresentation.statusMessageKey(outcome?.state ?? .idle))
+        }
+
+        XCTAssertEqual(
+            coordinator.request(.init(trigger: .manual), settings: settings([accountA])),
+            .started
+        )
+        await waitUntil { usage.calls == 1 }
+        coordinator.cancel(reason: .superseded)
+        await usageGate.release()
+        _ = await coordinator.waitForCompletion()
+
+        XCTAssertEqual(coordinator.acceptedSnapshots.first?.amount, 21)
+        XCTAssertFalse(terminalKeys.contains(RefreshMessageKey.cancelledKeptLast))
+        XCTAssertNotEqual(
+            RefreshPresentation.statusMessageKey(coordinator.state),
+            RefreshMessageKey.cancelledKeptLast
+        )
+    }
+
     func testNoAccountsDoesNotTouchProvidersOrHTTP() async {
         let http = MockHTTPClient(statusCode: 200, json: Self.deepSeekJSON)
         let provider = DeepSeekBalanceProvider(http: http)
@@ -504,11 +570,16 @@ private final class SwitchingRefreshFetcher: RefreshBalanceFetching, @unchecked 
 
 private final class FakeUsageRecorder: RefreshUsageRecording, @unchecked Sendable {
     private let result: UsageHistoryPersistResult
+    private let gate: AsyncGate?
     private let lock = NSLock()
     private var _calls = 0
 
-    init(result: UsageHistoryPersistResult = .saved(UsageHistoryDocument())) {
+    init(
+        result: UsageHistoryPersistResult = .saved(UsageHistoryDocument()),
+        gate: AsyncGate? = nil
+    ) {
         self.result = result
+        self.gate = gate
     }
 
     var calls: Int {
@@ -522,6 +593,9 @@ private final class FakeUsageRecorder: RefreshUsageRecording, @unchecked Sendabl
         now: Date
     ) async -> UsageHistoryPersistResult {
         increment()
+        if let gate {
+            await gate.wait()
+        }
         return result
     }
 

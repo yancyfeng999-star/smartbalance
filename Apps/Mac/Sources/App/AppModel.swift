@@ -47,6 +47,7 @@ final class AppModel: ObservableObject {
     private let refreshCoordinator: RefreshCoordinator
     private var usageBaselineResetTask: Task<Void, Never>?
     private var pendingUsageBaselineResetIDs: Set<UUID> = []
+    private var refreshLoadingOwner: RefreshLoadingOwner = .none
 
     @Published var launchAtLoginEnabled: Bool = LaunchAtLogin.isEnabled
     @Published var updateChecking = false
@@ -358,9 +359,13 @@ final class AppModel: ObservableObject {
         case .ignoredSameScope:
             AppLog.info("Refresh coalesced · trigger=\(trigger.rawValue)")
         case .skippedNoAccounts:
-            isRefreshing = false
+            if refreshLoadingOwner == .refresh {
+                isRefreshing = false
+                refreshLoadingOwner = .none
+            }
             AppLog.info("Refresh skipped · no accounts")
         case .started:
+            refreshLoadingOwner = .refresh
             isRefreshing = true
             if trigger == .manual {
                 banner = nil
@@ -382,7 +387,9 @@ final class AppModel: ObservableObject {
 
     func cancelRefresh(reason: RefreshCancelReason = .user) {
         refreshCoordinator.cancel(reason: reason)
-        isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+        if RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: refreshLoadingOwner) {
+            isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+        }
     }
 
     func dismissRefreshNotice() {
@@ -439,7 +446,17 @@ final class AppModel: ObservableObject {
 
     private func applyRefreshTerminal(_ outcome: RefreshOutcome?) {
         if case .running = refreshCoordinator.state { return }
-        isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+        let applyLoading = RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(
+            owner: refreshLoadingOwner
+        )
+        if applyLoading {
+            isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+            if !isRefreshing {
+                refreshLoadingOwner = .none
+            }
+        } else {
+            return
+        }
 
         if let warning = outcome?.usageWarning {
             usageDataError = warning == .loadFailed ? "load" : "save"
@@ -474,24 +491,14 @@ final class AppModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.cancelRefresh(reason: .sleepWake)
-            }
-        }
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, !self.pinWindowOpen else { return }
-                self.cancelRefresh(reason: .background)
+                guard let reason = RefreshLifecyclePolicy.cancelReason(for: .willSleep) else { return }
+                self?.cancelRefresh(reason: reason)
             }
         }
     }
 
     private func invalidateActiveRefresh() {
         refreshCoordinator.cancel(reason: .superseded)
-        isRefreshing = false
     }
 
     private func requestUsageBaselineResetAndRefresh(for accountIDs: Set<UUID>) {
@@ -508,6 +515,7 @@ final class AppModel: ObservableObject {
             refresh()
             return
         }
+        refreshLoadingOwner = .usageBaselineReset
         invalidateActiveRefresh()
         usageBaselineResetTask?.cancel()
         isRefreshing = true
@@ -526,6 +534,7 @@ final class AppModel: ObservableObject {
                 self.usageDataError = nil
                 self.pendingUsageBaselineResetIDs.subtract(accountIDs)
                 self.usageBaselineResetTask = nil
+                self.refreshLoadingOwner = .none
                 self.isRefreshing = false
                 self.refresh()
             } catch is CancellationError {
@@ -534,6 +543,7 @@ final class AppModel: ObservableObject {
                 guard generation == self.refreshCoordinator.generation else { return }
                 self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
                 self.usageBaselineResetTask = nil
+                self.refreshLoadingOwner = .none
                 self.isRefreshing = false
                 AppLog.error("Usage baseline reset failed: \(error.localizedDescription)")
             }

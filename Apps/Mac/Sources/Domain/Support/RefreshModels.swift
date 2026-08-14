@@ -148,6 +148,51 @@ public enum RefreshPresentation: Sendable {
     }
 }
 
+public enum RefreshLoadingOwner: Sendable, Equatable {
+    case none
+    case refresh
+    case usageBaselineReset
+}
+
+public enum RefreshLoadingPolicy: Sendable {
+    public static func shouldApplyRefreshTerminalToLoading(owner: RefreshLoadingOwner) -> Bool {
+        owner == .refresh
+    }
+}
+
+public enum RefreshCancelPresentation: Sendable {
+    public static func messageKey(
+        reason: RefreshCancelReason,
+        didAcceptSnapshots: Bool
+    ) -> String? {
+        if didAcceptSnapshots { return nil }
+        return reason.showsCancelledMessage ? RefreshMessageKey.cancelledKeptLast : nil
+    }
+}
+
+public enum RefreshLifecycleEvent: Sendable, Equatable {
+    case userCancel
+    case windowClosed
+    case applicationDidResignActive
+    case themeIdentityRebuild
+    case willSleep
+}
+
+public enum RefreshLifecyclePolicy: Sendable {
+    public static func cancelReason(for event: RefreshLifecycleEvent) -> RefreshCancelReason? {
+        switch event {
+        case .userCancel:
+            return .user
+        case .windowClosed:
+            return .windowClosed
+        case .willSleep:
+            return .sleepWake
+        case .applicationDidResignActive, .themeIdentityRebuild:
+            return nil
+        }
+    }
+}
+
 public enum RefreshSnapshotClassification: Sendable {
     public static func isFailure(_ snapshot: BalanceSnapshot) -> Bool {
         snapshot.errorMessage != nil || snapshot.status == .error || snapshot.status == .setup

@@ -136,6 +136,34 @@ final class RefreshModelsTests: XCTestCase {
         )
     }
 
+    func testBaselineResetOwnerIgnoresRefreshTerminalLoading() {
+        XCTAssertTrue(
+            RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: .refresh)
+        )
+        XCTAssertFalse(
+            RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: .usageBaselineReset)
+        )
+        XCTAssertFalse(
+            RefreshLoadingPolicy.shouldApplyRefreshTerminalToLoading(owner: .none)
+        )
+    }
+
+    func testCancelAfterAcceptedSnapshotsDoesNotUseKeptLastCopy() {
+        XCTAssertEqual(
+            RefreshCancelPresentation.messageKey(reason: .user, didAcceptSnapshots: false),
+            RefreshMessageKey.cancelledKeptLast
+        )
+        XCTAssertNil(
+            RefreshCancelPresentation.messageKey(reason: .user, didAcceptSnapshots: true)
+        )
+        XCTAssertNil(
+            RefreshCancelPresentation.messageKey(reason: .windowClosed, didAcceptSnapshots: true)
+        )
+        XCTAssertNil(
+            RefreshCancelPresentation.messageKey(reason: .superseded, didAcceptSnapshots: false)
+        )
+    }
+
     private func snapshot(
         id: UUID,
         amount: Double? = nil,
