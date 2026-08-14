@@ -221,6 +221,41 @@ final class L10n: ObservableObject {
             .ru: "Последняя запись", .ar: "آخر تسجيل", .fr: "Dernier relevé", .de: "Zuletzt erfasst",
             .es: "Último registro", .pt: "Último registro",
         ],
+        "refresh.last_prefix": [
+            .zhHans: "刷新", .en: "Refreshed", .ja: "更新", .ko: "새로고침",
+            .ru: "Обновлено", .ar: "تم التحديث", .fr: "Actualisé", .de: "Aktualisiert",
+            .es: "Actualizado", .pt: "Atualizado",
+        ],
+        "refresh.running": [
+            .zhHans: "查询中…", .en: "Refreshing…", .ja: "更新中…", .ko: "새로고침 중…",
+            .ru: "Обновление…", .ar: "جارٍ التحديث…", .fr: "Actualisation…", .de: "Aktualisieren…",
+            .es: "Actualizando…", .pt: "A atualizar…",
+        ],
+        "refresh.cancelled_kept_last": [
+            .zhHans: "已取消，已保留上次结果", .en: "Cancelled. Last result kept.", .ja: "キャンセルしました。前回の結果を保持します。", .ko: "취소했습니다. 이전 결과를 유지합니다.",
+            .ru: "Отменено. Сохранён прошлый результат.", .ar: "أُلغي. تم الإبقاء على آخر نتيجة.", .fr: "Annulé. Dernier résultat conservé.", .de: "Abgebrochen. Letztes Ergebnis behalten.",
+            .es: "Cancelado. Se conserva el último resultado.", .pt: "Cancelado. O último resultado foi mantido.",
+        ],
+        "refresh.partial_failed": [
+            .zhHans: "部分账号刷新失败", .en: "Some accounts failed to refresh", .ja: "一部のアカウントの更新に失敗", .ko: "일부 계정 새로고침 실패",
+            .ru: "Часть аккаунтов не обновилась", .ar: "فشل تحديث بعض الحسابات", .fr: "Échec partiel de l’actualisation", .de: "Einige Konten konnten nicht aktualisiert werden",
+            .es: "Algunas cuentas no se actualizaron", .pt: "Algumas contas falharam ao atualizar",
+        ],
+        "refresh.failed": [
+            .zhHans: "刷新失败", .en: "Refresh failed", .ja: "更新に失敗", .ko: "새로고침 실패",
+            .ru: "Не удалось обновить", .ar: "فشل التحديث", .fr: "Échec de l’actualisation", .de: "Aktualisierung fehlgeschlagen",
+            .es: "Error al actualizar", .pt: "Falha ao atualizar",
+        ],
+        "refresh.cancel": [
+            .zhHans: "取消刷新", .en: "Cancel refresh", .ja: "更新をキャンセル", .ko: "새로고침 취소",
+            .ru: "Отменить обновление", .ar: "إلغاء التحديث", .fr: "Annuler l’actualisation", .de: "Aktualisierung abbrechen",
+            .es: "Cancelar actualización", .pt: "Cancelar atualização",
+        ],
+        "refresh.action": [
+            .zhHans: "刷新全部", .en: "Refresh all", .ja: "すべて更新", .ko: "모두 새로고침",
+            .ru: "Обновить всё", .ar: "تحديث الكل", .fr: "Tout actualiser", .de: "Alle aktualisieren",
+            .es: "Actualizar todo", .pt: "Atualizar tudo",
+        ],
         "home.quit": [
             .zhHans: "退出应用", .en: "Quit", .ja: "終了", .ko: "종료",
             .ru: "Выход", .ar: "خروج", .fr: "Quitter", .de: "Beenden",

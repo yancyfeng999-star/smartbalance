@@ -13,14 +13,14 @@ struct HomeView: View {
                 reorderBanner
             }
 
-            if let banner = model.banner, !model.isReorderMode {
+            if let notice = homeNoticeText, !model.isReorderMode {
                 HStack(alignment: .top, spacing: 8) {
-                    Text(banner)
+                    Text(notice)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(SBTheme.warn)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Button {
-                        model.banner = nil
+                        model.dismissRefreshNotice()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .semibold))
@@ -89,14 +89,12 @@ struct HomeView: View {
             }
         }
         .onChange(of: model.snapshots.count) { _, _ in
-            // 刷新后重新轻入
             animateIn = false
             withAnimation(AppMotion.appear) {
                 animateIn = true
             }
         }
         .onChange(of: model.settings.accounts.count) { _, _ in
-            // 账号列表变了且卡为空时，Home 侧也会重新出现
             if model.snapshots.isEmpty, !model.settings.enabledAccounts.isEmpty {
                 animateIn = false
                 withAnimation(AppMotion.appear) {
@@ -104,6 +102,13 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private var homeNoticeText: String? {
+        if let key = model.refreshNoticeKey {
+            return l10n.t(key)
+        }
+        return model.banner
     }
 
     // MARK: - Reorder（对齐智额）

@@ -72,7 +72,12 @@ struct MenuRootView: View {
                !model.isRefreshing,
                model.snapshots.isEmpty
                 || model.snapshots.allSatisfy({ $0.status == .unknown && $0.amount == nil }) {
-                model.refresh()
+                model.refresh(trigger: .menuOpen)
+            }
+        }
+        .onDisappear {
+            if runsInPinnedWindow || !model.pinWindowOpen {
+                model.cancelRefresh(reason: .windowClosed)
             }
         }
         .onChange(of: model.settings.themeMode) { _, _ in
@@ -184,7 +189,7 @@ struct MenuRootView: View {
                 .monospacedDigit()
 
             Button {
-                model.refresh()
+                model.handleRefreshButton()
             } label: {
                 Image(systemName: model.isRefreshing ? "hourglass" : "arrow.clockwise")
                     .font(.system(size: 13, weight: .semibold))
@@ -192,8 +197,8 @@ struct MenuRootView: View {
                     .frame(width: 28, height: 26)
             }
             .buttonStyle(.plain)
-            .disabled(model.isRefreshing)
-            .help("刷新全部")
+            .help(l10n.t(model.refreshButtonHelpKey))
+            .accessibilityLabel(l10n.t(model.refreshButtonHelpKey))
             .keyboardShortcut("r")
 
             Button {

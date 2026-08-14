@@ -31,6 +31,15 @@ struct UsageView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let key = model.refreshNoticeKey,
+               key != "usage.save_failed",
+               key != "usage.load_failed" {
+                Label(l10n.t(key), systemImage: "clock.badge.xmark")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(SBTheme.warn)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             if model.usageRecoveryNotice {
                 Label(l10n.t("usage.history_recovered"), systemImage: "arrow.counterclockwise.circle.fill")
                     .font(.system(size: 10, weight: .medium))

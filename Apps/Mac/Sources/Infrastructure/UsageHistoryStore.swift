@@ -30,6 +30,17 @@ public enum UsageHistoryStoreError: LocalizedError, Sendable {
     }
 }
 
+public enum UsageHistoryPersistFailure: String, Sendable, Equatable {
+    case load
+    case save
+    case cancelled
+}
+
+public enum UsageHistoryPersistResult: Sendable, Equatable {
+    case saved(UsageHistoryDocument)
+    case failed(UsageHistoryPersistFailure)
+}
+
 public actor UsageHistoryStore {
     public static let shared = UsageHistoryStore()
 
@@ -81,6 +92,30 @@ public actor UsageHistoryStore {
         recovery = result.recovery
         hasLoaded = true
         return result
+    }
+
+    public func persistRecord(
+        snapshots: [BalanceSnapshot],
+        knownAccountIDs: Set<UUID>,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> UsageHistoryPersistResult {
+        do {
+            return .saved(
+                try record(
+                    snapshots: snapshots,
+                    knownAccountIDs: knownAccountIDs,
+                    now: now,
+                    calendar: calendar
+                )
+            )
+        } catch is CancellationError {
+            return .failed(.cancelled)
+        } catch is UsageHistoryStoreError {
+            return .failed(.load)
+        } catch {
+            return .failed(.save)
+        }
     }
 
     public func record(

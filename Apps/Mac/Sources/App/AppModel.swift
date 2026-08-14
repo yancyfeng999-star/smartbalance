@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var usageHistory = UsageHistoryDocument()
     @Published private(set) var usageDataError: String?
     @Published private(set) var usageRecoveryNotice = false
+    @Published private(set) var refreshNoticeKey: String?
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
     @Published var banner: String? {
@@ -43,11 +44,9 @@ final class AppModel: ObservableObject {
     private let compatibilityChecker = CompatibilityChecker()
     private var pendingOpenSettingsAfterOnboarding = false
     private var refreshTask: Task<Void, Never>?
-    private var activeRefreshTask: Task<Void, Never>?
+    private let refreshCoordinator: RefreshCoordinator
     private var usageBaselineResetTask: Task<Void, Never>?
     private var pendingUsageBaselineResetIDs: Set<UUID> = []
-    /// 刷新代数：避免慢请求后到覆盖新结果 / 新设置
-    private var refreshGeneration: UInt64 = 0
 
     @Published var launchAtLoginEnabled: Bool = LaunchAtLogin.isEnabled
     @Published var updateChecking = false
@@ -150,12 +149,25 @@ final class AppModel: ObservableObject {
         self.settings = loaded
         self.pinWindowOpen = false
         self.launchAtLoginEnabled = LaunchAtLogin.isEnabled
+        let coordinator = RefreshCoordinator(
+            fetcher: BalanceServiceRefreshFetcher(service: service),
+            usageRecorder: UsageHistoryRefreshRecorder(store: usageStore)
+        )
+        self.refreshCoordinator = coordinator
         L10n.shared.setLanguage(loaded.resolvedLanguage)
         // 启动立刻显示账号卡片（查询中），避免空态引导页一直占着
         self.snapshots = Self.placeholderSnapshots(from: loaded)
         self.selectedAccountId = loaded.enabledAccounts.first?.id
+        coordinator.seedAcceptedSnapshots(self.snapshots)
+        coordinator.onSnapshotsAccepted = { [weak self] outcome in
+            self?.applyAcceptedRefreshSnapshots(outcome)
+        }
+        coordinator.onTerminal = { [weak self] outcome in
+            self?.applyRefreshTerminal(outcome)
+        }
         AppLog.info("App launch · accounts=\(settings.accounts.count) interval=\(settings.refreshIntervalSecs)s")
         prepareLaunchSession()
+        registerRefreshLifecycleObservers()
         // 对齐智额：通知图标只跟包内白底 AppIcon 走；不 setIcon（会写自定义 Icon 锁死旧图）
         Task { @MainActor in
             MacNotificationService.shared.installDelegateIfNeeded()
@@ -266,9 +278,13 @@ final class AppModel: ObservableObject {
         if let lastRefreshAt {
             let f = DateFormatter()
             f.dateFormat = "HH:mm"
-            return "刷新 \(f.string(from: lastRefreshAt))"
+            return "\(L10n.shared.t(RefreshPresentation.lastRefreshPrefixKey)) \(f.string(from: lastRefreshAt))"
         }
         return "—"
+    }
+
+    var refreshButtonHelpKey: String {
+        RefreshPresentation.refreshButtonHelpKey(refreshCoordinator.state)
     }
 
     /// 选中首页账号（高亮 +「打开后台」目标）。
@@ -320,25 +336,64 @@ final class AppModel: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
+        refresh(trigger: .manual)
+    }
+
+    func refresh(trigger: RefreshTrigger) {
         guard pendingUsageBaselineResetIDs.isEmpty else {
             resetPendingUsageBaselinesAndRefresh()
             return
         }
-        activeRefreshTask?.cancel()
-        isRefreshing = true
-        banner = nil
-        refreshGeneration &+= 1
-        let generation = refreshGeneration
-        // 兼容旧设置：若用户曾关掉「数据源」总开关，强制恢复（产品本职就是查余额）
         if !settings.apiQueryEnabled {
             settings.apiQueryEnabled = true
             try? store.save(settings)
         }
-        // 刷新过程中始终保留卡片骨架，绝不闪回「去添加账号」
+        prepareSnapshotsForRefresh()
+        let admission = refreshCoordinator.request(
+            RefreshRequest(scope: .all, trigger: trigger),
+            settings: settings,
+            currentSnapshots: snapshots
+        )
+        switch admission {
+        case .ignoredSameScope:
+            AppLog.info("Refresh coalesced · trigger=\(trigger.rawValue)")
+        case .skippedNoAccounts:
+            isRefreshing = false
+            AppLog.info("Refresh skipped · no accounts")
+        case .started:
+            isRefreshing = true
+            if trigger == .manual {
+                banner = nil
+                refreshNoticeKey = nil
+            }
+            AppLog.info(
+                "Refresh start · accounts=\(settings.enabledAccounts.count) trigger=\(trigger.rawValue) gen=\(refreshCoordinator.generation)"
+            )
+        }
+    }
+
+    func handleRefreshButton() {
+        if RefreshPresentation.refreshButtonCancels(refreshCoordinator.state) {
+            cancelRefresh(reason: .user)
+        } else {
+            refresh(trigger: .manual)
+        }
+    }
+
+    func cancelRefresh(reason: RefreshCancelReason = .user) {
+        refreshCoordinator.cancel(reason: reason)
+        isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+    }
+
+    func dismissRefreshNotice() {
+        refreshNoticeKey = nil
+        banner = nil
+    }
+
+    private func prepareSnapshotsForRefresh() {
         if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
             snapshots = Self.placeholderSnapshots(from: settings)
         } else if !settings.enabledAccounts.isEmpty {
-            // 已有结果的卡保持金额；仅无结果的显示查询中
             snapshots = orderedSnapshots(
                 settings.enabledAccounts.map { account in
                     if let existing = snapshots.first(where: { $0.accountId == account.id }),
@@ -356,70 +411,86 @@ final class AppModel: ObservableObject {
                 }
             )
         }
-        // 快照：只把「开始时」的设置交给 Service；返回后禁止整表覆盖
-        let settingsSnapshot = settings
-        AppLog.info("Refresh start · accounts=\(settings.enabledAccounts.count) gen=\(generation)")
-        activeRefreshTask = Task { @MainActor in
-            defer {
-                if generation == self.refreshGeneration {
-                    self.isRefreshing = false
-                    self.activeRefreshTask = nil
+    }
+
+    private func applyAcceptedRefreshSnapshots(_ outcome: RefreshOutcome) {
+        snapshots = orderedSnapshots(outcome.snapshots)
+        if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
+            snapshots = Self.placeholderSnapshots(from: settings)
+        }
+        if !outcome.alerts.isEmpty {
+            recentAlerts = Array((outcome.alerts + recentAlerts).prefix(20))
+            if let fail = outcome.alerts.first(where: {
+                !$0.emailed && $0.message.hasPrefix("邮件发送失败")
+            }) {
+                let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
+                banner = firstLine
+                AppLog.error(firstLine)
+            }
+            for alert in outcome.alerts {
+                AppLog.info("Alert: \(alert.title) notified=\(alert.notified) emailed=\(alert.emailed)")
+            }
+        }
+        settings.lastAlertAtByAccount = outcome.lastAlertAtByAccount
+        lastRefreshAt = Date()
+        try? store.save(settings)
+        AppLog.info("Refresh snapshots accepted · cards=\(snapshots.count) gen=\(outcome.generation)")
+    }
+
+    private func applyRefreshTerminal(_ outcome: RefreshOutcome?) {
+        if case .running = refreshCoordinator.state { return }
+        isRefreshing = RefreshPresentation.isBusy(refreshCoordinator.state)
+
+        if let warning = outcome?.usageWarning {
+            usageDataError = warning == .loadFailed ? "load" : "save"
+            refreshNoticeKey = warning.messageKey
+            banner = L10n.shared.t(warning.messageKey)
+            AppLog.error("Usage history persist failed · \(warning.rawValue)")
+        } else if let document = outcome?.usageDocument {
+            usageHistory = document
+            usageDataError = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let loadResult = try? await self.usageStore.load() {
+                    self.usageRecoveryNotice = self.usageRecoveryNotice
+                        || loadResult.recovery == .corruptFileBackedUp
                 }
             }
-            let result = await service.refreshAll(settings: settingsSnapshot)
-            guard !Task.isCancelled, generation == self.refreshGeneration else {
-                AppLog.info("Refresh stale gen=\(generation) discarded")
-                return
+        }
+
+        if outcome?.usageWarning == nil,
+           let key = RefreshPresentation.statusMessageKey(refreshCoordinator.state) {
+            refreshNoticeKey = key
+            banner = L10n.shared.t(key)
+        } else if outcome?.usageWarning == nil, outcome != nil {
+            refreshNoticeKey = nil
+        }
+    }
+
+    private func registerRefreshLifecycleObservers() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.cancelRefresh(reason: .sleepWake)
             }
-            self.snapshots = orderedSnapshots(result.snapshots)
-            if self.snapshots.isEmpty, !self.settings.enabledAccounts.isEmpty {
-                self.snapshots = Self.placeholderSnapshots(from: self.settings)
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, !self.pinWindowOpen else { return }
+                self.cancelRefresh(reason: .background)
             }
-            do {
-                let history = try await usageStore.record(
-                    snapshots: self.snapshots,
-                    knownAccountIDs: Set(settingsSnapshot.accounts.map(\.id)),
-                    now: Date(),
-                    calendar: .current
-                )
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
-                self.usageHistory = history
-                let loadResult = try await self.usageStore.load()
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
-                self.usageRecoveryNotice = self.usageRecoveryNotice
-                    || loadResult.recovery == .corruptFileBackedUp
-                self.usageDataError = nil
-            } catch is CancellationError {
-                return
-            } catch {
-                self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
-                AppLog.error("Usage history save failed: \(error.localizedDescription)")
-            }
-            if !result.alerts.isEmpty {
-                self.recentAlerts = Array((result.alerts + self.recentAlerts).prefix(20))
-                if let fail = result.alerts.first(where: {
-                    !$0.emailed && $0.message.hasPrefix("邮件发送失败")
-                }) {
-                    let firstLine = fail.message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? fail.message
-                    self.banner = firstLine
-                    AppLog.error(firstLine)
-                }
-                for a in result.alerts {
-                    AppLog.info("Alert: \(a.title) notified=\(a.notified) emailed=\(a.emailed)")
-                }
-            }
-            // 只合并报警冷却时间戳，不回滚用户中途改的主题/账号/阈值
-            self.settings.lastAlertAtByAccount = result.settings.lastAlertAtByAccount
-            self.lastRefreshAt = Date()
-            try? store.save(self.settings)
-            AppLog.info("Refresh done · cards=\(self.snapshots.count) gen=\(generation)")
         }
     }
 
     private func invalidateActiveRefresh() {
-        refreshGeneration &+= 1
-        activeRefreshTask?.cancel()
-        activeRefreshTask = nil
+        refreshCoordinator.cancel(reason: .superseded)
         isRefreshing = false
     }
 
@@ -441,14 +512,14 @@ final class AppModel: ObservableObject {
         usageBaselineResetTask?.cancel()
         isRefreshing = true
         let accountIDs = pendingUsageBaselineResetIDs
-        let generation = refreshGeneration
+        let generation = refreshCoordinator.generation
         usageBaselineResetTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 let history = try await self.usageStore.resetBaselines(for: accountIDs)
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                guard !Task.isCancelled, generation == self.refreshCoordinator.generation else { return }
                 let loadResult = try await self.usageStore.load()
-                guard !Task.isCancelled, generation == self.refreshGeneration else { return }
+                guard !Task.isCancelled, generation == self.refreshCoordinator.generation else { return }
                 self.usageHistory = history
                 self.usageRecoveryNotice = self.usageRecoveryNotice
                     || loadResult.recovery == .corruptFileBackedUp
@@ -460,7 +531,7 @@ final class AppModel: ObservableObject {
             } catch is CancellationError {
                 return
             } catch {
-                guard generation == self.refreshGeneration else { return }
+                guard generation == self.refreshCoordinator.generation else { return }
                 self.usageDataError = error is UsageHistoryStoreError ? "load" : "save"
                 self.usageBaselineResetTask = nil
                 self.isRefreshing = false
@@ -504,18 +575,18 @@ final class AppModel: ObservableObject {
         guard settings.refreshIntervalSecs > 0 else {
             Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 400_000_000)
-                self?.refresh()
+                self?.refresh(trigger: .interval)
             }
             return
         }
         let interval = settings.refreshIntervalSecs
         refreshTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 400_000_000)
-            self?.refresh()
+            self?.refresh(trigger: .interval)
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
                 guard !Task.isCancelled else { break }
-                self?.refresh()
+                self?.refresh(trigger: .interval)
             }
         }
     }
