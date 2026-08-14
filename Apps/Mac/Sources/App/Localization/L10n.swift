@@ -1030,5 +1030,196 @@ final class L10n: ObservableObject {
         "diagnostics.detail.usage.warning": [
             .zhHans: "用量保存或读取出现问题。", .en: "Usage save or load reported a problem.",
         ],
+        "settings.transfer": [
+            .zhHans: "设置迁移", .en: "Transfer settings", .ja: "設定の移行", .ko: "설정 이전",
+            .ru: "Перенос настроек", .ar: "نقل الإعدادات", .fr: "Transférer les réglages", .de: "Einstellungen übertragen",
+            .es: "Transferir ajustes", .pt: "Transferir definições",
+        ],
+        "settings.transfer_sub": [
+            .zhHans: "导出/导入非敏感设置，不含密码", .en: "Export/import non-secret settings", .ja: "機密情報なしで設定を移行", .ko: "비밀번호 없이 설정 이전",
+            .ru: "Без паролей", .ar: "بدون كلمات مرور", .fr: "Sans mots de passe", .de: "Ohne Passwörter",
+            .es: "Sin contraseñas", .pt: "Sem palavras-passe",
+        ],
+        "settings.transfer.title": [
+            .zhHans: "设置迁移", .en: "Transfer settings", .ja: "設定の移行", .ko: "설정 이전",
+            .ru: "Перенос настроек", .ar: "نقل الإعدادات", .fr: "Transférer les réglages", .de: "Einstellungen übertragen",
+            .es: "Transferir ajustes", .pt: "Transferir definições",
+        ],
+        "settings.transfer.subtitle": [
+            .zhHans: "只迁移账号类型、名称、报警与外观等非敏感配置。", .en: "Transfers providers, names, alerts, and appearance only.",
+        ],
+        "settings.transfer.no_secrets": [
+            .zhHans: "不会导出 Keychain、密码或 Cookie。导入后必须重新填写凭据。", .en: "Keychain, passwords, and cookies are not exported. Re-enter credentials after import.",
+        ],
+        "settings.transfer.export": [
+            .zhHans: "导出设置", .en: "Export settings", .ja: "設定を書き出す", .ko: "설정 내보내기",
+            .ru: "Экспорт", .ar: "تصدير", .fr: "Exporter", .de: "Exportieren",
+            .es: "Exportar", .pt: "Exportar",
+        ],
+        "settings.transfer.import": [
+            .zhHans: "从文件导入", .en: "Import from file", .ja: "ファイルから読み込む", .ko: "파일에서 가져오기",
+            .ru: "Импорт", .ar: "استيراد", .fr: "Importer", .de: "Importieren",
+            .es: "Importar", .pt: "Importar",
+        ],
+        "settings.transfer.export_title": [
+            .zhHans: "导出设置", .en: "Export settings",
+        ],
+        "settings.transfer.export_message": [
+            .zhHans: "导出非敏感设置。文件不含密码，导入后需重新填写。", .en: "Export non-secret settings. Passwords are omitted.",
+        ],
+        "settings.transfer.import_title": [
+            .zhHans: "导入设置", .en: "Import settings",
+        ],
+        "settings.transfer.import_message": [
+            .zhHans: "选择设置迁移包。导入前会预览，默认不会写入。", .en: "Choose a settings file. Preview first; nothing is written yet.",
+        ],
+        "settings.transfer.export_ok": [
+            .zhHans: "设置已导出（不含密钥）", .en: "Settings exported (no secrets)",
+        ],
+        "settings.transfer.export_failed": [
+            .zhHans: "导出设置失败", .en: "Could not export settings",
+        ],
+        "settings.transfer.file_prefix": [
+            .zhHans: "智余设置", .en: "smartbalance-settings",
+        ],
+        "settings.backup": [
+            .zhHans: "本机备份与恢复", .en: "Local backup & restore", .ja: "ローカルバックアップ", .ko: "로컬 백업",
+            .ru: "Локальная копия", .ar: "نسخة محلية", .fr: "Sauvegarde locale", .de: "Lokales Backup",
+            .es: "Copia local", .pt: "Cópia local",
+        ],
+        "settings.backup_sub": [
+            .zhHans: "可选用量历史；恢复前自动快照", .en: "Optional usage history; snapshot before restore",
+        ],
+        "settings.backup.title": [
+            .zhHans: "本机备份", .en: "Local backup", .ja: "ローカルバックアップ", .ko: "로컬 백업",
+            .ru: "Локальная копия", .ar: "نسخة محلية", .fr: "Sauvegarde locale", .de: "Lokales Backup",
+            .es: "Copia local", .pt: "Cópia local",
+        ],
+        "settings.backup.subtitle": [
+            .zhHans: "备份非敏感设置，可选附带聚合用量。不含日志、请求或密钥。", .en: "Backs up non-secret settings and optional usage totals. No logs, requests, or secrets.",
+        ],
+        "settings.backup.include_usage": [
+            .zhHans: "包含聚合用量历史", .en: "Include aggregated usage history",
+        ],
+        "settings.backup.no_secrets": [
+            .zhHans: "恢复前会先快照当前数据。失败会自动回滚。密钥不会被删除或导入。", .en: "A snapshot is taken first. Failures roll back. Keychain is never imported or deleted.",
+        ],
+        "settings.backup.export": [
+            .zhHans: "导出本机备份", .en: "Export local backup",
+        ],
+        "settings.backup.restore": [
+            .zhHans: "从备份恢复", .en: "Restore from backup",
+        ],
+        "settings.backup.open_dir": [
+            .zhHans: "打开备份目录", .en: "Open backup folder",
+        ],
+        "settings.backup.export_title": [
+            .zhHans: "导出本机备份", .en: "Export local backup",
+        ],
+        "settings.backup.export_message": [
+            .zhHans: "导出本机恢复包。不含密码、日志或请求内容。", .en: "Export a local restore package without secrets or logs.",
+        ],
+        "settings.backup.restore_title": [
+            .zhHans: "恢复本机备份", .en: "Restore local backup",
+        ],
+        "settings.backup.restore_message": [
+            .zhHans: "选择本机备份或设置迁移包。先预览再确认。", .en: "Choose a local backup or settings file. Preview before confirming.",
+        ],
+        "settings.backup.export_ok": [
+            .zhHans: "本机备份已导出", .en: "Local backup exported",
+        ],
+        "settings.backup.export_failed": [
+            .zhHans: "导出本机备份失败", .en: "Could not export local backup",
+        ],
+        "settings.backup.file_prefix": [
+            .zhHans: "智余本机备份", .en: "smartbalance-restore",
+        ],
+        "restore.preview.title": [
+            .zhHans: "恢复预览", .en: "Restore preview",
+        ],
+        "restore.preview.accounts": [
+            .zhHans: "账号数", .en: "Accounts",
+        ],
+        "restore.preview.providers": [
+            .zhHans: "渠道", .en: "Providers",
+        ],
+        "restore.preview.reentry": [
+            .zhHans: "需重新填写凭据", .en: "Credentials to re-enter",
+        ],
+        "restore.preview.reentry_none": [
+            .zhHans: "无（仍不会导入密钥）", .en: "None (secrets still not imported)",
+        ],
+        "restore.preview.coverage": [
+            .zhHans: "将覆盖", .en: "Will replace",
+        ],
+        "restore.preview.excluded": [
+            .zhHans: "不会导入", .en: "Excluded",
+        ],
+        "restore.preview.usage": [
+            .zhHans: "同时恢复用量历史", .en: "Also restore usage history",
+        ],
+        "restore.preview.confirm": [
+            .zhHans: "确认恢复", .en: "Restore",
+        ],
+        "restore.preview.cancel": [
+            .zhHans: "取消", .en: "Cancel",
+        ],
+        "restore.coverage.accounts": [
+            .zhHans: "账号与渠道", .en: "Accounts",
+        ],
+        "restore.coverage.alerts": [
+            .zhHans: "报警与邮件元数据", .en: "Alerts and mail metadata",
+        ],
+        "restore.coverage.theme": [
+            .zhHans: "刷新/主题/语言", .en: "Refresh, theme, language",
+        ],
+        "restore.coverage.usage": [
+            .zhHans: "聚合用量", .en: "Aggregated usage",
+        ],
+        "restore.legacy.warning": [
+            .zhHans: "该文件可能包含旧版明文密钥，智余不会导入或写入其中的密钥。", .en: "This file may contain legacy plaintext secrets. Zhiyu will not import or write those secrets.",
+        ],
+        "restore.legacy.ack": [
+            .zhHans: "我知道只会导入非敏感设置，且不会自动删除该文件", .en: "I understand only non-secret fields are imported and the file is not deleted",
+        ],
+        "restore.result.ok": [
+            .zhHans: "恢复成功，请重新填写凭据", .en: "Restore succeeded. Re-enter credentials.",
+        ],
+        "restore.result.failed": [
+            .zhHans: "恢复失败，已保留原数据", .en: "Restore failed. Original data was kept.",
+        ],
+        "restore.result.cancelled": [
+            .zhHans: "已取消，未改动设置", .en: "Cancelled. Settings were not changed.",
+        ],
+        "restore.result.reentry": [
+            .zhHans: "账号还在，但密码和密钥需要在设置里重新填写。", .en: "Accounts remain, but passwords and keys must be entered again.",
+        ],
+        "restore.result.open_backups": [
+            .zhHans: "打开备份目录", .en: "Open backup folder",
+        ],
+        "restore.result.open_diagnostics": [
+            .zhHans: "进入诊断中心", .en: "Open diagnostics",
+        ],
+        "restore.error.format": [
+            .zhHans: "文件格式不匹配", .en: "File format does not match",
+        ],
+        "restore.error.version": [
+            .zhHans: "备份版本过高，无法恢复", .en: "Backup version is too new",
+        ],
+        "restore.error.usage": [
+            .zhHans: "用量历史损坏，未改动原数据", .en: "Usage history is corrupt. Original data was kept.",
+        ],
+        "restore.error.usage_write": [
+            .zhHans: "用量写入失败，已回滚", .en: "Usage write failed and was rolled back",
+        ],
+        "restore.error.settings": [
+            .zhHans: "设置写入失败，已回滚", .en: "Settings write failed and was rolled back",
+        ],
+        "restore.error.read": [
+            .zhHans: "无法读取所选文件", .en: "Could not read the selected file",
+        ],
+        "restore.error.decode": [
+            .zhHans: "无法解析该文件", .en: "Could not parse this file",
+        ],
     ]
 }

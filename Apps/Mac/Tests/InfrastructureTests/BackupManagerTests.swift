@@ -86,6 +86,40 @@ final class BackupManagerTests: XCTestCase {
         XCTAssertFalse(try snapshotFiles().isEmpty)
     }
 
+    func testSettingsWriteSnapshotsHonorRetentionLimit() throws {
+        let source = directory.appendingPathComponent("settings.json")
+        try Data("{\"accounts\":[]}".utf8).write(to: source)
+        let manager = BackupManager(directory: directory)
+        let calendar = Calendar(identifier: .gregorian)
+        for index in 0..<12 {
+            let now = calendar.date(
+                from: DateComponents(
+                    timeZone: TimeZone(secondsFromGMT: 0),
+                    year: 2026,
+                    month: 8,
+                    day: 1,
+                    hour: index,
+                    minute: 0,
+                    second: 0
+                )
+            )!
+            _ = try manager.createSnapshot(of: source, reason: "settings-write", now: now)
+        }
+        _ = try manager.createSnapshot(
+            of: source,
+            reason: "restore",
+            now: date(2026, 8, 14, 16, 0, 0)
+        )
+
+        let writes = try snapshotFiles().filter { $0.lastPathComponent.contains("settings-write") }
+        let restores = try snapshotFiles().filter { $0.lastPathComponent.contains("restore") }
+        XCTAssertEqual(writes.count, BackupManager.settingsWriteRetentionLimit)
+        XCTAssertEqual(BackupManager.settingsWriteRetentionLimit, 8)
+        XCTAssertEqual(restores.count, 1)
+        XCTAssertTrue(writes.contains { $0.lastPathComponent.contains("20260801-110000") })
+        XCTAssertFalse(writes.contains { $0.lastPathComponent.contains("20260801-000000") })
+    }
+
     func testMigrationWriteFailureLeavesLegacyFileInPlace() throws {
         let source = try Data(
             contentsOf: URL(fileURLWithPath: #filePath)

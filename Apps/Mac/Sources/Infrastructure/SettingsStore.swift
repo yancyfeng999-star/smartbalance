@@ -110,6 +110,14 @@ public final class SettingsStore: @unchecked Sendable {
 
     public var fileURL: URL { url }
 
+    @discardableResult
+    public func reloadFromDisk() -> AppSettings {
+        lock.lock()
+        cachedDocument = nil
+        lock.unlock()
+        return load()
+    }
+
     private func existingAccounts() -> [BalanceAccount]? {
         guard let existing = try? Data(contentsOf: url),
               let outcome = try? runner.migrate(data: existing) else {

@@ -22,6 +22,8 @@ struct SettingsRootView: View {
             alertCard
             compatibilityCard
             diagnosticsCard
+            transferCard
+            backupCard
             BackgroundSystemSection(model: model)
         }
         .onAppear {
@@ -155,6 +157,79 @@ struct SettingsRootView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(l10n.t("settings.diagnostics"))
+    }
+
+    private var transferCard: some View {
+        navCard(
+            icon: "square.and.arrow.up.on.square",
+            colors: [Color(red: 0.28, green: 0.62, blue: 0.72), Color(red: 0.18, green: 0.46, blue: 0.66)],
+            titleKey: "settings.transfer",
+            subtitleKey: "settings.transfer_sub"
+        ) {
+            model.openSettingsTransfer()
+        }
+    }
+
+    private var backupCard: some View {
+        navCard(
+            icon: "externaldrive.fill.badge.timemachine",
+            colors: [Color(red: 0.35, green: 0.55, blue: 0.85), Color(red: 0.25, green: 0.4, blue: 0.75)],
+            titleKey: "settings.backup",
+            subtitleKey: "settings.backup_sub"
+        ) {
+            model.openBackupRestore()
+        }
+    }
+
+    private func navCard(
+        icon: String,
+        colors: [Color],
+        titleKey: String,
+        subtitleKey: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: colors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+                    Image(systemName: icon)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(l10n.t(titleKey))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SBTheme.text)
+                    Text(l10n.t(subtitleKey))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(SBTheme.muted)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.muted)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                    .fill(SBTheme.panel)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: SBTheme.cardCorner, style: .continuous)
+                            .stroke(SBTheme.cardStroke, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(l10n.t(titleKey))
     }
 
     private func sectionLabel(_ text: String) -> some View {

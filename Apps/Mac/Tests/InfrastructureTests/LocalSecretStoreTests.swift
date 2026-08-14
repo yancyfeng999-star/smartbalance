@@ -14,6 +14,18 @@ final class LocalSecretStoreTests: XCTestCase {
         XCTAssertEqual(reader.get(account: account), "test-secret")
     }
 
+    func testCredentialPresenceIsMissingOrPresentWithoutValues() throws {
+        let account = "test.presence.\(UUID().uuidString)"
+        let store = LocalSecretStore()
+        defer { store.delete(account: account) }
+
+        XCTAssertEqual(store.credentialPresence(for: account), .missing)
+        try store.set("super-secret-value-xyz", account: account)
+        XCTAssertEqual(store.credentialPresence(for: account), .present)
+        XCTAssertFalse(String(describing: store.credentialPresence(for: account)).contains("super-secret"))
+        XCTAssertEqual(store.credentialPresence(for: "missing-\(UUID().uuidString)"), .missing)
+    }
+
     func testAvailabilityStatusIsNonSensitiveEnumOnly() {
         let status = LocalSecretStore().availabilityStatus()
         XCTAssertTrue(

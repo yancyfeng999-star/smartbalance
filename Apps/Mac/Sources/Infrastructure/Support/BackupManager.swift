@@ -28,7 +28,9 @@ public enum BackupManagerError: Error, LocalizedError {
 
 /// 在 schema 迁移、恢复和重置前生成本机快照。
 public final class BackupManager: @unchecked Sendable {
-    private let directory: URL
+    public static let settingsWriteRetentionLimit = 8
+
+    public let directory: URL
     private let lock = NSLock()
 
     public init(directory: URL) {
@@ -57,7 +59,23 @@ public final class BackupManager: @unchecked Sendable {
         } catch {
             throw BackupManagerError.writeFailed(error.localizedDescription)
         }
+        if safeReason == "settings-write" || reason == "settings-write" {
+            pruneSettingsWriteSnapshotsLocked()
+        }
         return BackupSnapshot(url: destination, reason: reason, createdAt: now)
+    }
+
+    private func pruneSettingsWriteSnapshotsLocked() {
+        let items = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        let writes = items
+            .filter { $0.pathExtension == "json" && $0.lastPathComponent.contains("-settings-write") }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        for stale in writes.dropFirst(Self.settingsWriteRetentionLimit) {
+            try? FileManager.default.removeItem(at: stale)
+        }
     }
 
     private static func makeTimestamp(_ date: Date) -> String {

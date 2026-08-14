@@ -174,7 +174,7 @@ struct MenuRootView: View {
                 .padding(.bottom, 10)
 
             ScrollView(.vertical, showsIndicators: true) {
-                SettingsRootView(model: model)
+                settingsSupportContent
                     .padding(.horizontal, 14)
                     .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -265,9 +265,41 @@ struct MenuRootView: View {
         }
     }
 
+    private var settingsSupportContent: some View {
+        Group {
+            if model.restorePreview != nil || model.restoreOutcome != nil {
+                RestorePreviewView(model: model)
+            } else if model.settingsSupportPage == .transfer {
+                SettingsTransferView(model: model)
+            } else if model.settingsSupportPage == .backup {
+                BackupRestoreView(model: model)
+            } else {
+                SettingsRootView(model: model)
+            }
+        }
+    }
+
     private var settingsHeader: some View {
-        detailHeader(title: l10n.t("settings.title")) {
-            model.selectedTab = .home
+        detailHeader(title: settingsHeaderTitle) {
+            if model.settingsSupportPage != nil {
+                model.closeSettingsSupport()
+            } else {
+                model.selectedTab = .home
+            }
+        }
+    }
+
+    private var settingsHeaderTitle: String {
+        if model.restorePreview != nil || model.restoreOutcome != nil {
+            return l10n.t("restore.preview.title")
+        }
+        switch model.settingsSupportPage {
+        case .transfer:
+            return l10n.t("settings.transfer.title")
+        case .backup:
+            return l10n.t("settings.backup.title")
+        case .none:
+            return l10n.t("settings.title")
         }
     }
 

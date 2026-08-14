@@ -170,6 +170,23 @@ public actor UsageHistoryStore {
         cached
     }
 
+    public func replaceDocument(_ document: UsageHistoryDocument) throws {
+        try Task.checkCancellation()
+        let data = try encoder.encode(document)
+        try writer(data, fileURL)
+        cached = document
+        hasLoaded = true
+        recovery = nil
+    }
+
+    @discardableResult
+    public func reloadFromDisk() throws -> UsageHistoryLoadResult {
+        hasLoaded = false
+        recovery = nil
+        cached = UsageHistoryDocument()
+        return try load()
+    }
+
     private func loadFromDisk() throws -> UsageHistoryLoadResult {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return UsageHistoryLoadResult(document: UsageHistoryDocument())

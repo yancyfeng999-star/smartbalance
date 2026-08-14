@@ -137,8 +137,9 @@ final class SettingsMigrationRunnerTests: XCTestCase {
         XCTAssertTrue(warning.warningMessage.contains("不会导入"))
         XCTAssertEqual(warning.preview.accounts.count, 1)
         XCTAssertEqual(warning.preview.accounts[0].displayName, "Fixture OpenRouter")
+        XCTAssertThrowsError(try DataBackupService.importSettings(from: data))
 
-        let imported = try DataBackupService.importSettings(from: data)
+        let imported = try DataBackupService.importSettings(from: data, allowLegacyNonSensitive: true)
         XCTAssertTrue(imported.credentialsNeedReentry)
         XCTAssertEqual(imported.settings.accounts.count, 1)
         XCTAssertNotEqual(

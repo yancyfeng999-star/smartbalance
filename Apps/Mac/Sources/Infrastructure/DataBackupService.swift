@@ -46,16 +46,19 @@ public enum DataBackupService {
 
     public enum BackupInspection: Equatable, Sendable {
         case portable(PortableSettings)
+        case localRestore(LocalRestorePackage)
         case legacySecret(LegacySecretBackupWarning)
     }
 
-    public enum BackupError: Error, LocalizedError {
+    public enum BackupError: Error, Equatable, LocalizedError {
         case invalidFormat
         case unsupportedVersion(Int)
         case encodeFailed(String)
         case decodeFailed(String)
         case writeFailed(String)
         case readFailed(String)
+        case legacyImportNotConfirmed
+        case corruptUsage
 
         public var errorDescription: String? {
             switch self {
@@ -71,6 +74,10 @@ public enum DataBackupService {
                 return "写入失败：\(m)"
             case .readFailed(let m):
                 return "读取失败：\(m)"
+            case .legacyImportNotConfirmed:
+                return "旧版明文备份默认不导入"
+            case .corruptUsage:
+                return "备份中的用量历史损坏"
             }
         }
     }
@@ -125,20 +132,50 @@ public enum DataBackupService {
                     exportedAt: package.exportedAt,
                     preview: preview,
                     secretEntryCount: package.secrets.count,
-                    warningMessage: "可能含明文密钥，智余不会导入其中的密钥"
+                    warningMessage: TransferPreview.legacyPlaintextWarning
                 )
             )
         }
 
+        if format == LocalRestorePackage.formatID {
+            guard let version = object["formatVersion"] as? Int else {
+                throw BackupError.invalidFormat
+            }
+            guard version == LocalRestorePackage.currentFormatVersion else {
+                throw BackupError.unsupportedVersion(version)
+            }
+            if let usageObject = object["usageHistory"], !(usageObject is NSNull) {
+                guard JSONSerialization.isValidJSONObject(usageObject) else {
+                    throw BackupError.corruptUsage
+                }
+                do {
+                    let usageData = try JSONSerialization.data(withJSONObject: usageObject)
+                    _ = try SettingsDocument.makeDecoder().decode(UsageHistoryDocument.self, from: usageData)
+                } catch {
+                    throw BackupError.corruptUsage
+                }
+            }
+            let package: LocalRestorePackage
+            do {
+                package = try LocalRestorePackage.decode(data)
+            } catch {
+                throw BackupError.decodeFailed(error.localizedDescription)
+            }
+            return .localRestore(package)
+        }
+
         if format == portableFormatID {
+            guard let version = object["formatVersion"] as? Int else {
+                throw BackupError.invalidFormat
+            }
+            guard version == PortableSettings.currentFormatVersion else {
+                throw BackupError.unsupportedVersion(version)
+            }
             let portable: PortableSettings
             do {
                 portable = try PortableSettings.decode(data)
             } catch {
                 throw BackupError.decodeFailed(error.localizedDescription)
-            }
-            guard portable.formatVersion == PortableSettings.currentFormatVersion else {
-                throw BackupError.unsupportedVersion(portable.formatVersion)
             }
             return .portable(portable)
         }
@@ -146,11 +183,19 @@ public enum DataBackupService {
         throw BackupError.invalidFormat
     }
 
-    public static func importSettings(from data: Data) throws -> PortableImportResult {
+    public static func importSettings(
+        from data: Data,
+        allowLegacyNonSensitive: Bool = false
+    ) throws -> PortableImportResult {
         switch try inspect(data) {
         case .portable(let portable):
             return portable.importAsSettings()
+        case .localRestore(let package):
+            return package.asPortableSettings.importAsSettings()
         case .legacySecret(let warning):
+            guard allowLegacyNonSensitive else {
+                throw BackupError.legacyImportNotConfirmed
+            }
             return warning.preview.importAsSettings()
         }
     }

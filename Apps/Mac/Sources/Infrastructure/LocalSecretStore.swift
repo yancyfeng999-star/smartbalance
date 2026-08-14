@@ -41,6 +41,11 @@ public final class LocalSecretStore: @unchecked Sendable {
         get(account: account) != nil
     }
 
+    /// 只回答凭据是否缺失，不返回密钥值。
+    public func credentialPresence(for account: String) -> CredentialPresence {
+        contains(account: account) ? .present : .missing
+    }
+
     public func delete(account: String) {
         queue.sync {
             deleteFromKeychain(key: account)

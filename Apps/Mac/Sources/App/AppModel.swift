@@ -32,7 +32,15 @@ final class AppModel: ObservableObject {
     @Published private(set) var diagnosticReport: DiagnosticReport?
     @Published private(set) var isCollectingDiagnostics = false
     @Published var preferExpandAPIAccounts = false
+    @Published var settingsSupportPage: SettingsSupportPage?
+    @Published var restorePreview: TransferPreview?
+    @Published var restoreOutcome: RestoreOutcome?
+    @Published var restoreIncludeUsage = true
+    @Published var restoreLegacyAcknowledged = false
+    @Published var restoreBusy = false
     private var diagnosticsReturnTab: Tab = .home
+    private var pendingRestoreData: Data?
+    private var pendingRestoreMode: SettingsSupportPage = .transfer
 
     enum Tab: String {
         case home
@@ -41,12 +49,18 @@ final class AppModel: ObservableObject {
         case diagnostics
     }
 
+    enum SettingsSupportPage: String {
+        case transfer
+        case backup
+    }
+
     private let store = SettingsStore.shared
     private let secrets = LocalSecretStore.shared
     private let service = BalanceService()
     private let usageStore = UsageHistoryStore.shared
     private let firstLaunchStore = FirstLaunchStore.shared
     private let compatibilityChecker = CompatibilityChecker()
+    private let restoreCoordinator: RestoreCoordinator
     private var pendingOpenSettingsAfterOnboarding = false
     private var refreshTask: Task<Void, Never>?
     private let refreshCoordinator: RefreshCoordinator
@@ -141,6 +155,12 @@ final class AppModel: ObservableObject {
     }
 
     init() {
+        let supportDirectory = SettingsStore.shared.fileURL.deletingLastPathComponent()
+        self.restoreCoordinator = RestoreCoordinator(
+            directory: supportDirectory,
+            settingsStore: SettingsStore.shared,
+            usageStore: UsageHistoryStore.shared
+        )
         var loaded = SettingsStore.shared.load()
         // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
         if !loaded.apiQueryEnabled {
@@ -1128,120 +1148,190 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: - 数据导出 / 导入
+    // MARK: - Settings transfer / local restore
 
-    /// 导出非敏感设置为 portable-settings v2；不含 API Key / Cookie / SMTP 密码。
-    func exportDataBackup() {
-        let package = DataBackupService.makePackage(
-            settings: settings,
-            appVersion: appVersion
-        )
+    func openSettingsTransfer() {
+        settingsSupportPage = .transfer
+        clearRestorePreview(resetPage: false)
+    }
 
+    func openBackupRestore() {
+        settingsSupportPage = .backup
+        clearRestorePreview(resetPage: false)
+    }
+
+    func closeSettingsSupport() {
+        if restorePreview != nil || restoreOutcome != nil {
+            clearRestorePreview(resetPage: false)
+            return
+        }
+        settingsSupportPage = nil
+    }
+
+    func exportSettingsTransfer() {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        panel.title = "导出智余数据"
-        panel.message = "导出账号与报警等非敏感设置。密钥不会写入文件，导入后需要重新填写。"
-        panel.nameFieldStringValue = DataBackupService.defaultFileName()
+        panel.title = L10n.shared.t("settings.transfer.export_title")
+        panel.message = L10n.shared.t("settings.transfer.export_message")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.transfer.file_prefix")
+        )
         panel.allowedContentTypes = [.json]
-
-        // 菜单栏 App：把面板提到前台
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
         do {
-            try DataBackupService.write(package, to: url)
-            let accountCount = settings.accounts.count
-            let msg = "已导出 \(accountCount) 个账号（不含密钥）\n\(url.path)"
-            banner = "数据已导出"
-            presentAlert(title: "导出成功", message: msg)
-            AppLog.info("Portable settings exported · accounts=\(accountCount) → \(url.lastPathComponent)")
+            try SettingsTransferService.writeExport(
+                settings: settings,
+                appVersion: appVersion,
+                to: url
+            )
+            banner = L10n.shared.t("settings.transfer.export_ok")
+            AppLog.info("Settings transfer exported")
         } catch {
-            banner = "导出失败：\(error.localizedDescription)"
-            presentAlert(title: "导出失败", message: error.localizedDescription)
-            AppLog.error("Data backup export failed: \(error.localizedDescription)")
+            banner = L10n.shared.t("settings.transfer.export_failed")
+            AppLog.error("Settings transfer export failed", category: .backup, event: "settings_export_failed")
         }
     }
 
-    /// 从 portable v2 或旧 v1 备份恢复非敏感设置；不导入 secrets，不读旧 Keychain。
-    func importDataBackup() {
+    func exportLocalBackup() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("settings.backup.export_title")
+        panel.message = L10n.shared.t("settings.backup.export_message")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.backup.file_prefix")
+        )
+        panel.allowedContentTypes = [.json]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try SettingsTransferService.writeLocalRestore(
+                settings: settings,
+                usage: restoreIncludeUsage ? usageHistory : nil,
+                appVersion: appVersion,
+                to: url
+            )
+            banner = L10n.shared.t("settings.backup.export_ok")
+            AppLog.info("Local restore package exported")
+        } catch {
+            banner = L10n.shared.t("settings.backup.export_failed")
+            AppLog.error("Local restore export failed", category: .backup, event: "restore_export_failed")
+        }
+    }
+
+    func pickSettingsImport() {
+        pickRestoreFile(mode: .transfer)
+    }
+
+    func pickLocalRestore() {
+        pickRestoreFile(mode: .backup)
+    }
+
+    func confirmPendingRestore() {
+        guard let data = pendingRestoreData, !restoreBusy else { return }
+        let preview = restorePreview
+        if preview?.isLegacySecretBackup == true && !restoreLegacyAcknowledged {
+            return
+        }
+        restoreBusy = true
+        let includeUsage = pendingRestoreMode == .backup && restoreIncludeUsage
+        let allowLegacy = preview?.isLegacySecretBackup == true && restoreLegacyAcknowledged
+        var prepared = preview
+        prepared?.settings.windowPinned = false
+        prepared?.settings.apiQueryEnabled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let outcome: RestoreOutcome
+            if let prepared {
+                outcome = await self.restoreCoordinator.restore(
+                    preview: prepared,
+                    confirmed: true,
+                    includeUsage: includeUsage,
+                    allowLegacyNonSensitive: allowLegacy
+                )
+            } else {
+                outcome = await self.restoreCoordinator.restore(
+                    from: data,
+                    confirmed: true,
+                    includeUsage: includeUsage,
+                    allowLegacyNonSensitive: allowLegacy
+                )
+            }
+            self.restoreBusy = false
+            self.restoreOutcome = outcome
+            if outcome.status == .succeeded {
+                self.applyRestoredState(outcome)
+                self.banner = L10n.shared.t("restore.result.ok")
+            } else if outcome.status == .cancelled {
+                self.banner = L10n.shared.t("restore.result.cancelled")
+            } else {
+                self.banner = L10n.shared.t(self.restoreFailureKey(outcome.failureReason))
+            }
+        }
+    }
+
+    func cancelPendingRestore() {
+        restoreOutcome = RestoreOutcome.cancelled()
+        pendingRestoreData = nil
+        restorePreview = nil
+        restoreLegacyAcknowledged = false
+        banner = L10n.shared.t("restore.result.cancelled")
+    }
+
+    func openBackupDirectory() {
+        let directory = store.fileURL.deletingLastPathComponent()
+        NSWorkspace.shared.activateFileViewerSelecting([directory])
+        AppLog.info("Opened backup directory")
+    }
+
+    func isCredentialMissing(for account: BalanceAccount) -> Bool {
+        secrets.credentialPresence(for: account.secretRef) == .missing
+    }
+
+    private func pickRestoreFile(mode: SettingsSupportPage) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = "导入智余数据"
-        panel.message = "选择设置迁移包。导入后覆盖本机账号配置，凭据需要重新填写。"
+        panel.title = L10n.shared.t(mode == .transfer ? "settings.transfer.import_title" : "settings.backup.restore_title")
+        panel.message = L10n.shared.t(mode == .transfer ? "settings.transfer.import_message" : "settings.backup.restore_message")
         panel.allowedContentTypes = [.json]
-
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
         let data: Data
-        let inspection: DataBackupService.BackupInspection
         do {
             data = try Data(contentsOf: url)
-            inspection = try DataBackupService.inspect(data)
         } catch {
-            banner = "导入失败：\(error.localizedDescription)"
-            presentAlert(title: "导入失败", message: error.localizedDescription)
-            AppLog.error("Data backup import read failed: \(error.localizedDescription)")
+            banner = L10n.shared.t("restore.error.read")
+            AppLog.error("Restore file read failed", category: .backup, event: "restore_read_failed")
             return
         }
-
-        let result: PortableImportResult
         do {
-            result = try DataBackupService.importSettings(from: data)
+            let preview = try SettingsTransferService.preview(from: data)
+            pendingRestoreData = data
+            pendingRestoreMode = mode
+            restoreIncludeUsage = mode == .backup && preview.includesUsageHistory
+            restoreLegacyAcknowledged = false
+            restoreOutcome = nil
+            restorePreview = preview
+            AppLog.info(
+                "Restore preview format=\(preview.format) v\(preview.formatVersion) legacy=\(preview.isLegacySecretBackup)"
+            )
+        } catch SettingsTransferError.formatMismatch {
+            banner = L10n.shared.t("restore.error.format")
+        } catch SettingsTransferError.versionTooNew {
+            banner = L10n.shared.t("restore.error.version")
+        } catch SettingsTransferError.corruptUsage {
+            banner = L10n.shared.t("restore.error.usage")
         } catch {
-            banner = "导入失败：\(error.localizedDescription)"
-            presentAlert(title: "导入失败", message: error.localizedDescription)
-            AppLog.error("Data backup import parse failed: \(error.localizedDescription)")
-            return
-        }
-
-        let confirm = NSAlert()
-        confirm.messageText = "确认导入并覆盖？"
-        switch inspection {
-        case .portable(let package):
-            confirm.informativeText = """
-            将恢复 \(result.settings.accounts.count) 个账号（导出自 \(package.appVersion)）。
-
-            密钥不会导入，导入后需要重新填写凭据。当前本机账号列表会被替换。
-            """
-        case .legacySecret(let warning):
-            confirm.informativeText = """
-            \(warning.warningMessage)
-
-            将恢复 \(result.settings.accounts.count) 个账号的非敏感设置（导出自 \(warning.appVersion)）。密钥不会导入。
-            """
-        }
-        confirm.alertStyle = .warning
-        confirm.addButton(withTitle: "导入并覆盖")
-        confirm.addButton(withTitle: "取消")
-        NSApp.activate(ignoringOtherApps: true)
-        guard confirm.runModal() == .alertFirstButtonReturn else { return }
-
-        do {
-            try applyImportedSettings(result.settings)
-            let msg = result.credentialsNeedReentry
-                ? "已导入 \(result.settings.accounts.count) 个账号，请重新填写凭据"
-                : "已导入 \(result.settings.accounts.count) 个账号"
-            banner = "数据已导入 · 正在刷新余额"
-            presentAlert(title: "导入成功", message: msg)
-            AppLog.info("Portable settings imported · accounts=\(result.settings.accounts.count) reentry=\(result.credentialsNeedReentry)")
-            requestUsageBaselineResetAndRefresh(for: Set(result.settings.accounts.map(\.id)))
-        } catch {
-            banner = "导入失败：\(error.localizedDescription)"
-            presentAlert(title: "导入失败", message: error.localizedDescription)
-            AppLog.error("Data backup import apply failed: \(error.localizedDescription)")
+            banner = L10n.shared.t("restore.error.decode")
         }
     }
 
-    private func applyImportedSettings(_ imported: AppSettings) throws {
-        var next = imported
-        next.windowPinned = false
-        next.apiQueryEnabled = true
-        try store.save(next)
-
+    private func applyRestoredState(_ outcome: RestoreOutcome) {
+        let next = outcome.settings ?? store.reloadFromDisk()
         invalidateActiveRefresh()
         settings = next
         pinWindowOpen = false
@@ -1253,7 +1343,36 @@ final class AppModel: ObservableObject {
         applyAppearancePreference()
         rescheduleManualReminders()
         startAutoRefreshIfNeeded()
+        if outcome.includedUsage, let usage = outcome.usageHistory {
+            usageHistory = usage
+            usageDataError = nil
+        }
+        preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
         objectWillChange.send()
+        requestUsageBaselineResetAndRefresh(for: Set(next.accounts.map(\.id)))
+    }
+
+    private func clearRestorePreview(resetPage: Bool) {
+        restorePreview = nil
+        restoreOutcome = nil
+        pendingRestoreData = nil
+        restoreLegacyAcknowledged = false
+        restoreBusy = false
+        if resetPage {
+            settingsSupportPage = nil
+        }
+    }
+
+    private func restoreFailureKey(_ reason: RestoreFailureReason?) -> String {
+        switch reason {
+        case .formatMismatch: return "restore.error.format"
+        case .versionTooNew: return "restore.error.version"
+        case .corruptUsage: return "restore.error.usage"
+        case .settingsWriteFailed: return "restore.error.settings"
+        case .usageWriteFailed: return "restore.error.usage_write"
+        case .cancelled: return "restore.result.cancelled"
+        default: return "restore.result.failed"
+        }
     }
 
     /// 一点「检查更新」：有新版本则直接下 pkg 静默安装，中间不弹任何窗。
@@ -1452,7 +1571,7 @@ final class AppModel: ObservableObject {
     }
 
     func hasSecret(for account: BalanceAccount) -> Bool {
-        secrets.contains(account: account.secretRef)
+        secrets.credentialPresence(for: account.secretRef) == .present
     }
 
     func hasSMTPPassword() -> Bool {

@@ -13,7 +13,6 @@ struct BackgroundSystemSection: View {
             backgroundSyncCard
             thresholdCard
             launchAtLoginCard
-            dataBackupCard
             logsCard
             updatesCard
             aboutLine
@@ -216,32 +215,6 @@ struct BackgroundSystemSection: View {
             .scaleEffect(0.85)
         }
         .padding(14)
-        .background(cardShell)
-    }
-
-    // MARK: 数据导出 / 导入
-
-    private var dataBackupCard: some View {
-        HStack(spacing: 10) {
-            iconCircle(
-                systemName: "externaldrive.fill.badge.timemachine",
-                colors: [Color(red: 0.35, green: 0.55, blue: 0.85), Color(red: 0.25, green: 0.4, blue: 0.75)]
-            )
-            Text("数据备份")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(SBTheme.text)
-            Spacer(minLength: 8)
-            Button("导出") {
-                model.exportDataBackup()
-            }
-            .buttonStyle(SBButtonStyle(kind: .accent))
-            Button("导入") {
-                model.importDataBackup()
-            }
-            .buttonStyle(SBButtonStyle(kind: .normal))
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
         .background(cardShell)
     }
 
