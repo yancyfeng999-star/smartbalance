@@ -4,6 +4,7 @@ import Domain
 /// 后台同步 · 额度阈值 · 登录启动 · 日志 · 更新 · 关于
 struct BackgroundSystemSection: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
 
     @State private var expandSync = false
     @State private var expandThreshold = false
@@ -248,17 +249,18 @@ struct BackgroundSystemSection: View {
     // MARK: 软件更新
 
     private var updatesCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let _ = l10n.revision
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 iconCircle(
                     systemName: "arrow.down.circle.fill",
                     colors: [Color(red: 0.3, green: 0.7, blue: 0.4), Color(red: 0.2, green: 0.55, blue: 0.35)]
                 )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("软件更新")
+                    Text(l10n.t("update.card.title"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(SBTheme.text)
-                    Text(model.updateMessage ?? "当前 \(model.appVersion)")
+                    Text(model.updateMessage ?? l10n.format("update.check.current", [model.appVersion]))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(model.updateAvailable ? SBTheme.accent : SBTheme.muted)
                         .lineLimit(2)
@@ -271,7 +273,7 @@ struct BackgroundSystemSection: View {
                         if model.updateChecking {
                             ProgressView().controlSize(.mini).frame(width: 12, height: 12)
                         }
-                        Text(model.updateChecking ? "检查中" : "检查更新")
+                        Text(model.updateChecking ? l10n.t("update.check.busy") : l10n.t("update.check.action"))
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(.white)
@@ -292,31 +294,21 @@ struct BackgroundSystemSection: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.updateChecking)
+                .accessibilityLabel(l10n.t("update.check.action"))
             }
 
-            if let progress = model.updateDownloadProgress {
-                VStack(alignment: .leading, spacing: 4) {
-                    ProgressView(value: progress, total: 1)
-                        .progressViewStyle(.linear)
-                        .tint(Color(red: 0.3, green: 0.7, blue: 0.4))
-                    Text("下载 \(Int((progress * 100).rounded()))%")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(SBTheme.muted)
-                        .monospacedDigit()
+            if model.updateAvailable {
+                Button(l10n.t("update.details.view")) {
+                    model.openUpdateDetails()
                 }
-            }
-
-            // 失败时才给「打开发布页」兜底；正常一点更新静默装 pkg，不插中间按钮
-            if !model.updateChecking,
-               model.updateDownloadProgress == nil,
-               let msg = model.updateMessage,
-               (msg.contains("失败") || msg.contains("无安装包")),
-               model.updateOpenURL != nil
-            {
-                Button("打开发布页") {
+                .buttonStyle(SBButtonStyle(kind: .accent))
+                .accessibilityLabel(l10n.t("update.details.view"))
+            } else if model.updatePhase == .failed, model.updateOpenURL != nil {
+                Button(l10n.t("update.action.open_release")) {
                     model.openUpdateURL()
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))
+                .accessibilityLabel(l10n.t("update.action.open_release"))
             }
         }
         .padding(14)

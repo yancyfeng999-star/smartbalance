@@ -54,6 +54,7 @@ final class AppModel: ObservableObject {
     enum SettingsSupportPage: String {
         case transfer
         case backup
+        case updates
     }
 
     private let store = SettingsStore.shared
@@ -78,9 +79,17 @@ final class AppModel: ObservableObject {
     @Published var updateAvailable = false
     /// 0…1 下载进度；nil 表示未在下载
     @Published var updateDownloadProgress: Double?
+    @Published var updatePhase: UpdatePhase = .idle
+    @Published var updateDetails: UpdateReleaseDetails?
+    @Published var updateValidation: UpdateValidationResult?
+    @Published var updateAwaitingInstallConfirm = false
+    @Published var updateErrorSummary: String?
     /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
     @Published var browserImporting = false
     private let updateChecker = UpdateChecker()
+    private var releaseDownloader: ReleaseDownloader?
+    private var updateTask: Task<Void, Never>?
+    private var updateTempURL: URL?
 
     /// 非进度类 banner 数秒后自动清除。
     private func scheduleBannerAutoDismiss() {
@@ -1163,6 +1172,14 @@ final class AppModel: ObservableObject {
     }
 
     func closeSettingsSupport() {
+        if settingsSupportPage == .updates {
+            if updatePhase == .downloading || updatePhase == .validating {
+                cancelUpdateDownload()
+            }
+            updateAwaitingInstallConfirm = false
+            settingsSupportPage = nil
+            return
+        }
         abortInFlightRestore()
         if restorePreview != nil || restoreOutcome != nil {
             clearRestorePreview(resetPage: false)
@@ -1386,88 +1403,236 @@ final class AppModel: ObservableObject {
         reason?.localizationKey ?? "restore.result.failed"
     }
 
-    /// 一点「检查更新」：有新版本则直接下 pkg 静默安装，中间不弹任何窗。
+    /// Check only. Never downloads or installs.
     func checkForUpdates() {
         guard !updateChecking else { return }
         updateChecking = true
-        updateMessage = "正在检查更新…"
+        updatePhase = .checking
+        updateMessage = L10n.shared.t("update.check.checking")
         updateOpenURL = nil
         updateDownloadURL = nil
         updateAvailable = false
         updateDownloadProgress = nil
-        Task {
-            let result = await updateChecker.check()
-            await MainActor.run {
-                self.updateMessage = result.message
-                self.updateOpenURL = result.openURL
-                self.updateDownloadURL = result.downloadURL
-                self.updateAvailable = result.status == .available
-                AppLog.info("Update check: \(result.message)")
-            }
-            if result.status == .available {
-                await downloadAndInstallUpdate(result: result)
-            } else {
-                await MainActor.run { self.updateChecking = false }
-            }
+        updateAwaitingInstallConfirm = false
+        updateErrorSummary = nil
+        updateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let result = await self.updateChecker.check()
+            self.applyCheckResult(result)
         }
     }
 
+    func openUpdateDetails() {
+        settingsSupportPage = .updates
+        selectedTab = .settings
+    }
+
+    func requestInstallUpdate() {
+        guard let validation = updateValidation, validation.canInstall else { return }
+        updateAwaitingInstallConfirm = true
+        updatePhase = .awaitingInstallConfirm
+    }
+
+    func cancelInstallConfirmation() {
+        updateAwaitingInstallConfirm = false
+        if updateAvailable {
+            updatePhase = .available
+        }
+    }
+
+    func confirmInstallUpdate() {
+        guard updateAwaitingInstallConfirm else { return }
+        updateAwaitingInstallConfirm = false
+        updateTask = Task { @MainActor [weak self] in
+            await self?.performDownloadValidateInstall()
+        }
+    }
+
+    func cancelUpdateDownload() {
+        releaseDownloader?.cancel()
+        updateTask?.cancel()
+        updateTask = nil
+        if let temp = updateTempURL {
+            releaseDownloader?.cleanup(temp)
+            updateTempURL = nil
+        }
+        updateChecking = false
+        updateDownloadProgress = nil
+        updatePhase = updateAvailable ? .available : .idle
+        updateMessage = L10n.shared.t("update.error.cancelled")
+    }
+
+    func copyUpdateErrorSummary() {
+        let text = updateErrorSummary
+            ?? updateValidation?.errorSummaryKeys.map { L10n.shared.t($0) }.joined(separator: "\n")
+            ?? updateMessage
+            ?? ""
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        banner = L10n.shared.t("update.error.copied")
+    }
+
+    func openUpdateURL() {
+        let url = updateDetails?.releasePageURL ?? updateOpenURL ?? UpdateChecker.releasesPage
+        guard let url else { return }
+        if url.isFileURL {
+            NSWorkspace.shared.open(url)
+        } else {
+            BrowserLauncher.open(url)
+        }
+    }
+
+    private func applyCheckResult(_ result: UpdateCheckResult) {
+        updateChecking = false
+        updateOpenURL = result.openURL
+        updateDownloadURL = result.downloadURL
+        updateAvailable = result.status == .available
+        updateDetails = result.details
+        updateMessage = localizedUpdateMessage(result)
+        AppLog.info("Update check: \(result.messageKey) \(result.message)")
+
+        if result.status == .available, let details = result.details {
+            if let candidate = UpdateCandidate.make(details: details, currentMacOS: currentMacOSString) {
+                updateValidation = UpdateSafetyValidator().validate(candidate)
+            } else {
+                updateValidation = UpdateValidationResult.making(
+                    issues: [.assetExtensionNotAllowed],
+                    checksumStatus: .unverifiable,
+                    checksumDisplay: .unverifiable
+                )
+            }
+            updatePhase = .available
+            settingsSupportPage = .updates
+            selectedTab = .settings
+        } else if result.status == .upToDate {
+            updatePhase = .upToDate
+            updateValidation = nil
+        } else {
+            updatePhase = .failed
+            updateValidation = nil
+        }
+    }
+
+    private func localizedUpdateMessage(_ result: UpdateCheckResult) -> String {
+        if result.messageKey.isEmpty {
+            return result.message
+        }
+        return L10n.shared.format(result.messageKey, result.messageArguments)
+    }
+
+    private var currentMacOSString: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
     @MainActor
-    private func downloadAndInstallUpdate(result: UpdateCheckResult) async {
-        guard let remote = result.downloadURL else {
-            updateChecking = false
-            updateMessage = (result.message) + "（无安装包）"
+    private func performDownloadValidateInstall() async {
+        guard let details = updateDetails, let asset = details.asset else {
+            updateMessage = L10n.shared.t("update.check.no_package")
+            updatePhase = .failed
             return
         }
-        guard remote.scheme?.lowercased() == "https" else {
-            updateChecking = false
-            updateMessage = "下载地址必须为 HTTPS"
-            return
-        }
-        let ver = result.latestVersion ?? ""
-        updateMessage = "正在下载 \(ver)…"
+        updateChecking = true
+        updatePhase = .downloading
         updateDownloadProgress = 0
+        updateErrorSummary = nil
+        let downloader = ReleaseDownloader()
+        releaseDownloader = downloader
         do {
-            let file = try await ReleaseDownloader().download(from: remote) { [weak self] fraction in
+            let temp = try await downloader.downloadToTemporaryFile(
+                from: asset.downloadURL,
+                fileName: asset.fileName,
+                expectedSize: asset.byteSize
+            ) { [weak self] fraction in
                 Task { @MainActor in
                     self?.updateDownloadProgress = fraction
-                    self?.updateMessage = "下载 \(ver)  \(Int((fraction * 100).rounded()))%"
+                    self?.updateMessage = L10n.shared.format(
+                        "update.progress.downloading",
+                        ["\(Int((fraction * 100).rounded()))"]
+                    )
                 }
             }
-            updateDownloadProgress = 1
-            let ext = file.pathExtension.lowercased()
-            if ext == "pkg" {
-                updateMessage = "正在安装 \(ver)…"
-                try PackageSilentInstaller.scheduleReplace(pkgURL: file)
-                updateMessage = "安装中，即将重启…"
+            if Task.isCancelled {
+                downloader.cleanup(temp)
+                return
+            }
+            updateTempURL = temp
+            updatePhase = .validating
+            updateMessage = L10n.shared.t("update.progress.validating")
+
+            let actualSize = (try? FileManager.default.attributesOfItem(atPath: temp.path)[.size] as? NSNumber)?.int64Value ?? asset.byteSize
+            var candidate = try makeDownloadedCandidate(details: details, fileURL: temp, byteSize: actualSize)
+            candidate.downloadedFileSHA256 = try SHA256Verifier.hexDigest(ofFile: temp)
+            let integrity = DefaultPackageIntegrityInspector().inspect(fileURL: temp)
+            let validation = UpdateSafetyValidator().validate(candidate, integrity: integrity)
+            updateValidation = validation
+            guard validation.canInstall else {
+                downloader.cleanup(temp)
+                updateTempURL = nil
+                updateChecking = false
+                updateDownloadProgress = nil
+                updatePhase = .failed
+                updateErrorSummary = validation.errorSummaryKeys.map { L10n.shared.t($0) }.joined(separator: "\n")
+                updateMessage = L10n.shared.t(validation.blockingIssues.first?.localizationKey ?? "update.error.validationFailed")
+                AppLog.error("Update validation failed: \(updateErrorSummary ?? "")")
+                return
+            }
+
+            let promoted = try downloader.promoteToDownloads(tempURL: temp, fileName: asset.fileName)
+            updateTempURL = nil
+            if asset.kind == .pkg {
+                updatePhase = .installing
+                updateMessage = L10n.shared.t("update.progress.installing")
+                try PackageSilentInstaller.scheduleReplace(
+                    pkgURL: promoted,
+                    candidate: candidate
+                )
+                updateMessage = L10n.shared.t("update.progress.restarting")
                 updateChecking = false
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 NSApp.terminate(nil)
                 return
             }
-            // dmg / zip 回退：无确认框直接打开文件
-            updateMessage = "已下载，正在打开安装包…"
-            updateChecking = false
-            NSWorkspace.shared.open(file)
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            NSApp.terminate(nil)
-        } catch {
+            updatePhase = .available
             updateChecking = false
             updateDownloadProgress = nil
-            updateMessage = "更新失败：\(error.localizedDescription)"
-            AppLog.error("Update failed: \(error.localizedDescription)")
+            updateMessage = L10n.shared.t("update.progress.opened_package")
+            NSWorkspace.shared.open(promoted)
+        } catch is CancellationError {
+            cancelUpdateDownload()
+        } catch let error as ReleaseDownloadError {
+            finishUpdateFailure(key: error.localizationKey, detail: error.localizedDescription)
+        } catch let error as PackageSilentInstaller.InstallError {
+            finishUpdateFailure(key: error.localizationKey, detail: error.localizedDescription)
+        } catch {
+            finishUpdateFailure(key: "update.error.validationFailed", detail: error.localizedDescription)
         }
     }
 
-    func openUpdateURL() {
-        if let url = updateDownloadURL ?? updateOpenURL {
-            // 本地文件仍用系统打开；网页优先 Chrome
-            if url.isFileURL {
-                NSWorkspace.shared.open(url)
-            } else {
-                BrowserLauncher.open(url)
-            }
+    private func makeDownloadedCandidate(details: UpdateReleaseDetails, fileURL: URL, byteSize: Int64) throws -> UpdateCandidate {
+        guard var candidate = UpdateCandidate.make(
+            details: details,
+            currentMacOS: currentMacOSString,
+            downloadedFileURL: fileURL
+        ) else {
+            throw ReleaseDownloadError.validationFailed
         }
+        candidate.assetByteSize = byteSize
+        return candidate
+    }
+
+    private func finishUpdateFailure(key: String, detail: String) {
+        if let temp = updateTempURL {
+            releaseDownloader?.cleanup(temp)
+            updateTempURL = nil
+        }
+        updateChecking = false
+        updateDownloadProgress = nil
+        updatePhase = .failed
+        updateMessage = L10n.shared.t(key)
+        updateErrorSummary = [L10n.shared.t(key), detail].joined(separator: "\n")
+        AppLog.error("Update failed: \(detail)")
     }
 
     var appVersion: String {

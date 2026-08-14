@@ -273,6 +273,8 @@ struct MenuRootView: View {
                 SettingsTransferView(model: model)
             } else if model.settingsSupportPage == .backup {
                 BackupRestoreView(model: model)
+            } else if model.settingsSupportPage == .updates {
+                UpdateDetailsView(model: model)
             } else {
                 SettingsRootView(model: model)
             }
@@ -298,6 +300,8 @@ struct MenuRootView: View {
             return l10n.t("settings.transfer.title")
         case .backup:
             return l10n.t("settings.backup.title")
+        case .updates:
+            return l10n.t("update.details.title")
         case .none:
             return l10n.t("settings.title")
         }

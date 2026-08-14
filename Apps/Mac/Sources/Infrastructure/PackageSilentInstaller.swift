@@ -1,19 +1,32 @@
 import Foundation
+import Domain
 
-/// 下载后的 .pkg 静默安装：解包 → 退出后 ditto 覆盖当前 App → 自动重新打开。
-/// 不弹 Installer 向导、不弹确认框；需要当前安装目录可写（本机 ad-hoc 安装通常可写）。
+/// 下载后的 .pkg 安装：校验 → 解包 → 退出后 ditto 覆盖当前 App → 自动重新打开。
+/// 必须由用户明确确认后再调用；安装前校验失败不会改动当前 App。
 public enum PackageSilentInstaller: Sendable {
-    public enum InstallError: Error, LocalizedError, Sendable {
+    public enum InstallError: Error, LocalizedError, Sendable, Equatable {
+        case validationFailed(UpdateValidationIssue)
         case expandFailed(String)
         case appNotFound
         case notWritable(String)
         case scriptFailed(String)
 
+        public var localizationKey: String {
+            switch self {
+            case .validationFailed(let issue): return issue.localizationKey
+            case .expandFailed: return "update.error.expandFailed"
+            case .appNotFound: return "update.error.appNotFound"
+            case .notWritable: return "update.error.notWritable"
+            case .scriptFailed: return "update.error.installScriptFailed"
+            }
+        }
+
         public var errorDescription: String? {
             switch self {
-            case .expandFailed(let s): "解包失败：\(s)"
-            case .appNotFound: "安装包内未找到 App"
-            case .notWritable(let p): "无法写入 \(p)（请确认智余装在「应用程序」且当前用户可写）"
+            case .validationFailed(let issue): issue.localizationKey
+            case .expandFailed(let s): "expand failed: \(s)"
+            case .appNotFound: "app bundle missing from package"
+            case .notWritable(let p): "cannot write \(p)"
             case .scriptFailed(let s): s
             }
         }
@@ -24,22 +37,93 @@ public enum PackageSilentInstaller: Sendable {
         pkgURL: URL,
         destinationApp: URL = Bundle.main.bundleURL
     ) throws {
+        try scheduleReplace(pkgURL: pkgURL, destinationApp: destinationApp, candidate: nil, environment: .live)
+    }
+
+    public static func scheduleReplace(
+        pkgURL: URL,
+        destinationApp: URL = Bundle.main.bundleURL,
+        candidate: UpdateCandidate?,
+        environment: PackageInstallEnvironment = .live
+    ) throws {
+        let validation = validateForInstall(pkgURL: pkgURL, candidate: candidate, environment: environment)
+        if let issue = validation.blockingIssues.first {
+            throw InstallError.validationFailed(issue)
+        }
+        try performScheduleReplace(
+            pkgURL: pkgURL,
+            destinationApp: destinationApp,
+            environment: environment
+        )
+    }
+
+    public static func validateForInstall(
+        pkgURL: URL,
+        candidate: UpdateCandidate?,
+        environment: PackageInstallEnvironment = .live
+    ) -> UpdateValidationResult {
+        let integrity = environment.inspector.inspect(fileURL: pkgURL)
+        if let candidate {
+            return UpdateSafetyValidator().validate(candidate, integrity: integrity)
+        }
+        return UpdateSafetyValidator().validate(
+            UpdateCandidate(
+                currentVersion: "0.0.0",
+                targetVersion: "0.0.1",
+                minimumMacOS: UpdateSafetyLimits.defaultMinimumMacOS,
+                currentMacOS: UpdateSafetyLimits.defaultMinimumMacOS,
+                assetURL: pkgURL.scheme == nil ? URL(string: "https://local.invalid/\(pkgURL.lastPathComponent)")! : pkgURL,
+                assetFileName: pkgURL.lastPathComponent,
+                assetByteSize: (try? FileManager.default.attributesOfItem(atPath: pkgURL.path)[.size] as? NSNumber)?.int64Value ?? 0,
+                downloadedFileURL: pkgURL
+            ),
+            integrity: integrity
+        )
+    }
+
+    private static func performScheduleReplace(
+        pkgURL: URL,
+        destinationApp: URL,
+        environment: PackageInstallEnvironment
+    ) throws {
         let fm = FileManager.default
         let work = fm.temporaryDirectory
             .appendingPathComponent("smartbalance-update-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
-
-        let expanded = work.appendingPathComponent("expanded", isDirectory: true)
-        try runPkgUtilExpand(pkg: pkgURL, to: expanded)
-
-        guard let newApp = findAppBundle(in: expanded) else {
+        do {
+            try runScheduleReplace(
+                pkgURL: pkgURL,
+                destinationApp: destinationApp,
+                work: work,
+                environment: environment
+            )
+        } catch {
             try? fm.removeItem(at: work)
-            throw InstallError.appNotFound
+            throw error
+        }
+    }
+
+    private static func runScheduleReplace(
+        pkgURL: URL,
+        destinationApp: URL,
+        work: URL,
+        environment: PackageInstallEnvironment
+    ) throws {
+        let fm = FileManager.default
+        let expanded = work.appendingPathComponent("expanded", isDirectory: true)
+        let newApp: URL
+        if let expandPackage = environment.expandPackage {
+            newApp = try expandPackage(pkgURL, work)
+        } else {
+            try runPkgUtilExpand(pkg: pkgURL, to: expanded)
+            guard let found = findAppBundle(in: expanded) else {
+                throw InstallError.appNotFound
+            }
+            newApp = found
         }
 
         let destDir = destinationApp.deletingLastPathComponent()
         guard fm.isWritableFile(atPath: destDir.path) || fm.isWritableFile(atPath: destinationApp.path) else {
-            try? fm.removeItem(at: work)
             throw InstallError.notWritable(destinationApp.path)
         }
 
@@ -81,7 +165,6 @@ public enum PackageSilentInstaller: Sendable {
           fi
           /usr/bin/ditto --norsrc --noextattr --noqtn "$NEW" "$DEST"
           /usr/bin/xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
-          rm -rf "$OLD"
           /usr/bin/open "$DEST"
           echo "update ok → $DEST"
           rm -rf "$WORK"
@@ -90,15 +173,17 @@ public enum PackageSilentInstaller: Sendable {
         try script.write(to: scriptURL, atomically: true, encoding: .utf8)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
 
-        // 后台子 shell，父进程退出后仍继续
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/bash")
-        proc.arguments = ["-c", "nohup \(shellEscape(scriptURL.path)) >/dev/null 2>&1 &"]
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
-        try proc.run()
-        // 不 wait：让 apply.sh 在后台跑
-        AppLog.info("Silent PKG install scheduled → \(destinationApp.path)")
+        if let launchApplyScript = environment.launchApplyScript {
+            try launchApplyScript(scriptURL)
+        } else {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/bin/bash")
+            proc.arguments = ["-c", "nohup \(shellEscape(scriptURL.path)) >/dev/null 2>&1 &"]
+            proc.standardOutput = FileHandle.nullDevice
+            proc.standardError = FileHandle.nullDevice
+            try proc.run()
+        }
+        AppLog.info("PKG install scheduled → \(destinationApp.path)")
     }
 
     // MARK: - Expand

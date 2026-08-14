@@ -23,6 +23,12 @@ final class L10n: ObservableObject {
         return key
     }
 
+    func format(_ key: String, _ args: [String] = []) -> String {
+        let template = t(key)
+        guard !args.isEmpty else { return template }
+        return String(format: template, arguments: args)
+    }
+
     private typealias Row = [AppLanguage: String]
 
     private let table: [String: Row] = [
@@ -1223,6 +1229,189 @@ final class L10n: ObservableObject {
         ],
         "restore.error.decode": [
             .zhHans: "无法解析该文件", .en: "Could not parse this file",
+        ],
+        "update.details.title": [
+            .zhHans: "更新详情", .en: "Update details",
+        ],
+        "update.card.title": [
+            .zhHans: "软件更新", .en: "Software update",
+        ],
+        "update.check.action": [
+            .zhHans: "检查更新", .en: "Check for Updates",
+        ],
+        "update.check.checking": [
+            .zhHans: "正在检查更新…", .en: "Checking for updates…",
+        ],
+        "update.check.busy": [
+            .zhHans: "检查中", .en: "Checking",
+        ],
+        "update.check.current": [
+            .zhHans: "当前 %@", .en: "Current %@",
+        ],
+        "update.check.available": [
+            .zhHans: "发现新版本 %@", .en: "Version %@ is available",
+        ],
+        "update.check.up_to_date": [
+            .zhHans: "已是最新 %@", .en: "Already up to date %@",
+        ],
+        "update.check.failed": [
+            .zhHans: "检查失败，可打开 GitHub 手动下载", .en: "Check failed. Open GitHub to download manually.",
+        ],
+        "update.check.http_failed": [
+            .zhHans: "检查失败 HTTP %@", .en: "Check failed HTTP %@",
+        ],
+        "update.check.parse_failed": [
+            .zhHans: "无法解析版本信息", .en: "Could not parse release information",
+        ],
+        "update.check.no_release": [
+            .zhHans: "当前 %@ · 暂无公开 Release", .en: "Current %@ · no public release",
+        ],
+        "update.check.local_build": [
+            .zhHans: "当前 %@（本地构建）", .en: "Current %@ (local build)",
+        ],
+        "update.check.no_package": [
+            .zhHans: "发现新版本，但没有可用安装包", .en: "A new version exists, but no install package is available",
+        ],
+        "update.details.view": [
+            .zhHans: "查看详情", .en: "View details",
+        ],
+        "update.details.current": [
+            .zhHans: "当前版本", .en: "Current version",
+        ],
+        "update.details.target": [
+            .zhHans: "目标版本", .en: "Target version",
+        ],
+        "update.details.published": [
+            .zhHans: "发布时间", .en: "Published",
+        ],
+        "update.details.filename": [
+            .zhHans: "文件名", .en: "File name",
+        ],
+        "update.details.size": [
+            .zhHans: "大小", .en: "Size",
+        ],
+        "update.details.min_os": [
+            .zhHans: "最低 macOS", .en: "Minimum macOS",
+        ],
+        "update.details.notes": [
+            .zhHans: "发布说明", .en: "Release notes",
+        ],
+        "update.details.checksum": [
+            .zhHans: "校验状态", .en: "Validation",
+        ],
+        "update.checksum.verified": [
+            .zhHans: "已验证", .en: "Verified",
+        ],
+        "update.checksum.unverifiable": [
+            .zhHans: "无法验证", .en: "Cannot verify",
+        ],
+        "update.checksum.failed": [
+            .zhHans: "校验失败", .en: "Validation failed",
+        ],
+        "update.checksum.pending": [
+            .zhHans: "待下载后校验", .en: "Verify after download",
+        ],
+        "update.action.install": [
+            .zhHans: "下载并安装", .en: "Download and Install",
+        ],
+        "update.action.confirm": [
+            .zhHans: "确认安装并退出", .en: "Install and Quit",
+        ],
+        "update.action.cancel": [
+            .zhHans: "取消", .en: "Cancel",
+        ],
+        "update.action.cancel_download": [
+            .zhHans: "取消下载", .en: "Cancel download",
+        ],
+        "update.action.open_release": [
+            .zhHans: "打开 GitHub Release", .en: "Open GitHub Release",
+        ],
+        "update.action.copy_error": [
+            .zhHans: "复制错误摘要", .en: "Copy error summary",
+        ],
+        "update.confirm.restart": [
+            .zhHans: "安装将退出智余并替换当前应用。本机设置和密钥会保留。", .en: "Install will quit Zhiyu and replace the app. Local settings and secrets stay on this Mac.",
+        ],
+        "update.progress.downloading": [
+            .zhHans: "正在下载 %@%%", .en: "Downloading %@%%",
+        ],
+        "update.progress.validating": [
+            .zhHans: "正在校验安装包…", .en: "Validating package…",
+        ],
+        "update.progress.installing": [
+            .zhHans: "正在安装…", .en: "Installing…",
+        ],
+        "update.progress.restarting": [
+            .zhHans: "安装中，即将退出…", .en: "Installing, quitting…",
+        ],
+        "update.progress.opened_package": [
+            .zhHans: "已打开安装包，请在访达中完成安装", .en: "Opened the package. Finish install in Finder.",
+        ],
+        "update.error.versionNotNewer": [
+            .zhHans: "目标版本不高于当前版本", .en: "Target version is not newer than the current version",
+        ],
+        "update.error.malformedTargetVersion": [
+            .zhHans: "目标版本号格式无效", .en: "Target version is malformed",
+        ],
+        "update.error.incompatibleMinimumOS": [
+            .zhHans: "当前 macOS 低于该版本要求", .en: "This Mac does not meet the minimum macOS version",
+        ],
+        "update.error.urlNotHTTPS": [
+            .zhHans: "下载地址必须是 HTTPS", .en: "Download URL must be HTTPS",
+        ],
+        "update.error.assetExtensionNotAllowed": [
+            .zhHans: "安装包文件名或类型不允许", .en: "Package name or type is not allowed",
+        ],
+        "update.error.sizeZero": [
+            .zhHans: "安装包大小无效", .en: "Package size is invalid",
+        ],
+        "update.error.sizeExceedsLimit": [
+            .zhHans: "安装包超过大小上限", .en: "Package exceeds the size limit",
+        ],
+        "update.error.checksumMismatch": [
+            .zhHans: "SHA-256 与清单不一致", .en: "SHA-256 does not match the manifest",
+        ],
+        "update.error.checksumMissing": [
+            .zhHans: "没有校验清单，无法验证", .en: "No checksum manifest; cannot verify",
+        ],
+        "update.error.packageSignatureInvalid": [
+            .zhHans: "安装包签名无效", .en: "Package signature is invalid",
+        ],
+        "update.error.packageStructureInvalid": [
+            .zhHans: "安装包结构无效", .en: "Package structure is invalid",
+        ],
+        "update.error.cancelled": [
+            .zhHans: "已取消下载", .en: "Download cancelled",
+        ],
+        "update.error.timeout": [
+            .zhHans: "下载超时", .en: "Download timed out",
+        ],
+        "update.error.insufficientDiskSpace": [
+            .zhHans: "磁盘空间不足", .en: "Not enough disk space",
+        ],
+        "update.error.installScriptFailed": [
+            .zhHans: "安装脚本失败，当前应用未改动", .en: "Install script failed. The current app was not changed.",
+        ],
+        "update.error.expandFailed": [
+            .zhHans: "解包失败，当前应用未改动", .en: "Could not expand the package. The current app was not changed.",
+        ],
+        "update.error.appNotFound": [
+            .zhHans: "安装包内未找到应用", .en: "The package does not contain an app",
+        ],
+        "update.error.notWritable": [
+            .zhHans: "无法写入当前应用目录", .en: "The current app directory is not writable",
+        ],
+        "update.error.network": [
+            .zhHans: "下载失败", .en: "Download failed",
+        ],
+        "update.error.validationFailed": [
+            .zhHans: "校验失败，未安装", .en: "Validation failed. Nothing was installed.",
+        ],
+        "update.error.copied": [
+            .zhHans: "已复制错误摘要", .en: "Error summary copied",
+        ],
+        "update.unknown_value": [
+            .zhHans: "未知", .en: "Unknown",
         ],
     ]
 }
