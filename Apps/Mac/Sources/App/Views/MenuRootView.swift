@@ -39,6 +39,16 @@ struct MenuRootView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
+                case .safeMode:
+                    if model.selectedTab == .diagnostics {
+                        diagnosticsShell
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    } else {
+                        SafeModeView(model: model)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .transition(.opacity)
+                    }
                 case .home:
                     switch model.selectedTab {
                     case .home:

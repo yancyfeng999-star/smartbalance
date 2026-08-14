@@ -32,6 +32,30 @@ public enum PackageSilentInstaller: Sendable {
         }
     }
 
+    public static func updateInProgressMarkerURL(in directory: URL) -> URL {
+        directory.appendingPathComponent(UpdateInProgressMarker.fileName)
+    }
+
+    public static func updateInProgressMarkerExists(in directory: URL) -> Bool {
+        FileManager.default.fileExists(atPath: updateInProgressMarkerURL(in: directory).path)
+    }
+
+    public static func writeUpdateInProgressMarker(directory: URL, destinationApp: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let marker = UpdateInProgressMarker(destinationAppPath: destinationApp.path)
+        let data = try SettingsDocument.makeEncoder().encode(marker)
+        let url = updateInProgressMarkerURL(in: directory)
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: url.path
+        )
+    }
+
+    public static func clearUpdateInProgressMarker(directory: URL) {
+        try? FileManager.default.removeItem(at: updateInProgressMarkerURL(in: directory))
+    }
+
     /// 解包 pkg，调度替换脚本后立即返回；调用方应随后退出 App。
     public static func scheduleReplace(
         pkgURL: URL,
@@ -55,6 +79,10 @@ public enum PackageSilentInstaller: Sendable {
             destinationApp: destinationApp,
             environment: environment
         )
+    }
+
+    private static func markerDirectory(in environment: PackageInstallEnvironment) -> URL? {
+        environment.markerDirectory
     }
 
     public static func validateForInstall(
@@ -90,6 +118,10 @@ public enum PackageSilentInstaller: Sendable {
         let work = fm.temporaryDirectory
             .appendingPathComponent("smartbalance-update-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
+        let markerDir = markerDirectory(in: environment)
+        if let markerDir {
+            try writeUpdateInProgressMarker(directory: markerDir, destinationApp: destinationApp)
+        }
         do {
             try runScheduleReplace(
                 pkgURL: pkgURL,
@@ -98,6 +130,9 @@ public enum PackageSilentInstaller: Sendable {
                 environment: environment
             )
         } catch {
+            if let markerDir {
+                clearUpdateInProgressMarker(directory: markerDir)
+            }
             try? fm.removeItem(at: work)
             throw error
         }
@@ -134,6 +169,9 @@ public enum PackageSilentInstaller: Sendable {
             .appendingPathComponent("Logs/SmartBalance", isDirectory: true)
         try? fm.createDirectory(at: logURL, withIntermediateDirectories: true)
         let logFile = logURL.appendingPathComponent("update.log")
+        let markerPath = environment.markerDirectory.map {
+            updateInProgressMarkerURL(in: $0).path
+        } ?? ""
 
         let script = """
         #!/bin/bash
@@ -142,6 +180,7 @@ public enum PackageSilentInstaller: Sendable {
         DEST=\(shellEscape(destinationApp.path))
         WORK=\(shellEscape(work.path))
         LOG=\(shellEscape(logFile.path))
+        MARKER=\(shellEscape(markerPath))
         PID=\(pid)
         {
           echo "$(date '+%Y-%m-%d %H:%M:%S') update start pid=$PID"
@@ -165,6 +204,9 @@ public enum PackageSilentInstaller: Sendable {
           fi
           /usr/bin/ditto --norsrc --noextattr --noqtn "$NEW" "$DEST"
           /usr/bin/xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+          if [ -n "$MARKER" ]; then
+            rm -f "$MARKER"
+          fi
           /usr/bin/open "$DEST"
           echo "update ok → $DEST"
           rm -rf "$WORK"

@@ -1422,5 +1422,122 @@ final class L10n: ObservableObject {
         "update.unknown_value": [
             .zhHans: "未知", .en: "Unknown",
         ],
+        "recovery.title": [
+            .zhHans: "安全模式", .en: "Safe Mode",
+        ],
+        "recovery.subtitle": [
+            .zhHans: "已暂停渠道请求。请先恢复或导出数据，再进入正常启动。", .en: "Provider requests are paused. Restore or export data before starting normally.",
+        ],
+        "recovery.reason.consecutiveUncleanExits": [
+            .zhHans: "连续异常退出，已进入安全模式。", .en: "Consecutive unclean exits triggered safe mode.",
+        ],
+        "recovery.reason.settingsCorrupt": [
+            .zhHans: "设置文件损坏，已进入安全模式。", .en: "Settings are unreadable, so the app opened in safe mode.",
+        ],
+        "recovery.reason.interruptedUpdate": [
+            .zhHans: "上次更新可能未完成，已进入安全模式。", .en: "The last update may have been interrupted.",
+        ],
+        "recovery.reason.usageCorrupt": [
+            .zhHans: "用量历史可能已损坏。", .en: "Usage history may be damaged.",
+        ],
+        "recovery.action.openDiagnostics": [
+            .zhHans: "打开诊断", .en: "Open diagnostics",
+        ],
+        "recovery.action.openDiagnostics.detail": [
+            .zhHans: "查看本机状态，不含密钥。", .en: "Inspect local status. Secrets stay out.",
+        ],
+        "recovery.action.openLogs": [
+            .zhHans: "打开日志目录", .en: "Open log folder",
+        ],
+        "recovery.action.openLogs.detail": [
+            .zhHans: "在访达中显示本地日志文件。", .en: "Reveal local log files in Finder.",
+        ],
+        "recovery.action.restoreLatestSnapshot": [
+            .zhHans: "恢复最近快照", .en: "Restore latest snapshot",
+        ],
+        "recovery.action.restoreLatestSnapshot.detail": [
+            .zhHans: "先在临时目录校验，再原子替换；失败会保留原文件。", .en: "Validate in a temp folder, then replace atomically. Failure keeps the original files.",
+        ],
+        "recovery.action.restoreLatestSnapshot.confirm": [
+            .zhHans: "恢复快照", .en: "Restore snapshot",
+        ],
+        "recovery.action.restoreLatestSnapshot.confirm_message": [
+            .zhHans: "将用最近一份本机快照覆盖当前设置。密钥不会导入。", .en: "This replaces current settings with the latest local snapshot. Secrets are not imported.",
+        ],
+        "recovery.action.exportSettings": [
+            .zhHans: "导出非敏感设置", .en: "Export non-sensitive settings",
+        ],
+        "recovery.action.exportSettings.detail": [
+            .zhHans: "导出可迁移设置，不含 API Key 或密码。", .en: "Export portable settings without API keys or passwords.",
+        ],
+        "recovery.action.resetSettings": [
+            .zhHans: "重置设置到默认", .en: "Reset settings to default",
+        ],
+        "recovery.action.resetSettings.detail": [
+            .zhHans: "先创建快照，再只重置设置和可选用量。", .en: "Creates a snapshot first, then resets settings and optional usage.",
+        ],
+        "recovery.action.resetSettings.confirm": [
+            .zhHans: "重置设置", .en: "Reset settings",
+        ],
+        "recovery.action.resetSettings.confirm_message": [
+            .zhHans: "将恢复默认设置。钥匙串中的残留凭据不会被自动清理。", .en: "Settings return to defaults. Leftover Keychain credentials are not removed automatically.",
+        ],
+        "recovery.action.resetSettings.keychain_notice": [
+            .zhHans: "重置不会删除钥匙串条目。残留凭据不会被自动清理，需要时请在系统钥匙串中手动处理。", .en: "Reset does not delete Keychain items. Leftover credentials are not cleaned automatically.",
+        ],
+        "recovery.action.resetSettings.include_usage": [
+            .zhHans: "同时处理用量历史", .en: "Also include usage history",
+        ],
+        "recovery.action.continueNormalStart": [
+            .zhHans: "进入正常启动", .en: "Start normally",
+        ],
+        "recovery.action.continueNormalStart.detail": [
+            .zhHans: "结束安全模式并按已有账号进入首页。不会清除诊断记录。", .en: "Leave safe mode and open the home screen. Diagnostic records stay.",
+        ],
+        "recovery.action.continueNormalStart.confirm": [
+            .zhHans: "进入正常启动", .en: "Start normally",
+        ],
+        "recovery.action.continueNormalStart.confirm_message": [
+            .zhHans: "将结束安全模式。若数据仍异常，请先恢复快照或重置设置。", .en: "This leaves safe mode. Restore or reset first if data is still damaged.",
+        ],
+        "recovery.action.cancel": [
+            .zhHans: "取消", .en: "Cancel",
+        ],
+        "recovery.result.diagnostics": [
+            .zhHans: "已打开诊断", .en: "Opened diagnostics",
+        ],
+        "recovery.result.logs": [
+            .zhHans: "已打开日志目录", .en: "Opened the log folder",
+        ],
+        "recovery.result.export_ok": [
+            .zhHans: "已导出非敏感设置", .en: "Exported non-sensitive settings",
+        ],
+        "recovery.result.export_failed": [
+            .zhHans: "导出失败", .en: "Export failed",
+        ],
+        "recovery.result.restore_ok": [
+            .zhHans: "快照已恢复，可进入正常启动", .en: "Snapshot restored. You can start normally.",
+        ],
+        "recovery.result.restore_failed": [
+            .zhHans: "快照恢复失败，原文件未改动", .en: "Restore failed. Original files were not changed.",
+        ],
+        "recovery.result.restore_running": [
+            .zhHans: "正在校验并恢复快照…", .en: "Validating and restoring the snapshot…",
+        ],
+        "recovery.result.no_snapshot": [
+            .zhHans: "没有可恢复的快照", .en: "No snapshot is available",
+        ],
+        "recovery.result.reset_ok": [
+            .zhHans: "设置已重置。残留凭据仍在钥匙串中。", .en: "Settings were reset. Leftover credentials remain in Keychain.",
+        ],
+        "recovery.result.reset_failed": [
+            .zhHans: "重置失败", .en: "Reset failed",
+        ],
+        "recovery.result.reset_running": [
+            .zhHans: "正在创建快照并重置…", .en: "Creating a snapshot and resetting…",
+        ],
+        "recovery.result.entered_normal": [
+            .zhHans: "已进入正常启动", .en: "Started normally",
+        ],
     ]
 }

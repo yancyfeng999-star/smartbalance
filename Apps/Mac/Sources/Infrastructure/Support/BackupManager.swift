@@ -65,6 +65,39 @@ public final class BackupManager: @unchecked Sendable {
         return BackupSnapshot(url: destination, reason: reason, createdAt: now)
     }
 
+    public func listSnapshots(baseName: String) -> [BackupSnapshot] {
+        lock.lock()
+        defer { lock.unlock() }
+        let items = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        )) ?? []
+        let prefix = "\(baseName)-"
+        return items.compactMap { url -> BackupSnapshot? in
+            let name = url.lastPathComponent
+            guard name.hasPrefix(prefix), name.hasSuffix(".json") else { return nil }
+            if name.contains(".corrupt-") { return nil }
+            let stem = String(name.dropLast(5))
+            let rest = String(stem.dropFirst(prefix.count))
+            let parts = rest.split(separator: "-", maxSplits: 2).map(String.init)
+            guard parts.count >= 3 else { return nil }
+            let stamp = "\(parts[0])-\(parts[1])"
+            let reason = parts[2]
+            let created = Self.parseTimestamp(stamp)
+                ?? (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? Date.distantPast
+            return BackupSnapshot(url: url, reason: reason, createdAt: created)
+        }
+        .sorted { lhs, rhs in
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
+            return lhs.url.lastPathComponent > rhs.url.lastPathComponent
+        }
+    }
+
+    public func latestSnapshot(baseName: String) -> BackupSnapshot? {
+        listSnapshots(baseName: baseName).first
+    }
+
     private func pruneSettingsWriteSnapshotsLocked() {
         let items = (try? FileManager.default.contentsOfDirectory(
             at: directory,
@@ -76,6 +109,15 @@ public final class BackupManager: @unchecked Sendable {
         for stale in writes.dropFirst(Self.settingsWriteRetentionLimit) {
             try? FileManager.default.removeItem(at: stale)
         }
+    }
+
+    private static func parseTimestamp(_ stamp: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter.date(from: stamp)
     }
 
     private static func makeTimestamp(_ date: Date) -> String {

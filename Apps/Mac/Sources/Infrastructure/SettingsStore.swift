@@ -118,6 +118,15 @@ public final class SettingsStore: @unchecked Sendable {
         return load()
     }
 
+    /// Writes default settings without the empty-accounts guard. Does not touch Keychain.
+    public func replaceWithDefaults() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let document = SettingsDocument(settings: AppSettings())
+        try writer(try SettingsDocument.encode(document), url)
+        cachedDocument = document
+    }
+
     /// Writes already-validated envelope bytes as-is. Does not merge accounts or extensions.
     public func installValidatedEnvelope(_ data: Data) throws {
         lock.lock()

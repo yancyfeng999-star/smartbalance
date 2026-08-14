@@ -38,6 +38,11 @@ final class AppModel: ObservableObject {
     @Published var restoreIncludeUsage = true
     @Published var restoreLegacyAcknowledged = false
     @Published var restoreBusy = false
+    @Published private(set) var recoveryDecision = RecoveryDecision.normal
+    @Published var recoveryActionOutcome: RecoveryActionOutcome?
+    @Published var pendingRecoveryAction: RecoveryAction?
+    @Published var recoveryResetIncludeUsage = false
+    @Published var recoveryBusy = false
     private var diagnosticsReturnTab: Tab = .home
     private var pendingRestoreData: Data?
     private var pendingRestoreMode: SettingsSupportPage = .transfer
@@ -64,6 +69,7 @@ final class AppModel: ObservableObject {
     private let firstLaunchStore = FirstLaunchStore.shared
     private let compatibilityChecker = CompatibilityChecker()
     private let restoreCoordinator: RestoreCoordinator
+    private let crashRecovery: CrashRecoveryStore
     private var pendingOpenSettingsAfterOnboarding = false
     private var refreshTask: Task<Void, Never>?
     private let refreshCoordinator: RefreshCoordinator
@@ -172,6 +178,7 @@ final class AppModel: ObservableObject {
             settingsStore: SettingsStore.shared,
             usageStore: UsageHistoryStore.shared
         )
+        self.crashRecovery = CrashRecoveryStore.shared
         var loaded = SettingsStore.shared.load()
         // 旧版曾有「数据源」总开关；关掉会让软件空转。启动时强制开启。
         if !loaded.apiQueryEnabled {
@@ -210,12 +217,14 @@ final class AppModel: ObservableObject {
             MacNotificationService.shared.installDelegateIfNeeded()
             await refreshNotificationStatus()
             await refreshCompatibilityReport()
-            rescheduleManualReminders()
             applyAppearancePreference()
             try? await Task.sleep(nanoseconds: 300_000_000)
             applyAppearancePreference()
             // 普通 Keychain 不需要启动解锁。通知授权改到明确用户动作。
-            if self.sessionRoute == .home {
+            if RecoveryLaunchPolicy.allowsNotificationDelivery(route: self.sessionRoute) {
+                self.rescheduleManualReminders()
+            }
+            if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: self.sessionRoute) {
                 self.startAutoRefreshIfNeeded()
             }
         }
@@ -377,6 +386,7 @@ final class AppModel: ObservableObject {
     }
 
     func refresh(trigger: RefreshTrigger) {
+        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else { return }
         guard pendingUsageBaselineResetIDs.isEmpty else {
             resetPendingUsageBaselinesAndRefresh()
             return
@@ -617,6 +627,10 @@ final class AppModel: ObservableObject {
     }
 
     func startAutoRefreshIfNeeded() {
+        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else {
+            refreshTask?.cancel()
+            return
+        }
         refreshTask?.cancel()
         guard settings.refreshIntervalSecs > 0 else {
             Task { @MainActor [weak self] in
@@ -922,6 +936,7 @@ final class AppModel: ObservableObject {
 
     /// 每天 10:00 提醒手录账号打开网页核对并更新金额。
     func rescheduleManualReminders() {
+        guard RecoveryLaunchPolicy.allowsNotificationDelivery(route: sessionRoute) else { return }
         let names = settings.accounts
             .filter { $0.enabled && $0.kind.isManualEntry && $0.wantsDailyReminder }
             .map(\.title)
@@ -941,6 +956,7 @@ final class AppModel: ObservableObject {
         persist()
         if on {
             Task {
+                guard RecoveryLaunchPolicy.allowsNotificationAuthorization(route: sessionRoute) else { return }
                 _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
                 await refreshNotificationStatus()
                 rescheduleManualReminders()
@@ -1367,13 +1383,18 @@ final class AppModel: ObservableObject {
         L10n.shared.setLanguage(next.resolvedLanguage)
         applyAppearancePreference()
         rescheduleManualReminders()
-        startAutoRefreshIfNeeded()
+        if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) {
+            startAutoRefreshIfNeeded()
+        }
         if outcome.includedUsage, let usage = outcome.usageHistory {
             usageHistory = usage
             usageDataError = nil
         }
-        preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
+        if RecoveryLaunchPolicy.allowsProviderCredentialRead(route: sessionRoute) {
+            preferExpandAPIAccounts = next.accounts.contains { isCredentialMissing(for: $0) }
+        }
         objectWillChange.send()
+        guard RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) else { return }
         if RestoreApplyPolicy.shouldResetUsageBaselines(includedUsage: outcome.includedUsage) {
             requestUsageBaselineResetAndRefresh(for: Set(next.accounts.map(\.id)))
         } else {
@@ -1441,6 +1462,7 @@ final class AppModel: ObservableObject {
     }
 
     func confirmInstallUpdate() {
+        guard RecoveryLaunchPolicy.allowsUpdateInstall(route: sessionRoute) else { return }
         guard updateAwaitingInstallConfirm else { return }
         updateAwaitingInstallConfirm = false
         updateTask = Task { @MainActor [weak self] in
@@ -1530,6 +1552,7 @@ final class AppModel: ObservableObject {
 
     @MainActor
     private func performDownloadValidateInstall() async {
+        guard RecoveryLaunchPolicy.allowsUpdateInstall(route: sessionRoute) else { return }
         guard let details = updateDetails, let asset = details.asset else {
             updateMessage = L10n.shared.t("update.check.no_package")
             updatePhase = .failed
@@ -1588,7 +1611,10 @@ final class AppModel: ObservableObject {
                 updateMessage = L10n.shared.t("update.progress.installing")
                 try PackageSilentInstaller.scheduleReplace(
                     pkgURL: promoted,
-                    candidate: candidate
+                    candidate: candidate,
+                    environment: PackageInstallEnvironment(
+                        markerDirectory: crashRecovery.directory
+                    )
                 )
                 updateMessage = L10n.shared.t("update.progress.restarting")
                 updateChecking = false
@@ -1763,9 +1789,11 @@ final class AppModel: ObservableObject {
     // MARK: - First launch / compatibility
 
     func prepareLaunchSession() {
+        let started = crashRecovery.beginSession()
+        recoveryDecision = started.decision
         let load = firstLaunchStore.load()
         let hasExistingAccounts = !settings.accounts.isEmpty
-        sessionRoute = FirstLaunchRouter.route(
+        let firstLaunchRoute = FirstLaunchRouter.route(
             loadResult: load,
             hasExistingAccounts: hasExistingAccounts
         )
@@ -1781,6 +1809,13 @@ final class AppModel: ObservableObject {
                     lastCompatibilityReport: compatibilityReport
                 )
             )
+        }
+        sessionRoute = RecoveryRouter.route(
+            decision: started.decision,
+            firstLaunchRoute: firstLaunchRoute
+        )
+        if sessionRoute != .safeMode {
+            crashRecovery.markSessionHealthy()
         }
     }
 
@@ -1829,6 +1864,7 @@ final class AppModel: ObservableObject {
 
     func enableNotificationsFromOnboarding() {
         Task {
+            guard RecoveryLaunchPolicy.allowsNotificationAuthorization(route: sessionRoute) else { return }
             _ = await MacNotificationService.shared.requestAuthorizationIfNeeded()
             settings.alertChannels.macNotificationEnabled = true
             persist()
@@ -1898,6 +1934,204 @@ final class AppModel: ObservableObject {
     }
 
     func quit() {
+        crashRecovery.markCleanQuit()
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Safe mode
+
+    func requestRecoveryAction(_ action: RecoveryAction) {
+        guard sessionRoute == .safeMode else { return }
+        if RecoveryActionPolicy.requiresConfirmation(action) {
+            pendingRecoveryAction = action
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .confirming,
+                messageKey: RecoveryActionPolicy.confirmMessageKey(for: action)
+            )
+            return
+        }
+        performRecoveryAction(action)
+    }
+
+    func cancelRecoveryAction() {
+        pendingRecoveryAction = nil
+        if recoveryActionOutcome?.status == .confirming {
+            recoveryActionOutcome = nil
+        }
+    }
+
+    func confirmRecoveryAction() {
+        guard let action = pendingRecoveryAction else { return }
+        pendingRecoveryAction = nil
+        performRecoveryAction(action)
+    }
+
+    func continueFromSafeMode() {
+        let firstLaunchRoute = FirstLaunchRouter.route(
+            loadResult: firstLaunchStore.load(),
+            hasExistingAccounts: !settings.accounts.isEmpty
+        )
+        recoveryDecision = crashRecovery.continueNormalStart()
+        sessionRoute = RecoveryRouter.routeAfterContinue(firstLaunchRoute: firstLaunchRoute)
+        crashRecovery.markSessionHealthy()
+        pendingRecoveryAction = nil
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .continueNormalStart,
+            status: .succeeded,
+            messageKey: "recovery.result.entered_normal"
+        )
+        if RecoveryLaunchPolicy.allowsBackgroundRefresh(route: sessionRoute) {
+            startAutoRefreshIfNeeded()
+        }
+    }
+
+    private func performRecoveryAction(_ action: RecoveryAction) {
+        switch action {
+        case .openDiagnostics:
+            openDiagnosticsCenter()
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .succeeded,
+                messageKey: "recovery.result.diagnostics"
+            )
+        case .openLogs:
+            openLogs()
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: action,
+                status: .succeeded,
+                messageKey: "recovery.result.logs"
+            )
+        case .exportSettings:
+            exportRecoverySettings()
+        case .restoreLatestSnapshot:
+            Task { await restoreLatestRecoverySnapshot() }
+        case .resetSettings:
+            Task { await resetSettingsFromSafeMode() }
+        case .continueNormalStart:
+            continueFromSafeMode()
+        }
+    }
+
+    private func exportRecoverySettings() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = L10n.shared.t("recovery.action.exportSettings")
+        panel.nameFieldStringValue = SettingsTransferService.datedFileName(
+            prefix: L10n.shared.t("settings.transfer.file_prefix")
+        )
+        panel.allowedContentTypes = [.json]
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try crashRecovery.exportNonSensitiveSettings(to: url, appVersion: appVersion)
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .exportSettings,
+                status: .succeeded,
+                messageKey: "recovery.result.export_ok"
+            )
+            banner = L10n.shared.t("recovery.result.export_ok")
+        } catch {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .exportSettings,
+                status: .failed,
+                messageKey: "recovery.result.export_failed"
+            )
+            banner = L10n.shared.t("recovery.result.export_failed")
+        }
+    }
+
+    private func restoreLatestRecoverySnapshot() async {
+        guard !recoveryBusy else { return }
+        recoveryBusy = true
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .restoreLatestSnapshot,
+            status: .running,
+            messageKey: "recovery.result.restore_running"
+        )
+        let outcome = await crashRecovery.restoreLatestSnapshot(includeUsage: recoveryResetIncludeUsage)
+        recoveryBusy = false
+        if outcome.status == .succeeded {
+            applyRecoveredDiskState(outcome)
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .restoreLatestSnapshot,
+                status: .succeeded,
+                messageKey: "recovery.result.restore_ok"
+            )
+            banner = L10n.shared.t("recovery.result.restore_ok")
+        } else {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .restoreLatestSnapshot,
+                status: .failed,
+                messageKey: outcome.failureReason == nil
+                    ? "recovery.result.no_snapshot"
+                    : "recovery.result.restore_failed"
+            )
+            banner = L10n.shared.t("recovery.result.restore_failed")
+        }
+    }
+
+    private func resetSettingsFromSafeMode() async {
+        guard !recoveryBusy else { return }
+        recoveryBusy = true
+        recoveryActionOutcome = RecoveryActionOutcome(
+            action: .resetSettings,
+            status: .running,
+            messageKey: "recovery.result.reset_running"
+        )
+        let outcome: RecoveryResetOutcome
+        do {
+            outcome = try await crashRecovery.resetSettings(
+                includeUsageHistory: recoveryResetIncludeUsage
+            )
+        } catch {
+            recoveryBusy = false
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .failed,
+                messageKey: "recovery.result.reset_failed"
+            )
+            banner = L10n.shared.t("recovery.result.reset_failed")
+            return
+        }
+        recoveryBusy = false
+        if outcome.succeeded {
+            settings = store.reloadFromDisk()
+            selectedAccountId = nil
+            snapshots = []
+            if outcome.resetUsageHistory {
+                usageHistory = UsageHistoryDocument()
+            }
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .succeeded,
+                messageKey: "recovery.result.reset_ok"
+            )
+            banner = L10n.shared.t("recovery.result.reset_ok")
+        } else {
+            recoveryActionOutcome = RecoveryActionOutcome(
+                action: .resetSettings,
+                status: .failed,
+                messageKey: "recovery.result.reset_failed"
+            )
+            banner = L10n.shared.t("recovery.result.reset_failed")
+        }
+    }
+
+    private func applyRecoveredDiskState(_ outcome: RestoreOutcome) {
+        let next = outcome.settings ?? store.reloadFromDisk()
+        settings = next
+        pinWindowOpen = false
+        selectedAccountId = next.enabledAccounts.first?.id
+        snapshots = Self.placeholderSnapshots(from: next)
+        lastRefreshAt = nil
+        recentAlerts = []
+        L10n.shared.setLanguage(next.resolvedLanguage)
+        applyAppearancePreference()
+        if outcome.includedUsage, let usage = outcome.usageHistory {
+            usageHistory = usage
+            usageDataError = nil
+        }
     }
 }

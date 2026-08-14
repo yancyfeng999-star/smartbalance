@@ -174,16 +174,21 @@ public struct PackageInstallEnvironment: Sendable {
     public var inspector: any PackageIntegrityInspecting
     public var expandPackage: (@Sendable (URL, URL) throws -> URL)?
     public var launchApplyScript: (@Sendable (URL) throws -> Void)?
+    public var markerDirectory: URL?
 
     public init(
         inspector: any PackageIntegrityInspecting = DefaultPackageIntegrityInspector(),
         expandPackage: (@Sendable (URL, URL) throws -> URL)? = nil,
-        launchApplyScript: (@Sendable (URL) throws -> Void)? = nil
+        launchApplyScript: (@Sendable (URL) throws -> Void)? = nil,
+        markerDirectory: URL? = nil
     ) {
         self.inspector = inspector
         self.expandPackage = expandPackage
         self.launchApplyScript = launchApplyScript
+        self.markerDirectory = markerDirectory
     }
 
-    public static var live: PackageInstallEnvironment { PackageInstallEnvironment() }
+    public static var live: PackageInstallEnvironment {
+        PackageInstallEnvironment(markerDirectory: SmartBalanceSupportPaths.applicationSupport)
+    }
 }

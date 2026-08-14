@@ -1,9 +1,15 @@
 import AppKit
+import Infrastructure
 
 /// 对齐智额：菜单栏 agent 关闭窗口不退出进程。
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Explicit quit only. Closing the menu window does not reach here.
+        CrashRecoveryStore.shared.markCleanQuit()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

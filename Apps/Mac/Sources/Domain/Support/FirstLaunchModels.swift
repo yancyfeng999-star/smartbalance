@@ -33,6 +33,7 @@ public enum SessionRoute: String, Sendable, Equatable {
     case onboarding
     case compatibility
     case home
+    case safeMode
 }
 
 public enum OnboardingStep: String, Codable, Sendable, Equatable, CaseIterable {
