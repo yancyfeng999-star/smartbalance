@@ -10,7 +10,7 @@ cd Apps/Mac
 open ~/Desktop/智余.app
 ```
 
-或 Xcode 打开 `SmartBalance.xcworkspace` 后 Run。  
+或 Xcode 打开 `SmartBalance.xcworkspace` 后 Run。
 菜单栏出现 **¥** /「智余」即可点开。
 
 ---
@@ -37,9 +37,9 @@ open ~/Desktop/智余.app
 
 **设置 → 报警通知**
 
-- 打开 Mac 通知 / 邮件报警  
-- 邮件需配置 SMTP（建议 465 + TLS）  
-- 可用「测试」验证  
+- 打开 Mac 通知 / 邮件报警
+- 邮件需配置 SMTP（建议 465 + TLS）
+- 可用「测试」验证
 
 阈值在 **后台同步** 中调整。
 
@@ -72,6 +72,13 @@ open ~/Desktop/智余.app
 | 密钥 | macOS Keychain（普通条目，启动即可读） |
 | 用量历史 | `…/usage-history.json`（权限 0600，不含任何密钥或响应正文） |
 
+## 隐私与安全
+
+- 不要把 `settings.json`、Keychain 导出、`app.log` 或旧版备份文件上传到 Issue、聊天或公开网盘。
+- API Key、Cookie、SMTP 密码和系统令牌不会写入用量历史；提交问题前请删除凭据、邮箱地址和原始响应。
+- 当前历史备份格式可能含有明文密钥，必须按敏感文件保管；需要迁移时先阅读仓库的 [数据与隐私说明](./DATA_AND_PRIVACY.md)。
+- 智余源代码采用 [Apache License 2.0（Apache-2.0）](../LICENSE)；贡献或报告安全问题请阅读 [CONTRIBUTING.md](../CONTRIBUTING.md) 和 [SECURITY.md](../SECURITY.md)。
+
 ---
 
 ## FAQ
@@ -85,3 +92,5 @@ open ~/Desktop/智余.app
 | 窗口尺寸乱跳 | 请使用当前版本（主页、用量与设置固定同宽高） |
 | 用量页暂时为空 | 首次成功刷新只建立基线；再次成功刷新后才会记录差额 |
 | 某天金额偏大 | 若跨日未刷新，整段差额会归到后一次刷新日期；页面会显示提示 |
+
+更多维护者和开发者信息见 [架构说明](./ARCHITECTURE.md)、[Provider 开发指南](./PROVIDER_DEVELOPMENT.md) 和 [发布清单](./RELEASE_CHECKLIST.md)。
