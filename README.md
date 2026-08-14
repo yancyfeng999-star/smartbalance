@@ -7,6 +7,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
 | 版本 | 0.3.1（Info.plist / build 82；本工作树未另发 GitHub Release） |
+| 验证 | 见 [docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。已实现 ≠ 本地测试 ≠ 运行时验证 ≠ 已发布 ≠ 用户验收 |
 
 ---
 
@@ -102,7 +103,7 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 
 本地试装也请装到应用程序：`./scripts/build-test-app.sh`（不再放桌面）。
 
-测试：`./scripts/run-tests.sh`
+测试：`./scripts/run-tests.sh`（2026-08-14 本工作树复跑 366 passed / 0 failed；不含真实渠道）
 
 ---
 
@@ -143,3 +144,4 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 - [CHANGELOG.md](./CHANGELOG.md)
 - [docs/USER_GUIDE.md](./docs/USER_GUIDE.md)
 - [Apps/Mac/README.md](./Apps/Mac/README.md)
+- [docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md) — P1 验证证据（未发版）

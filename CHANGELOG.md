@@ -7,7 +7,7 @@
 
 ## Unreleased
 
-移除启动时 Touch ID / 设备密码解锁，改用普通 Keychain 条目，避免系统钥匙串授权弹窗。旧版受保护密钥需要重新录入一次。
+本工作树实现了本地优先的通用能力（设置信封与 v2 迁移、诊断脱敏、本机恢复、检查更新需确认、安全模式、刷新生命周期）。**尚未打新安装包，也未发布 GitHub Release。** 版本号仍是 Info.plist 的 0.3.1 / 82。证据见 `docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md`。
 
 ## 0.2.60 — 2026-08-11
 

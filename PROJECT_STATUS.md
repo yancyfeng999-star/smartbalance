@@ -6,10 +6,12 @@
 | 口径 | 状态 |
 |------|------|
 | 已实现（本工作树代码） | 菜单栏余额、用量、设置信封、诊断、迁移、手动更新确认、安全模式、兼容性/用量健康收口 |
-| 已测试 | `Apps/Mac` 单元测试（以最近一次 `./scripts/run-tests.sh` 为准） |
-| 运行时 | 本机 macOS 15+ 调试/试装可跑；不代表用户已验收 |
+| 本地测试 | 2026-08-14 `./scripts/run-tests.sh`：**366 passed / 0 failed**（Domain 94 + Infrastructure 236 + App 36） |
+| Debug / Release 构建 | 同日 `xcodebuild` 均 **BUILD SUCCEEDED**；Release 含 arm64+x86_64 **切片**，不是第二台机器跑过 |
+| 运行时 | **当前机器验证**（Apple M5 / arm64 / macOS 26.6.1）：隔离 Application Support 服务检查已做；**菜单栏弹层未做交互验收** |
 | 已发布 | 以 GitHub 已推送的 tag / Release 为准。**本分支未执行 `release.sh`，未创建新 Release** |
-| 用户已验收 | 否（本计划未做用户验收） |
+| 真实渠道 | **未执行**（无单独授权，不用真实 Provider Key） |
+| 用户已验收 | 否 |
 
 **远程：** https://github.com/yancyfeng999-star/smartbalance
 **本计划：** `feat/mac-common-capabilities` 工作树。P1 完成前不发版、不 push（覆盖 `AGENTS.md` 的默认发版）。
@@ -25,6 +27,7 @@
 - 通知未授权不阻止余额刷新；授权只在用户明确动作时请求
 - 诊断包 allowlist；设置迁移 v2 不含密钥值
 - 检查更新：查看说明 → 用户确认 → 下载 → 校验 → 安装（本工作树已实现；**尚未作为新 GitHub Release 发布**）
+- 验证记录：[docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)（代码完成 ≠ 已发布）
 
 ## 仓库布局
 
@@ -43,12 +46,11 @@ AGENTS.md          # Agent 入口（本计划期间不按默认发版）
 | 密钥 | macOS Keychain（不写入仓库） |
 | 用量历史 | `…/usage-history.json`（0600，不含密钥） |
 
-## 手工验收（可选，未做结论）
+## 手工验收（当前机器未做交互验收）
 
 | 场景 | 备注 |
 |------|------|
-| `/Applications/智余.app` 运行 | 正式入口；本工作树变更需另行试装 |
-| 浅色/深色切换立即变色 | 代码路径：`setThemeMode` → AppKit appearance |
-| 点第二张卡再「打开后台」 | 跟 `selectedAccountId` |
-| 齿轮 → 设置；底栏“用量” → 天/周/月 | 用量首次刷新只建基线 |
-| 用量页健康状态 | 历史可用 / 需要恢复 / 最近保存失败 |
+| `/Applications/智余.app` 运行 | 正式入口是已发布 0.3.1；**不是**本工作树 Debug/Release |
+| 本工作树菜单栏弹层 | 当前机器未点：首次启动、取消刷新、用量日/周/月、更新确认、safe mode、VoiceOver |
+| 浅色/深色 / 打开后台 | 代码路径仍在；本记录未做现场点按 |
+| 真实渠道 / SMTP | 未执行 |

@@ -59,4 +59,14 @@
 3. 主页 ↔ 用量 ↔ 设置窗口不跳尺寸
 4. 密钥只存在本机 Keychain（普通条目，不启用指纹/密码门禁），不进 settings.json
 
-以上是产品目标。本仓库当前 Info.plist 为 **0.3.1（build 82）**；通用能力改动是否已对用户发布，以 GitHub Release 为准。
+以上是产品目标。本仓库当前 Info.plist 为 **0.3.1（build 82）**。
+
+| 口径 | 通用能力（本工作树） |
+|------|----------------------|
+| 已实现 | 代码在 `feat/mac-common-capabilities` |
+| 本地测试 | 单元测试已复跑（见验证记录） |
+| 运行时验证 | 当前机器隔离检查；菜单栏交互未做 |
+| 已发布 | 否（无新 GitHub Release） |
+| 用户验收 | 否 |
+
+通用能力是否已对用户发布，以 GitHub Release 为准，不以代码存在为准。验证记录：[docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。

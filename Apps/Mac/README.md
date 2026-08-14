@@ -1,7 +1,8 @@
 # 智余 Mac 工程
 
-> Agent 协作与发版：**仓库根目录 [AGENTS.md](../../AGENTS.md)**、[docs/AGENT_RELEASE_WORKFLOW.md](../../docs/AGENT_RELEASE_WORKFLOW.md)。  
-> 默认修完即 `NOTES="…" ./scripts/release.sh`，不要让用户自己升版。
+> Agent 协作与发版：仓库根目录 [AGENTS.md](../../AGENTS.md)、[docs/AGENT_RELEASE_WORKFLOW.md](../../docs/AGENT_RELEASE_WORKFLOW.md)。
+> 默认修完即 `NOTES="…" ./scripts/release.sh`。
+> **`feat/mac-common-capabilities` 计划覆盖该默认：** 未获用户明确发版要求前不跑 `release.sh`、不 push、不建 GitHub Release。验证见 [verification](../../docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。
 
 ## 分层
 
@@ -33,4 +34,5 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 
 ## 更新
 
-`UpdateChecker` + `ReleaseDownloader`：GitHub Releases 拉 zip，设置里检查后下载打开。
+本工作树：`UpdateChecker` 只检查并展示说明；用户确认后才 `ReleaseDownloader` 下载，再校验、安装。不是启动后静默替换。
+该流程 **已实现 / 有单测**；**未**作为新 GitHub Release 发布，菜单栏确认链 **当前机器未做交互验收**。
