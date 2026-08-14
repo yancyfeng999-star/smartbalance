@@ -49,8 +49,7 @@ final class FirstLaunchRoutingTests: XCTestCase {
         XCTAssertEqual(
             FirstLaunchRouter.route(
                 loadResult: .missing,
-                completedThisSession: true,
-                skippedNotifications: true
+                completedThisSession: true
             ),
             .home
         )
@@ -60,11 +59,37 @@ final class FirstLaunchRoutingTests: XCTestCase {
             acknowledgedPrivacy: true
         )
         XCTAssertEqual(
-            FirstLaunchRouter.route(
-                loadResult: .loaded(finished),
-                skippedNotifications: true
-            ),
+            FirstLaunchRouter.route(loadResult: .loaded(finished)),
             .home
+        )
+    }
+
+    func testMissingFirstLaunchWithExistingConfigSkipsOnboarding() {
+        XCTAssertEqual(
+            FirstLaunchRouter.route(loadResult: .missing, hasExistingAccounts: true),
+            .home
+        )
+        XCTAssertNotEqual(
+            FirstLaunchRouter.route(loadResult: .missing, hasExistingAccounts: true),
+            .onboarding
+        )
+        XCTAssertTrue(
+            FirstLaunchRouter.shouldSeedCompletedState(
+                loadResult: .missing,
+                hasExistingAccounts: true
+            )
+        )
+        XCTAssertFalse(
+            FirstLaunchRouter.shouldSeedCompletedState(
+                loadResult: .missing,
+                hasExistingAccounts: false
+            )
+        )
+        XCTAssertFalse(
+            FirstLaunchRouter.shouldSeedCompletedState(
+                loadResult: .corrupt,
+                hasExistingAccounts: true
+            )
         )
     }
 }

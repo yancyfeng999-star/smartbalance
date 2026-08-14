@@ -1294,11 +1294,24 @@ final class AppModel: ObservableObject {
 
     func prepareLaunchSession() {
         let load = firstLaunchStore.load()
+        let hasExistingAccounts = !settings.accounts.isEmpty
         sessionRoute = FirstLaunchRouter.route(
             loadResult: load,
-            hasExistingAccounts: !settings.accounts.isEmpty
+            hasExistingAccounts: hasExistingAccounts
         )
         onboardingStep = FirstLaunchRouter.initialStep(for: load)
+        if FirstLaunchRouter.shouldSeedCompletedState(
+            loadResult: load,
+            hasExistingAccounts: hasExistingAccounts
+        ) {
+            try? firstLaunchStore.save(
+                FirstLaunchState(
+                    completedAt: Date(),
+                    acknowledgedPrivacy: true,
+                    lastCompatibilityReport: compatibilityReport
+                )
+            )
+        }
     }
 
     func refreshCompatibilityReport() async {
@@ -1351,12 +1364,12 @@ final class AppModel: ObservableObject {
             persist()
             await refreshNotificationStatus()
             rescheduleManualReminders()
-            finishOnboarding(skippedNotifications: false)
+            finishOnboarding()
         }
     }
 
     func skipNotificationsFromOnboarding() {
-        finishOnboarding(skippedNotifications: true)
+        finishOnboarding()
     }
 
     func openCompatibilityFromSettings() {
@@ -1387,7 +1400,7 @@ final class AppModel: ObservableObject {
         )
     }
 
-    private func finishOnboarding(skippedNotifications: Bool) {
+    private func finishOnboarding() {
         let state = FirstLaunchState(
             completedAt: Date(),
             acknowledgedPrivacy: true,
@@ -1397,8 +1410,7 @@ final class AppModel: ObservableObject {
         sessionRoute = FirstLaunchRouter.route(
             loadResult: .loaded(state),
             hasExistingAccounts: !settings.accounts.isEmpty,
-            completedThisSession: true,
-            skippedNotifications: skippedNotifications
+            completedThisSession: true
         )
         if pendingOpenSettingsAfterOnboarding {
             selectedTab = .settings

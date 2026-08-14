@@ -46,11 +46,8 @@ public enum FirstLaunchRouter: Sendable {
     public static func route(
         loadResult: FirstLaunchLoadResult,
         hasExistingAccounts: Bool = false,
-        completedThisSession: Bool = false,
-        skippedNotifications: Bool = false
+        completedThisSession: Bool = false
     ) -> SessionRoute {
-        _ = hasExistingAccounts
-        _ = skippedNotifications
         if completedThisSession {
             return .home
         }
@@ -58,10 +55,17 @@ public enum FirstLaunchRouter: Sendable {
         case .corrupt:
             return .compatibility
         case .missing:
-            return .onboarding
+            return hasExistingAccounts ? .home : .onboarding
         case .loaded(let state):
             return state.isCompleted ? .home : .onboarding
         }
+    }
+
+    public static func shouldSeedCompletedState(
+        loadResult: FirstLaunchLoadResult,
+        hasExistingAccounts: Bool
+    ) -> Bool {
+        loadResult == .missing && hasExistingAccounts
     }
 
     public static func initialStep(for loadResult: FirstLaunchLoadResult) -> OnboardingStep {
