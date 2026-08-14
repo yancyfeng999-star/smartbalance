@@ -3,11 +3,13 @@ import Foundation
 public enum ActionableErrorKind: String, CaseIterable, Sendable, Equatable {
     case refreshFailed
     case refreshPartialFailed
+    case networkFailed
     case usageSaveFailed
     case usageLoadFailed
     case usageNeedsRestore
     case credentialsMissing
     case diagnosticsExportFailed
+    case exportFailed
     case restoreFailed
     case updateCheckFailed
     case updateInstallFailed
@@ -66,6 +68,14 @@ public enum ActionableErrorPolicy: Sendable {
                 actions: [.retry, .viewHelp],
                 helpTopic: .refreshFailed
             )
+        case .networkFailed:
+            return ActionableErrorPresentation(
+                kind: kind,
+                titleKey: "error.network.title",
+                messageKey: "error.network.message",
+                actions: [.retry, .viewHelp],
+                helpTopic: .refreshFailed
+            )
         case .usageSaveFailed:
             return ActionableErrorPresentation(
                 kind: kind,
@@ -105,6 +115,14 @@ public enum ActionableErrorPolicy: Sendable {
                 messageKey: "error.diagnostics.export.message",
                 actions: [.retry, .openLogs, .viewHelp],
                 helpTopic: .diagnostics
+            )
+        case .exportFailed:
+            return ActionableErrorPresentation(
+                kind: kind,
+                titleKey: "error.export.failed.title",
+                messageKey: "error.export.failed.message",
+                actions: [.retry, .openSettings, .viewHelp],
+                helpTopic: .backupRestore
             )
         case .restoreFailed:
             return ActionableErrorPresentation(
@@ -151,12 +169,14 @@ public enum ActionableErrorPolicy: Sendable {
 
     public static func kind(
         noticeKey: String?,
+        bannerKey: String? = nil,
         usageHealth: UsageStorageHealth? = nil,
         usageDataError: String? = nil,
-        snapshotStatus: BalanceStatus? = nil
+        snapshotStatus: BalanceStatus? = nil,
+        errorMessage: String? = nil
     ) -> ActionableErrorKind? {
-        if snapshotStatus == .setup || snapshotStatus == .error {
-            return .credentialsMissing
+        if let snapshotStatus {
+            return kind(snapshotStatus: snapshotStatus, errorMessage: errorMessage)
         }
         if usageHealth == .needsRestore {
             return .usageNeedsRestore
@@ -167,7 +187,26 @@ public enum ActionableErrorPolicy: Sendable {
         if usageHealth == .lastSaveFailed || usageDataError == "save" {
             return .usageSaveFailed
         }
-        switch noticeKey {
+        if let mapped = kind(messageKey: noticeKey) {
+            return mapped
+        }
+        return kind(messageKey: bannerKey)
+    }
+
+    public static func kind(snapshotStatus: BalanceStatus, errorMessage: String?) -> ActionableErrorKind? {
+        switch snapshotStatus {
+        case .setup:
+            return .credentialsMissing
+        case .error:
+            return classifyCardFailure(errorMessage)
+        case .healthy, .warning, .caution, .critical, .depleted, .unknown:
+            return nil
+        }
+    }
+
+    public static func kind(messageKey: String?) -> ActionableErrorKind? {
+        guard let messageKey, !messageKey.isEmpty else { return nil }
+        switch messageKey {
         case RefreshMessageKey.failed:
             return .refreshFailed
         case RefreshMessageKey.partialFailed:
@@ -178,12 +217,55 @@ public enum ActionableErrorPolicy: Sendable {
             return .usageLoadFailed
         case "diagnostics.export.failed":
             return .diagnosticsExportFailed
-        case "restore.result.failed":
+        case "settings.transfer.export_failed",
+             "settings.backup.export_failed",
+             "recovery.result.export_failed":
+            return .exportFailed
+        case "restore.result.failed",
+             "recovery.result.restore_failed":
             return .restoreFailed
+        case "recovery.result.reset_failed":
+            return .settingsCorrupt
         case "update.check.failed", "update.check.http_failed", "update.check.parse_failed":
             return .updateCheckFailed
         default:
+            if messageKey.hasPrefix("restore.error.") {
+                return .restoreFailed
+            }
+            if messageKey.hasPrefix("update.error."), messageKey != "update.error.copied" {
+                return .updateInstallFailed
+            }
             return nil
         }
+    }
+
+    public static func classifyCardFailure(_ message: String?) -> ActionableErrorKind {
+        let text = (message ?? "").lowercased()
+        if looksLikeCredentialFailure(text) {
+            return .credentialsMissing
+        }
+        if looksLikeNetworkFailure(text) {
+            return .networkFailed
+        }
+        return .refreshFailed
+    }
+
+    private static func looksLikeCredentialFailure(_ text: String) -> Bool {
+        let tokens = [
+            "未配置密钥", "未配置", "尚未录入", "密钥", "凭据",
+            "unrecognized provider", "unauthorized", "401",
+            "cookie", "credential", "password", "api key", "apikey",
+            "access token", "未授权", "登录过期",
+        ]
+        return tokens.contains { text.contains($0) }
+    }
+
+    private static func looksLikeNetworkFailure(_ text: String) -> Bool {
+        let tokens = [
+            "超时", "timeout", "timed out", "网络", "network",
+            "连接", "connection", "offline", "无法连接", "dns",
+            "not connected", "nsurlerror",
+        ]
+        return tokens.contains { text.contains($0) }
     }
 }

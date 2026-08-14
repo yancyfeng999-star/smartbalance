@@ -96,4 +96,24 @@ final class MenuNavigationTests: XCTestCase {
         )
         XCTAssertEqual(MenuNavigationPolicy.keyboardAction(.tab, state: state), .moveFocus)
     }
+
+    func testReturnConfirmsSettingsAndTabOrderIsStable() {
+        var state = MenuNavState(primary: .settings)
+        state = MenuNavigationPolicy.apply(.keyboard(.return), to: state)
+        XCTAssertEqual(state.primary, .home)
+
+        state = MenuNavState(primary: .settings, support: .help)
+        state = MenuNavigationPolicy.apply(.keyboard(.return), to: state)
+        XCTAssertEqual(state.primary, .settings)
+        XCTAssertEqual(state.support, .help)
+
+        XCTAssertEqual(
+            SupportFocusPolicy.tabOrder(for: .home),
+            [.refresh, .settings, .dashboard, .usage, .quit]
+        )
+        XCTAssertEqual(SupportFocusPolicy.next(.refresh, surface: .home), .settings)
+        XCTAssertEqual(SupportFocusPolicy.next(.quit, surface: .home), .refresh)
+        XCTAssertTrue(SupportFocusPolicy.tabOrder(for: .usage).contains(.back))
+        XCTAssertTrue(SupportFocusPolicy.tabOrder(for: .settings).contains(.done))
+    }
 }

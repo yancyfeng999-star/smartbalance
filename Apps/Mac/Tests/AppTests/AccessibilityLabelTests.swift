@@ -65,6 +65,119 @@ final class AccessibilityLabelTests: XCTestCase {
         }
     }
 
+    func testCardErrorsMapCredentialsNetworkAndOtherSeparately() {
+        XCTAssertEqual(
+            SupportViewMapping.cardKind(status: .setup, errorMessage: "未配置密钥"),
+            .credentialsMissing
+        )
+        XCTAssertEqual(
+            SupportViewMapping.cardKind(status: .error, errorMessage: "查询超时（10s）"),
+            .networkFailed
+        )
+        XCTAssertEqual(
+            SupportViewMapping.cardKind(status: .error, errorMessage: "The Internet connection appears to be offline."),
+            .networkFailed
+        )
+        XCTAssertEqual(
+            SupportViewMapping.cardKind(status: .error, errorMessage: "unauthorized"),
+            .credentialsMissing
+        )
+        XCTAssertEqual(
+            SupportViewMapping.cardKind(status: .error, errorMessage: "provider returned 500"),
+            .refreshFailed
+        )
+        XCTAssertNotEqual(
+            SupportViewMapping.cardKind(status: .error, errorMessage: "查询超时（10s）"),
+            .credentialsMissing
+        )
+        XCTAssertFalse(
+            ActionableErrorPolicy.presentation(for: .networkFailed).actions.contains(.reenterCredentials)
+        )
+        XCTAssertTrue(
+            ActionableErrorPolicy.presentation(for: .networkFailed).actions.contains(.retry)
+        )
+    }
+
+    func testBannerFailureKeysUseFullActionMatrix() {
+        let cases: [(String, ActionableErrorKind)] = [
+            ("diagnostics.export.failed", .diagnosticsExportFailed),
+            ("settings.transfer.export_failed", .exportFailed),
+            ("settings.backup.export_failed", .exportFailed),
+            ("restore.result.failed", .restoreFailed),
+            ("restore.error.settings", .restoreFailed),
+            ("restore.error.read", .restoreFailed),
+            ("recovery.result.export_failed", .exportFailed),
+            ("recovery.result.restore_failed", .restoreFailed),
+            ("recovery.result.reset_failed", .settingsCorrupt),
+            ("update.check.failed", .updateCheckFailed),
+        ]
+        let allowed: Set<ErrorNextAction> = [.retry, .viewHelp, .openSettings]
+        for (key, expected) in cases {
+            XCTAssertEqual(
+                SupportViewMapping.homeBannerKind(
+                    noticeKey: nil,
+                    bannerKey: key,
+                    usageHealth: nil,
+                    usageDataError: nil
+                ),
+                expected,
+                key
+            )
+            let actions = ActionableErrorPolicy.presentation(for: expected).actions
+            XCTAssertFalse(
+                actions.filter(allowed.contains).isEmpty,
+                "\(key) needs retry, help, or settings"
+            )
+        }
+    }
+
+    func testViewWiringMapsErrorActionsToDestinations() {
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .retry, kind: .refreshFailed),
+            .refresh
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .retry, kind: .networkFailed),
+            .refresh
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .reenterCredentials, kind: .credentialsMissing),
+            .settingsAPIAccounts
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .retry, kind: .diagnosticsExportFailed),
+            .retryExportDiagnostics
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(
+                for: .retry,
+                kind: .exportFailed,
+                bannerKey: "settings.transfer.export_failed"
+            ),
+            .retryExportTransfer
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(
+                for: .retry,
+                kind: .exportFailed,
+                bannerKey: "settings.backup.export_failed"
+            ),
+            .retryExportBackup
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .restoreBackup, kind: .restoreFailed),
+            .backupRestore
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .viewHelp, kind: .refreshFailed),
+            .help
+        )
+        XCTAssertEqual(
+            SupportViewMapping.destination(for: .openSettings, kind: .exportFailed),
+            .settings
+        )
+    }
+
     func testChartsExposeNonGraphicSummaryAndDoNotRelyOnColorAlone() {
         let summary = UsageChartTextSummary.line(
             periodLabel: LocalizationCatalog.string("usage.week", language: .en),

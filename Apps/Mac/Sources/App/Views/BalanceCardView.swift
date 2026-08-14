@@ -95,8 +95,12 @@ struct BalanceCardView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     metersRow
                     if snapshot.status == .error || snapshot.status == .setup, let onErrorAction {
+                        let kind = SupportViewMapping.cardKind(
+                            status: snapshot.status,
+                            errorMessage: snapshot.errorMessage
+                        ) ?? .refreshFailed
                         ActionableErrorView(
-                            presentation: ActionableErrorPolicy.presentation(for: .credentialsMissing),
+                            presentation: ActionableErrorPolicy.presentation(for: kind),
                             messageOverride: snapshot.errorMessage
                         ) { action in
                             onErrorAction(action)
@@ -203,7 +207,7 @@ struct BalanceCardView: View {
             return err
         }
         if snapshot.status == .unknown, snapshot.amount == nil {
-            return snapshot.detail.isEmpty ? "查询中…" : snapshot.detail
+            return snapshot.detail.isEmpty ? l10n.t("refresh.running") : snapshot.detail
         }
         // primaryText 已带 ¥ / $ / 单位
         return snapshot.primaryText

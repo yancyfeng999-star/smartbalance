@@ -347,6 +347,21 @@ public enum LocalizationCatalog: Sendable {
             ja: "バックアップを復元", ko: "백업 복원", ru: "Восстановить копию", ar: "استعادة النسخة",
             fr: "Restaurer la sauvegarde", de: "Backup wiederherstellen", es: "Restaurar copia", pt: "Restaurar cópia"
         ),
+        "error.network.title": zhEn("网络或超时", "Network or timeout"),
+        "error.network.message": zhEn(
+            "可以重试或查看帮助。先不必改密钥。",
+            "Retry or view help. You do not need to change credentials first."
+        ),
+        "error.export.failed.title": zhEn("导出失败", "Export failed"),
+        "error.export.failed.message": zhEn(
+            "可重试、打开设置或查看帮助。",
+            "Retry, open Settings, or view help."
+        ),
+        "refresh.running": chrome(
+            "查询中…", "Refreshing…",
+            ja: "更新中…", ko: "새로고침 중…", ru: "Обновление…", ar: "جارٍ التحديث…",
+            fr: "Actualisation…", de: "Aktualisieren…", es: "Actualizando…", pt: "A atualizar…"
+        ),
         "error.refresh.failed.title": zhEn("刷新失败", "Refresh failed"),
         "error.refresh.failed.message": zhEn(
             "可以重试、打开设置检查账号，或查看帮助。",

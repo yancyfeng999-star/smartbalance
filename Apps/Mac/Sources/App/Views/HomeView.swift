@@ -96,7 +96,11 @@ struct HomeView: View {
                 onSelect: { model.selectAccount(id: snap.accountId) },
                 onLongPress: { model.enterReorderMode() },
                 onErrorAction: { action in
-                    model.performErrorAction(action, kind: .credentialsMissing)
+                    let kind = SupportViewMapping.cardKind(
+                        status: snap.status,
+                        errorMessage: snap.errorMessage
+                    ) ?? .refreshFailed
+                    model.performErrorAction(action, kind: kind)
                 }
             )
             .frame(maxWidth: .infinity)
@@ -167,8 +171,9 @@ struct HomeView: View {
     }
 
     private var homeErrorKind: ActionableErrorKind? {
-        ActionableErrorPolicy.kind(
+        SupportViewMapping.homeBannerKind(
             noticeKey: model.refreshNoticeKey,
+            bannerKey: model.bannerKey,
             usageHealth: model.usageStorageHealth,
             usageDataError: model.usageDataError
         )

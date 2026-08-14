@@ -11,6 +11,7 @@ struct MenuRootView: View {
     var runsInPinnedWindow: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var l10n = L10n.shared
+    @FocusState private var focusedControl: SupportFocusTarget?
 
     /// 壳背景用模型解析的主题，不依赖本视图尚未继承的 preferredColorScheme。
     private var resolvedShellScheme: ColorScheme {
@@ -83,7 +84,11 @@ struct MenuRootView: View {
         .preferredColorScheme(model.preferredColorScheme)
         .environment(\.layoutDirection, model.settings.resolvedLanguage == .ar ? .rightToLeft : .leftToRight)
         .supportPageChrome()
-        .supportKeyboard(onEscape: { model.handleSupportEscape() })
+        .supportKeyboard(
+            onEscape: { model.handleSupportEscape() },
+            onReturn: { model.handleSupportReturn() }
+        )
+        .focusSection()
         .onAppear {
             model.applyAppearancePreference()
             if runsInPinnedWindow {
@@ -313,6 +318,8 @@ struct MenuRootView: View {
                 selected: model.isRefreshing
             )
             .keyboardShortcut("r")
+            .focusable()
+            .focused($focusedControl, equals: .refresh)
 
             Button {
                 togglePin()
@@ -356,6 +363,8 @@ struct MenuRootView: View {
                 identifier: SupportAccessibilityID.navSettings.rawValue,
                 selected: model.selectedTab == .settings
             )
+            .focusable()
+            .focused($focusedControl, equals: .settings)
         }
     }
 
@@ -427,6 +436,8 @@ struct MenuRootView: View {
             }
             .buttonStyle(.plain)
             .supportButtonLabel(backLabel, identifier: SupportAccessibilityID.navBack.rawValue)
+            .focusable()
+            .focused($focusedControl, equals: .back)
 
             Spacer()
             Text(title)
@@ -452,6 +463,8 @@ struct MenuRootView: View {
             .keyboardShortcut("d")
             .help(l10n.t("home.dashboard.help"))
             .accessibilityLabel(l10n.t("home.open_dashboard"))
+            .focusable()
+            .focused($focusedControl, equals: .dashboard)
 
             footerPill(title: l10n.t("home.usage"), systemName: "chart.bar.xaxis") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖
@@ -467,12 +480,16 @@ struct MenuRootView: View {
                 identifier: SupportAccessibilityID.navUsage.rawValue,
                 selected: model.selectedTab == .usage
             )
+            .focusable()
+            .focused($focusedControl, equals: .usage)
 
             footerPill(title: l10n.t("home.quit"), systemName: "power") {
                 model.quit()
             }
             .help(l10n.t("home.quit.help"))
             .accessibilityLabel(l10n.t("home.quit"))
+            .focusable()
+            .focused($focusedControl, equals: .quit)
         }
     }
 
@@ -500,6 +517,8 @@ struct MenuRootView: View {
             .buttonStyle(.plain)
             .keyboardShortcut(.defaultAction)
             .supportButtonLabel(l10n.t("nav.done"), identifier: SupportAccessibilityID.navDone.rawValue)
+            .focusable()
+            .focused($focusedControl, equals: .done)
         }
     }
 

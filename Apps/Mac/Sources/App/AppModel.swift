@@ -19,8 +19,12 @@ final class AppModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var lastRefreshAt: Date?
     @Published var banner: String? {
-        didSet { scheduleBannerAutoDismiss() }
+        didSet {
+            if banner == nil { bannerKey = nil }
+            scheduleBannerAutoDismiss()
+        }
     }
+    @Published private(set) var bannerKey: String?
     /// 黄条提示自动消失任务（成功/失败提示约 3.5s；「正在…」不自动关）
     private var bannerDismissTask: Task<Void, Never>?
     @Published var selectedTab: Tab = .home
@@ -111,7 +115,7 @@ final class AppModel: ObservableObject {
         bannerDismissTask = nil
         guard let text = banner, !text.isEmpty else { return }
         // 进行中的提示由后续成功/失败覆盖，不自动关
-        if text.contains("正在") || text.contains("请稍候") || text.contains("查询中") {
+        if text.contains("正在") || text.contains("请稍候") || text.contains("查询中") || text.contains("Refreshing") {
             return
         }
         let snapshot = text
@@ -262,7 +266,7 @@ final class AppModel: ObservableObject {
                 displayName: account.title,
                 source: .api,
                 status: .unknown,
-                detail: "查询中…",
+                detail: L10n.shared.t("refresh.running"),
                 errorMessage: nil
             )
         }
@@ -452,6 +456,12 @@ final class AppModel: ObservableObject {
     func dismissRefreshNotice() {
         refreshNoticeKey = nil
         banner = nil
+        bannerKey = nil
+    }
+
+    func presentLocalizedBanner(_ key: String) {
+        bannerKey = ActionableErrorPolicy.kind(messageKey: key) != nil ? key : nil
+        banner = L10n.shared.t(key)
     }
 
     private func prepareSnapshotsForRefresh() {
@@ -470,7 +480,7 @@ final class AppModel: ObservableObject {
                         displayName: account.title,
                         source: .api,
                         status: .unknown,
-                        detail: "查询中…"
+                        detail: L10n.shared.t("refresh.running")
                     )
                 }
             )
@@ -518,7 +528,7 @@ final class AppModel: ObservableObject {
         if let warning = outcome?.usageWarning {
             applyUsageHealth(lastError: warning == .loadFailed ? .load : .save)
             refreshNoticeKey = warning.messageKey
-            banner = L10n.shared.t(warning.messageKey)
+            presentLocalizedBanner(warning.messageKey)
             AppLog.error("Usage history persist failed", category: .usage, event: "usage_persist_failed")
         } else if let document = outcome?.usageDocument {
             usageHistory = document
@@ -539,7 +549,7 @@ final class AppModel: ObservableObject {
         if outcome?.usageWarning == nil,
            let key = RefreshPresentation.statusMessageKey(refreshCoordinator.state) {
             refreshNoticeKey = key
-            banner = L10n.shared.t(key)
+            presentLocalizedBanner(key)
         } else if outcome?.usageWarning == nil, outcome != nil {
             refreshNoticeKey = nil
         }
@@ -713,7 +723,7 @@ final class AppModel: ObservableObject {
                     displayName: account.title,
                     source: .api,
                     status: .unknown,
-                    detail: "查询中…"
+                    detail: L10n.shared.t("refresh.running")
                 )
             )
             snapshots = orderedSnapshots(snapshots)
@@ -943,7 +953,7 @@ final class AppModel: ObservableObject {
                     displayName: acc.title,
                     source: .api,
                     status: .unknown,
-                    detail: "查询中…"
+                    detail: L10n.shared.t("refresh.running")
                 )
             )
             snapshots = orderedSnapshots(snapshots)
@@ -1167,7 +1177,7 @@ final class AppModel: ObservableObject {
         let text = PrivacyRedactor.redact(DiagnosticArchiveWriter.textSummary(report))
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        banner = L10n.shared.t("diagnostics.copied")
+        presentLocalizedBanner("diagnostics.copied")
     }
 
     func exportDiagnostics() {
@@ -1182,10 +1192,10 @@ final class AppModel: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try DiagnosticArchiveWriter().writeZip(report, to: url)
-            banner = L10n.shared.t("diagnostics.export.success")
+            presentLocalizedBanner("diagnostics.export.success")
             AppLog.info("Diagnostic archive exported")
         } catch {
-            banner = L10n.shared.t("diagnostics.export.failed")
+            presentLocalizedBanner("diagnostics.export.failed")
             AppLog.error("Diagnostic export failed", category: .filesystem, event: "diagnostics_export_failed")
         }
     }
@@ -1212,26 +1222,40 @@ final class AppModel: ObservableObject {
     }
 
     func performErrorAction(_ action: ErrorNextAction, kind: ActionableErrorKind) {
-        switch action {
-        case .retry:
-            retryAfterError(kind)
-        case .openSettings:
+        switch SupportViewMapping.destination(for: action, kind: kind, bannerKey: bannerKey) {
+        case .refresh:
+            refresh(trigger: .manual)
+        case .settings:
             helpPage = nil
             selectedTab = .settings
-        case .reenterCredentials:
+        case .settingsAPIAccounts:
             helpPage = nil
             preferExpandAPIAccounts = true
             selectedTab = .settings
-        case .openLogs:
+        case .logs:
             openLogs()
-        case .exportDiagnostics:
+        case .diagnostics:
             openDiagnosticsCenter()
-        case .restoreBackup:
+        case .backupRestore:
             helpPage = nil
             selectedTab = .settings
             openBackupRestore()
-        case .viewHelp:
+        case .help:
             openHelpCenter(topic: ActionableErrorPolicy.presentation(for: kind).helpTopic)
+        case .retryExportDiagnostics:
+            exportDiagnostics()
+        case .retryExportTransfer:
+            if bannerKey == "recovery.result.export_failed" {
+                exportRecoverySettings()
+            } else {
+                exportSettingsTransfer()
+            }
+        case .retryExportBackup:
+            exportLocalBackup()
+        case .retryUpdateCheck:
+            checkForUpdates()
+        case .retryUpdateInstall:
+            requestInstallUpdate()
         }
     }
 
@@ -1253,24 +1277,18 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func retryAfterError(_ kind: ActionableErrorKind) {
-        switch kind {
-        case .refreshFailed, .refreshPartialFailed, .credentialsMissing, .usageSaveFailed:
-            refresh(trigger: .manual)
-        case .usageLoadFailed, .usageNeedsRestore:
-            selectedTab = .settings
-            openBackupRestore()
-        case .diagnosticsExportFailed:
-            exportDiagnostics()
-        case .restoreFailed:
-            selectedTab = .settings
-            openBackupRestore()
-        case .updateCheckFailed:
-            checkForUpdates()
-        case .updateInstallFailed:
-            requestInstallUpdate()
-        case .settingsCorrupt, .compatibilityBlocked:
-            selectedTab = .settings
+    func handleSupportReturn() {
+        if helpPage != nil { return }
+        if restorePreview != nil {
+            confirmPendingRestore()
+            return
+        }
+        if settingsSupportPage == .updates, updateAwaitingInstallConfirm {
+            confirmInstallUpdate()
+            return
+        }
+        if selectedTab == .settings, settingsSupportPage == nil, restoreOutcome == nil {
+            selectedTab = .home
         }
     }
 
@@ -1321,10 +1339,10 @@ final class AppModel: ObservableObject {
                 appVersion: appVersion,
                 to: url
             )
-            banner = L10n.shared.t("settings.transfer.export_ok")
+            presentLocalizedBanner("settings.transfer.export_ok")
             AppLog.info("Settings transfer exported")
         } catch {
-            banner = L10n.shared.t("settings.transfer.export_failed")
+            presentLocalizedBanner("settings.transfer.export_failed")
             AppLog.error("Settings transfer export failed", category: .backup, event: "settings_export_failed")
         }
     }
@@ -1348,10 +1366,10 @@ final class AppModel: ObservableObject {
                 appVersion: appVersion,
                 to: url
             )
-            banner = L10n.shared.t("settings.backup.export_ok")
+            presentLocalizedBanner("settings.backup.export_ok")
             AppLog.info("Local restore package exported")
         } catch {
-            banner = L10n.shared.t("settings.backup.export_failed")
+            presentLocalizedBanner("settings.backup.export_failed")
             AppLog.error("Local restore export failed", category: .backup, event: "restore_export_failed")
         }
     }
@@ -1402,11 +1420,11 @@ final class AppModel: ObservableObject {
             self.restoreOutcome = outcome
             if outcome.status == .succeeded {
                 self.applyRestoredState(outcome)
-                self.banner = L10n.shared.t("restore.result.ok")
+                self.presentLocalizedBanner("restore.result.ok")
             } else if outcome.status == .cancelled {
-                self.banner = L10n.shared.t("restore.result.cancelled")
+                self.presentLocalizedBanner("restore.result.cancelled")
             } else {
-                self.banner = L10n.shared.t(self.restoreFailureKey(outcome.failureReason))
+                self.presentLocalizedBanner(self.restoreFailureKey(outcome.failureReason))
             }
         }
     }
@@ -1417,7 +1435,7 @@ final class AppModel: ObservableObject {
         pendingRestoreData = nil
         restorePreview = nil
         restoreLegacyAcknowledged = false
-        banner = L10n.shared.t("restore.result.cancelled")
+        presentLocalizedBanner("restore.result.cancelled")
     }
 
     func openBackupDirectory() {
@@ -1444,7 +1462,7 @@ final class AppModel: ObservableObject {
         do {
             data = try Data(contentsOf: url)
         } catch {
-            banner = L10n.shared.t("restore.error.read")
+            presentLocalizedBanner("restore.error.read")
             AppLog.error("Restore file read failed", category: .backup, event: "restore_read_failed")
             return
         }
@@ -1460,13 +1478,13 @@ final class AppModel: ObservableObject {
                 "Restore preview format=\(preview.format) v\(preview.formatVersion) legacy=\(preview.isLegacySecretBackup)"
             )
         } catch SettingsTransferError.formatMismatch {
-            banner = L10n.shared.t("restore.error.format")
+            presentLocalizedBanner("restore.error.format")
         } catch SettingsTransferError.versionTooNew {
-            banner = L10n.shared.t("restore.error.version")
+            presentLocalizedBanner("restore.error.version")
         } catch SettingsTransferError.corruptUsage {
-            banner = L10n.shared.t("restore.error.usage")
+            presentLocalizedBanner("restore.error.usage")
         } catch {
-            banner = L10n.shared.t("restore.error.decode")
+            presentLocalizedBanner("restore.error.decode")
         }
     }
 
@@ -1591,7 +1609,7 @@ final class AppModel: ObservableObject {
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        banner = L10n.shared.t("update.error.copied")
+        presentLocalizedBanner("update.error.copied")
     }
 
     func openUpdateURL() {
@@ -2137,14 +2155,14 @@ final class AppModel: ObservableObject {
                 status: .succeeded,
                 messageKey: "recovery.result.export_ok"
             )
-            banner = L10n.shared.t("recovery.result.export_ok")
+            presentLocalizedBanner("recovery.result.export_ok")
         } catch {
             recoveryActionOutcome = RecoveryActionOutcome(
                 action: .exportSettings,
                 status: .failed,
                 messageKey: "recovery.result.export_failed"
             )
-            banner = L10n.shared.t("recovery.result.export_failed")
+            presentLocalizedBanner("recovery.result.export_failed")
         }
     }
 
@@ -2165,7 +2183,7 @@ final class AppModel: ObservableObject {
                 status: .succeeded,
                 messageKey: "recovery.result.restore_ok"
             )
-            banner = L10n.shared.t("recovery.result.restore_ok")
+            presentLocalizedBanner("recovery.result.restore_ok")
         } else {
             recoveryActionOutcome = RecoveryActionOutcome(
                 action: .restoreLatestSnapshot,
@@ -2174,7 +2192,7 @@ final class AppModel: ObservableObject {
                     ? "recovery.result.no_snapshot"
                     : "recovery.result.restore_failed"
             )
-            banner = L10n.shared.t("recovery.result.restore_failed")
+            presentLocalizedBanner("recovery.result.restore_failed")
         }
     }
 
@@ -2198,7 +2216,7 @@ final class AppModel: ObservableObject {
                 status: .failed,
                 messageKey: "recovery.result.reset_failed"
             )
-            banner = L10n.shared.t("recovery.result.reset_failed")
+            presentLocalizedBanner("recovery.result.reset_failed")
             return
         }
         recoveryBusy = false
@@ -2215,14 +2233,14 @@ final class AppModel: ObservableObject {
                 status: .succeeded,
                 messageKey: "recovery.result.reset_ok"
             )
-            banner = L10n.shared.t("recovery.result.reset_ok")
+            presentLocalizedBanner("recovery.result.reset_ok")
         } else {
             recoveryActionOutcome = RecoveryActionOutcome(
                 action: .resetSettings,
                 status: .failed,
                 messageKey: "recovery.result.reset_failed"
             )
-            banner = L10n.shared.t("recovery.result.reset_failed")
+            presentLocalizedBanner("recovery.result.reset_failed")
         }
     }
 

@@ -55,6 +55,37 @@ public enum SupportKeyboardAction: String, Sendable, Equatable {
     case moveFocus
 }
 
+public enum SupportFocusTarget: String, CaseIterable, Sendable, Equatable {
+    case refresh
+    case settings
+    case dashboard
+    case usage
+    case quit
+    case back
+    case done
+}
+
+public enum SupportFocusPolicy: Sendable {
+    public static func tabOrder(for surface: MenuSurface) -> [SupportFocusTarget] {
+        switch surface {
+        case .home:
+            return [.refresh, .settings, .dashboard, .usage, .quit]
+        case .usage, .diagnostics, .help, .troubleshooting, .transfer, .backup, .updates, .restorePreview:
+            return [.back]
+        case .settings:
+            return [.back, .done]
+        }
+    }
+
+    public static func next(_ current: SupportFocusTarget?, surface: MenuSurface) -> SupportFocusTarget? {
+        let order = tabOrder(for: surface)
+        guard let current, let index = order.firstIndex(of: current) else {
+            return order.first
+        }
+        return order[(index + 1) % order.count]
+    }
+}
+
 public enum MenuNavAction: Equatable, Sendable {
     case openHome
     case openUsage
@@ -188,7 +219,9 @@ public enum MenuNavigationPolicy: Sendable {
             next.primary = .home
             next.support = nil
             next.helpTopic = nil
-        case .keyboard(.return), .keyboard(.tab):
+        case .keyboard(.return):
+            next = confirm(next)
+        case .keyboard(.tab):
             break
         }
         return next
@@ -214,6 +247,16 @@ public enum MenuNavigationPolicy: Sendable {
             }
         }
         return MenuSurface(primary)
+    }
+
+    private static func confirm(_ state: MenuNavState) -> MenuNavState {
+        if state.helpTopic != nil || state.support != nil {
+            return state
+        }
+        if state.primary == .settings {
+            return apply(.done, to: state)
+        }
+        return state
     }
 
     private static func goBack(_ state: MenuNavState) -> MenuNavState {

@@ -218,8 +218,9 @@ struct UsageView: View {
     }
 
     private var usageErrorKind: ActionableErrorKind? {
-        ActionableErrorPolicy.kind(
+        SupportViewMapping.homeBannerKind(
             noticeKey: model.refreshNoticeKey,
+            bannerKey: model.bannerKey,
             usageHealth: model.usageStorageHealth,
             usageDataError: model.usageDataError
         )
