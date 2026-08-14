@@ -54,6 +54,7 @@ struct SafeModeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(l10n.t("recovery.title"))
+        .accessibilityIdentifier("recovery.root")
     }
 
     private var header: some View {

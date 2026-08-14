@@ -303,12 +303,17 @@ struct BackgroundSystemSection: View {
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))
                 .accessibilityLabel(l10n.t("update.details.view"))
-            } else if model.updatePhase == .failed, model.updateOpenURL != nil {
-                Button(l10n.t("update.action.open_release")) {
-                    model.openUpdateURL()
+            } else if model.updatePhase == .failed {
+                ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: .updateCheckFailed)) { action in
+                    model.performErrorAction(action, kind: .updateCheckFailed)
                 }
-                .buttonStyle(SBButtonStyle(kind: .accent))
-                .accessibilityLabel(l10n.t("update.action.open_release"))
+                if model.updateOpenURL != nil {
+                    Button(l10n.t("update.action.open_release")) {
+                        model.openUpdateURL()
+                    }
+                    .buttonStyle(SBButtonStyle(kind: .accent))
+                    .accessibilityLabel(l10n.t("update.action.open_release"))
+                }
             }
         }
         .padding(14)

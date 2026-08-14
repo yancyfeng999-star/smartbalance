@@ -49,6 +49,7 @@ struct FirstLaunchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(l10n.t("onboarding.title"))
+        .accessibilityIdentifier("onboarding.root")
         .onAppear {
             focusedAction = .primary
         }

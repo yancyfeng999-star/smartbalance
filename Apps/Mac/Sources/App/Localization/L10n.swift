@@ -18,6 +18,9 @@ final class L10n: ObservableObject {
 
     func t(_ key: String) -> String {
         if let s = table[key]?[language] { return s }
+        if LocalizationCatalog.contains(key) {
+            return LocalizationCatalog.string(key, language: language)
+        }
         if let s = table[key]?[.zhHans] { return s }
         if let s = table[key]?[.en] { return s }
         return key

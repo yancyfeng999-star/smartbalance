@@ -90,7 +90,10 @@ struct CompatibilityView: View {
                     model.openSettingsFromCompatibility()
                 }
                 .buttonStyle(SBButtonStyle(kind: .normal))
-                .accessibilityLabel(l10n.t("compat.open_settings"))
+                .supportButtonLabel(
+                    l10n.t("compat.open_settings"),
+                    identifier: SupportAccessibilityID.errorSettings.rawValue
+                )
                 .keyboardShortcut("s")
 
                 Button(l10n.t(presentation == .settings ? "compat.refresh" : "compat.continue_home")) {
@@ -104,6 +107,14 @@ struct CompatibilityView: View {
                 .accessibilityLabel(l10n.t(presentation == .settings ? "compat.refresh" : "compat.continue_home"))
                 .keyboardShortcut(.defaultAction)
             }
+            Button(l10n.t("help.open")) {
+                model.openHelpCenter(topic: .gettingStarted)
+            }
+            .buttonStyle(SBButtonStyle(kind: .normal))
+            .supportButtonLabel(
+                l10n.t("help.open"),
+                identifier: SupportAccessibilityID.errorHelp.rawValue
+            )
         }
     }
 

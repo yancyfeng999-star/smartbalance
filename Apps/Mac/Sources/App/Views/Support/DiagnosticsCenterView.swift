@@ -114,6 +114,10 @@ struct DiagnosticsCenterView: View {
                 actionButton(titleKey: "diagnostics.open_help", systemName: "questionmark.circle") {
                     model.openDiagnosticsHelp()
                 }
+                .supportButtonLabel(
+                    l10n.t("diagnostics.open_help"),
+                    identifier: SupportAccessibilityID.navHelp.rawValue
+                )
             }
         }
         .padding(.top, 4)

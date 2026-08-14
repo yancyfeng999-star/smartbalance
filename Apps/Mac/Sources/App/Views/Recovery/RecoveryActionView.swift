@@ -49,7 +49,7 @@ struct RecoveryActionView: View {
                 }
                 .buttonStyle(SBButtonStyle(kind: buttonKind))
                 .disabled(busy)
-                .accessibilityLabel(l10n.t(action.titleKey))
+                .supportButtonLabel(l10n.t(action.titleKey), identifier: "recovery.action.\(action.rawValue)")
             }
 
             if let outcome, outcome.action == action, outcome.status == .succeeded || outcome.status == .failed {

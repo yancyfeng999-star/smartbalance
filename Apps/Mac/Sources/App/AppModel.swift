@@ -34,6 +34,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var diagnosticReport: DiagnosticReport?
     @Published private(set) var isCollectingDiagnostics = false
     @Published var preferExpandAPIAccounts = false
+    @Published var helpPage: HelpPage?
     @Published var settingsSupportPage: SettingsSupportPage?
     @Published var restorePreview: TransferPreview?
     @Published var restoreOutcome: RestoreOutcome?
@@ -62,6 +63,11 @@ final class AppModel: ObservableObject {
         case transfer
         case backup
         case updates
+    }
+
+    enum HelpPage: Equatable {
+        case index
+        case topic(HelpTopicID)
     }
 
     private let store = SettingsStore.shared
@@ -1185,8 +1191,86 @@ final class AppModel: ObservableObject {
     }
 
     func openDiagnosticsHelp() {
-        if let url = URL(string: "https://github.com/yancyfeng999-star/smartbalance/blob/main/docs/USER_GUIDE.md") {
-            BrowserLauncher.open(url)
+        openHelpCenter()
+    }
+
+    func openHelpCenter(topic: HelpTopicID? = nil) {
+        helpPage = topic.map { .topic($0) } ?? .index
+    }
+
+    func openHelpTopic(_ id: HelpTopicID) {
+        helpPage = .topic(id)
+    }
+
+    func closeHelpCenter() {
+        switch helpPage {
+        case .topic:
+            helpPage = .index
+        case .index, .none:
+            helpPage = nil
+        }
+    }
+
+    func performErrorAction(_ action: ErrorNextAction, kind: ActionableErrorKind) {
+        switch action {
+        case .retry:
+            retryAfterError(kind)
+        case .openSettings:
+            helpPage = nil
+            selectedTab = .settings
+        case .reenterCredentials:
+            helpPage = nil
+            preferExpandAPIAccounts = true
+            selectedTab = .settings
+        case .openLogs:
+            openLogs()
+        case .exportDiagnostics:
+            openDiagnosticsCenter()
+        case .restoreBackup:
+            helpPage = nil
+            selectedTab = .settings
+            openBackupRestore()
+        case .viewHelp:
+            openHelpCenter(topic: ActionableErrorPolicy.presentation(for: kind).helpTopic)
+        }
+    }
+
+    func handleSupportEscape() {
+        if helpPage != nil {
+            closeHelpCenter()
+            return
+        }
+        if selectedTab == .diagnostics {
+            closeDiagnosticsCenter()
+            return
+        }
+        if settingsSupportPage != nil || restorePreview != nil || restoreOutcome != nil {
+            closeSettingsSupport()
+            return
+        }
+        if selectedTab == .usage || selectedTab == .settings {
+            selectedTab = .home
+        }
+    }
+
+    private func retryAfterError(_ kind: ActionableErrorKind) {
+        switch kind {
+        case .refreshFailed, .refreshPartialFailed, .credentialsMissing, .usageSaveFailed:
+            refresh(trigger: .manual)
+        case .usageLoadFailed, .usageNeedsRestore:
+            selectedTab = .settings
+            openBackupRestore()
+        case .diagnosticsExportFailed:
+            exportDiagnostics()
+        case .restoreFailed:
+            selectedTab = .settings
+            openBackupRestore()
+        case .updateCheckFailed:
+            checkForUpdates()
+        case .updateInstallFailed:
+            requestInstallUpdate()
+        case .settingsCorrupt, .compatibilityBlocked:
+            selectedTab = .settings
         }
     }
 

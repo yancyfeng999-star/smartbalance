@@ -18,6 +18,11 @@ struct UpdateDetailsView: View {
             if model.updateAwaitingInstallConfirm {
                 confirmBlock
             }
+            if model.updatePhase == .failed {
+                ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: .updateInstallFailed)) { action in
+                    model.performErrorAction(action, kind: .updateInstallFailed)
+                }
+            }
             actions
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)

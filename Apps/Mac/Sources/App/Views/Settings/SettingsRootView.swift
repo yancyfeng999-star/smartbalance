@@ -22,6 +22,7 @@ struct SettingsRootView: View {
             alertCard
             compatibilityCard
             diagnosticsCard
+            helpCard
             transferCard
             backupCard
             BackgroundSystemSection(model: model)
@@ -156,7 +157,25 @@ struct SettingsRootView: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(l10n.t("settings.diagnostics"))
+        .supportButtonLabel(
+            l10n.t("settings.diagnostics"),
+            identifier: SupportAccessibilityID.navDiagnostics.rawValue
+        )
+    }
+
+    private var helpCard: some View {
+        navCard(
+            icon: "questionmark.circle.fill",
+            colors: [Color(red: 0.45, green: 0.40, blue: 0.85), Color(red: 0.30, green: 0.28, blue: 0.72)],
+            titleKey: "settings.help",
+            subtitleKey: "settings.help_sub"
+        ) {
+            model.openHelpCenter()
+        }
+        .supportButtonLabel(
+            l10n.t("help.open"),
+            identifier: SupportAccessibilityID.navHelp.rawValue
+        )
     }
 
     private var transferCard: some View {

@@ -26,14 +26,20 @@ struct UsageView: View {
 
             usageHealthStatus
 
-            if model.usageDataError != nil {
-                recoverableBanner(text: usageErrorText, systemImage: "exclamationmark.triangle.fill", tint: SBTheme.danger)
-            }
-
-            if let key = model.refreshNoticeKey,
-               key != "usage.save_failed",
-               key != "usage.load_failed" {
-                recoverableBanner(text: l10n.t(key), systemImage: "clock.badge.xmark", tint: SBTheme.warn)
+            if let kind = usageErrorKind {
+                ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: kind)) { action in
+                    model.performErrorAction(action, kind: kind)
+                }
+            } else if let key = model.refreshNoticeKey,
+                      key != "usage.save_failed",
+                      key != "usage.load_failed" {
+                if let kind = ActionableErrorPolicy.kind(noticeKey: key) {
+                    ActionableErrorView(presentation: ActionableErrorPolicy.presentation(for: kind)) { action in
+                        model.performErrorAction(action, kind: kind)
+                    }
+                } else {
+                    recoverableBanner(text: l10n.t(key), systemImage: "clock.badge.xmark", tint: SBTheme.warn)
+                }
             }
 
             if model.usageRecoveryNotice, model.usageStorageHealth != .needsRestore {
@@ -85,6 +91,8 @@ struct UsageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(period == candidate ? .isSelected : [])
+                .accessibilityLabel(title(for: candidate))
+                .accessibilityIdentifier("usage.period.\(candidate.rawValue)")
             }
         }
         .padding(3)
@@ -209,10 +217,12 @@ struct UsageView: View {
         .accessibilityLabel(l10n.t(health.messageKey))
     }
 
-    private var usageErrorText: String {
-        model.usageDataError == "load"
-            ? l10n.t("usage.load_failed")
-            : l10n.t("usage.save_failed")
+    private var usageErrorKind: ActionableErrorKind? {
+        ActionableErrorPolicy.kind(
+            noticeKey: model.refreshNoticeKey,
+            usageHealth: model.usageStorageHealth,
+            usageDataError: model.usageDataError
+        )
     }
 
     private func emptyState(

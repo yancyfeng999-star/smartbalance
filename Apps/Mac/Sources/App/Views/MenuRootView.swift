@@ -25,6 +25,11 @@ struct MenuRootView: View {
         let _ = l10n.revision
         ZStack {
             Group {
+                if model.helpPage != nil {
+                    helpShell
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                } else {
                 // 同一尺寸壳内切换，避免换根视图时 ideal size 抖动
                 switch model.sessionRoute {
                 case .onboarding:
@@ -69,6 +74,7 @@ struct MenuRootView: View {
                             .transition(.opacity)
                     }
                 }
+                }
             }
             .id("theme-\(model.settings.themeMode)")
         }
@@ -76,6 +82,8 @@ struct MenuRootView: View {
         .modifier(PinnedOrPopoverChrome(runsInPinnedWindow: runsInPinnedWindow))
         .preferredColorScheme(model.preferredColorScheme)
         .environment(\.layoutDirection, model.settings.resolvedLanguage == .ar ? .rightToLeft : .leftToRight)
+        .supportPageChrome()
+        .supportKeyboard(onEscape: { model.handleSupportEscape() })
         .onAppear {
             model.applyAppearancePreference()
             if runsInPinnedWindow {
@@ -109,9 +117,72 @@ struct MenuRootView: View {
 
     // MARK: - Usage shell
 
+    private var helpShell: some View {
+        VStack(spacing: 0) {
+            detailHeader(title: l10n.t(helpHeaderTitleKey)) {
+                model.closeHelpCenter()
+            }
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                helpContent
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    private var helpContent: some View {
+        switch model.helpPage {
+        case .topic(let id):
+            TroubleshootingTopicView(topicID: id)
+        case .index, .none:
+            HelpCenterView { topic in
+                model.openHelpTopic(topic)
+            }
+        }
+    }
+
+    private var helpHeaderTitleKey: String {
+        if case .topic = model.helpPage {
+            return MenuNavigationPolicy.headerTitleKey(for: .troubleshooting)
+        }
+        return MenuNavigationPolicy.headerTitleKey(for: .help)
+    }
+
+    private var currentSurface: MenuSurface {
+        if model.restorePreview != nil || model.restoreOutcome != nil {
+            return .restorePreview
+        }
+        if model.selectedTab == .diagnostics {
+            return .diagnostics
+        }
+        switch model.settingsSupportPage {
+        case .transfer:
+            return .transfer
+        case .backup:
+            return .backup
+        case .updates:
+            return .updates
+        case .none:
+            switch model.selectedTab {
+            case .home: return .home
+            case .usage: return .usage
+            case .settings: return .settings
+            case .diagnostics: return .diagnostics
+            }
+        }
+    }
+
     private var usageShell: some View {
         VStack(spacing: 0) {
-            detailHeader(title: l10n.t("usage.title")) {
+            detailHeader(title: l10n.t(MenuNavigationPolicy.headerTitleKey(for: .usage))) {
                 model.selectedTab = .home
             }
                 .padding(.horizontal, 14)
@@ -236,7 +307,11 @@ struct MenuRootView: View {
             }
             .buttonStyle(.plain)
             .help(l10n.t(model.refreshButtonHelpKey))
-            .accessibilityLabel(l10n.t(model.refreshButtonHelpKey))
+            .supportButtonLabel(
+                l10n.t(model.refreshButtonHelpKey),
+                identifier: SupportAccessibilityID.navRefresh.rawValue,
+                selected: model.isRefreshing
+            )
             .keyboardShortcut("r")
 
             Button {
@@ -256,8 +331,13 @@ struct MenuRootView: View {
             .buttonStyle(.plain)
             .help(
                 (runsInPinnedWindow || model.pinWindowOpen)
-                    ? "取消置顶"
-                    : "置顶常驻窗口（点其他应用不关闭）"
+                    ? l10n.t("home.pin.on")
+                    : l10n.t("home.pin.off")
+            )
+            .accessibilityLabel(
+                (runsInPinnedWindow || model.pinWindowOpen)
+                    ? l10n.t("home.pin.on")
+                    : l10n.t("home.pin.off")
             )
 
             Button {
@@ -269,9 +349,13 @@ struct MenuRootView: View {
                     .frame(width: 28, height: 26)
             }
             .buttonStyle(.plain)
-            .help(l10n.t("settings.title"))
+            .help(l10n.t("home.settings"))
             .keyboardShortcut(",")
-            .accessibilityLabel(l10n.t("settings.title"))
+            .supportButtonLabel(
+                l10n.t("home.settings"),
+                identifier: SupportAccessibilityID.navSettings.rawValue,
+                selected: model.selectedTab == .settings
+            )
         }
     }
 
@@ -292,7 +376,7 @@ struct MenuRootView: View {
     }
 
     private var settingsHeader: some View {
-        detailHeader(title: settingsHeaderTitle) {
+        detailHeader(title: l10n.t(settingsHeaderTitleKey)) {
             if model.settingsSupportPage != nil {
                 model.closeSettingsSupport()
             } else {
@@ -301,30 +385,19 @@ struct MenuRootView: View {
         }
     }
 
-    private var settingsHeaderTitle: String {
-        if model.restorePreview != nil || model.restoreOutcome != nil {
-            return l10n.t("restore.preview.title")
-        }
-        switch model.settingsSupportPage {
-        case .transfer:
-            return l10n.t("settings.transfer.title")
-        case .backup:
-            return l10n.t("settings.backup.title")
-        case .updates:
-            return l10n.t("update.details.title")
-        case .none:
-            return l10n.t("settings.title")
-        }
+    private var settingsHeaderTitleKey: String {
+        MenuNavigationPolicy.headerTitleKey(for: currentSurface)
     }
 
     private var diagnosticsHeader: some View {
-        detailHeader(title: l10n.t("diagnostics.title")) {
+        detailHeader(title: l10n.t(MenuNavigationPolicy.headerTitleKey(for: .diagnostics))) {
             model.closeDiagnosticsCenter()
         }
     }
 
     private func detailHeader(title: String, back: @escaping () -> Void = { }) -> some View {
-        HStack {
+        let backLabel = l10n.t("nav.back")
+        return HStack {
             Button {
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
@@ -335,8 +408,10 @@ struct MenuRootView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .bold))
-                    Text(l10n.t("settings.back"))
+                    Text(backLabel)
                         .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .foregroundStyle(SBTheme.text)
                 .padding(.horizontal, 12)
@@ -351,12 +426,16 @@ struct MenuRootView: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(l10n.t("settings.back"))
+            .supportButtonLabel(backLabel, identifier: SupportAccessibilityID.navBack.rawValue)
 
             Spacer()
             Text(title)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(SBTheme.text)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             // 与左侧返回对称占位，标题居中
             Color.clear.frame(width: 72, height: 1)
@@ -371,7 +450,8 @@ struct MenuRootView: View {
                 model.openDashboard()
             }
             .keyboardShortcut("d")
-            .help("打开当前选中账号对应平台控制台")
+            .help(l10n.t("home.dashboard.help"))
+            .accessibilityLabel(l10n.t("home.open_dashboard"))
 
             footerPill(title: l10n.t("home.usage"), systemName: "chart.bar.xaxis") {
                 // 无动画切 Tab，避免壳层跟着 animation 抖
@@ -382,11 +462,17 @@ struct MenuRootView: View {
                 }
             }
             .keyboardShortcut("u")
+            .supportButtonLabel(
+                l10n.t("home.usage"),
+                identifier: SupportAccessibilityID.navUsage.rawValue,
+                selected: model.selectedTab == .usage
+            )
 
             footerPill(title: l10n.t("home.quit"), systemName: "power") {
                 model.quit()
             }
-            .help("完全退出智余（菜单栏图标会消失）")
+            .help(l10n.t("home.quit.help"))
+            .accessibilityLabel(l10n.t("home.quit"))
         }
     }
 
@@ -400,7 +486,7 @@ struct MenuRootView: View {
                     model.selectedTab = .home
                 }
             } label: {
-                Text(l10n.t("settings.done"))
+                Text(l10n.t("nav.done"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 22)
@@ -412,6 +498,8 @@ struct MenuRootView: View {
                     )
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.defaultAction)
+            .supportButtonLabel(l10n.t("nav.done"), identifier: SupportAccessibilityID.navDone.rawValue)
         }
     }
 

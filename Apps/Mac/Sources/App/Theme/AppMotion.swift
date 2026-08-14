@@ -63,17 +63,33 @@ enum AppMotion {
         )
     }
 
-    static func toggleExpand(_ isExpanded: Binding<Bool>) {
-        withAnimation(expand) {
+    static func animation(_ preferred: Animation, reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : preferred
+    }
+
+    static func toggleExpand(_ isExpanded: Binding<Bool>, reduceMotion: Bool = false) {
+        if reduceMotion {
             isExpanded.wrappedValue.toggle()
+        } else {
+            withAnimation(expand) {
+                isExpanded.wrappedValue.toggle()
+            }
         }
     }
 
-    static func withExpand(_ body: () -> Void) {
-        withAnimation(expand, body)
+    static func withExpand(_ body: () -> Void, reduceMotion: Bool = false) {
+        if reduceMotion {
+            body()
+        } else {
+            withAnimation(expand, body)
+        }
     }
 
-    static func withSelection(_ body: () -> Void) {
-        withAnimation(selection, body)
+    static func withSelection(_ body: () -> Void, reduceMotion: Bool = false) {
+        if reduceMotion {
+            body()
+        } else {
+            withAnimation(selection, body)
+        }
     }
 }
