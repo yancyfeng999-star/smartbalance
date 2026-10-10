@@ -3,11 +3,12 @@ import Domain
 
 /// MiniMax 开放平台 API 钱包余额（充值余额，非 Token Plan）。
 ///
-/// `GET https://www.minimaxi.com/account/query_balance`
+/// `GET https://www.minimax.cn/account/query_balance`
 /// Cookie: `_token=<JWT>`
 public struct MiniMaxBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .minimax
     private let http: any HTTPClient
+    public static let defaultAPIBase = "https://www.minimax.cn"
 
     public init(http: any HTTPClient = URLSessionHTTPClient()) {
         self.http = http
@@ -23,7 +24,7 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
                 ?? account.userId
         )?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let base = (credentials.baseURL ?? account.baseURL ?? kind.defaultBaseURL ?? "https://www.minimaxi.com")
+        let base = (credentials.baseURL ?? account.baseURL ?? kind.defaultBaseURL ?? Self.defaultAPIBase)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard let url = URL(string: "\(base)/account/query_balance") else {
             throw BalanceProviderError.invalidURL
@@ -32,8 +33,11 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
-        request.setValue("https://platform.minimaxi.com", forHTTPHeaderField: "Origin")
-        request.setValue("https://platform.minimaxi.com/console/recharge-records", forHTTPHeaderField: "Referer")
+        request.setValue("https://platform.minimax.cn", forHTTPHeaderField: "Origin")
+        request.setValue(
+            "https://platform.minimax.cn/console/recharge-records",
+            forHTTPHeaderField: "Referer"
+        )
         request.setValue("_token=\(token)", forHTTPHeaderField: "Cookie")
         if let groupId, !groupId.isEmpty {
             request.setValue(groupId, forHTTPHeaderField: "X-Group-Id")

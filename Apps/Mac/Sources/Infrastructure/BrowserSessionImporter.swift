@@ -83,16 +83,21 @@ public enum BrowserSessionImporter: Sendable {
 
     private static func importMiniMax() throws -> Credential {
         let cookies = try loadCookies(
-            hostNeedles: ["minimaxi", "minimax.io"],
+            hostNeedles: ["minimax.cn", "minimaxi", "minimax.io"],
             names: ["_token", "minimax_group_id_v2"]
         )
-        let wwwToken = cookies.first(where: { $0.name == "_token" && $0.host.contains("www.minimaxi") })?.value
-        let anyToken = cookies.first(where: { $0.name == "_token" })?.value
-        let token = wwwToken ?? anyToken
-        let groupId = cookies.first(where: { $0.name == "minimax_group_id_v2" })?.value
+        let currentDomainCookies = cookies.filter { $0.host.contains("minimax.cn") }
+        let activeProfile = currentDomainCookies.first?.profileID
+        let preferredCookies = activeProfile.map { profile in
+            currentDomainCookies.filter { $0.profileID == profile }
+        } ?? currentDomainCookies
+        let token = preferredCookies.first(where: { $0.name == "_token" })?.value
+            ?? cookies.first(where: { $0.name == "_token" })?.value
+        let groupId = preferredCookies.first(where: { $0.name == "minimax_group_id_v2" })?.value
+            ?? cookies.first(where: { $0.name == "minimax_group_id_v2" })?.value
         guard let token, !token.isEmpty else {
             throw ImportError.cookieNotFound(
-                "未找到 MiniMax 登录态。请先在 Chrome 登录 https://platform.minimaxi.com/console/recharge-records 后再导入"
+                "未找到 MiniMax 登录态。请先在 Chrome 登录 https://platform.minimax.cn/console/recharge-records 后再导入"
             )
         }
         guard let groupId, !groupId.isEmpty else {
@@ -103,23 +108,22 @@ public enum BrowserSessionImporter: Sendable {
     }
 
     private static func importApinebula() throws -> Credential {
-        // 优先 .ai（与控制台一致），.com 作后备
+        // 当前控制台在 .com；.ai 仅作旧域名后备，避免选到已过期旧会话。
         let cookies = try loadCookies(
-            hostNeedles: ["apinebula.ai", "apinebula.com", "apinebula"],
+            hostNeedles: ["apinebula.com", "apinebula.ai", "apinebula"],
             names: ["session"]
         )
-        // 优先 apinebula.ai 的 session
         let session =
-            cookies.first(where: { $0.name == "session" && $0.host.contains("apinebula.ai") })?.value
+            cookies.first(where: { $0.name == "session" && $0.host.contains("apinebula.com") })?.value
             ?? cookies.first(where: { $0.name == "session" })?.value
         guard let session, !session.isEmpty else {
             throw ImportError.cookieNotFound(
-                "未找到 apinebula 登录态。请先用 Chrome 打开并登录 https://apinebula.ai/zh/console/topup 后再导入"
+                "未找到 apinebula 登录态。请先用 Chrome 打开并登录 https://apinebula.com/zh/console/topup 后再导入"
             )
         }
         guard let userId = SessionCookieParser.extractNewAPIUserId(fromSession: session), !userId.isEmpty else {
             throw ImportError.cookieNotFound(
-                "已找到 session，但解析不到用户 ID。请在 Chrome 打开 apinebula 控制台刷新后再导入"
+                "已找到 session，但解析不到用户 ID。请在 Chrome 打开 apinebula.com 控制台刷新后再导入"
             )
         }
         return Credential(
@@ -136,33 +140,19 @@ public enum BrowserSessionImporter: Sendable {
         var name: String
         var value: String
         var browserName: String
+        var profileID: String
+        var lastAccess: Int64
     }
 
     private static func loadCookies(hostNeedles: [String], names: [String]) throws -> [CookieRow] {
-        let candidates: [(name: String, path: String, service: String, account: String)] = [
-            (
-                "Chrome",
-                NSHomeDirectory() + "/Library/Application Support/Google/Chrome/Default/Cookies",
-                "Chrome Safe Storage",
-                "Chrome"
-            ),
-            (
-                "Chrome",
-                NSHomeDirectory() + "/Library/Application Support/Google/Chrome/Profile 1/Cookies",
-                "Chrome Safe Storage",
-                "Chrome"
-            ),
-            (
-                "Edge",
-                NSHomeDirectory() + "/Library/Application Support/Microsoft Edge/Default/Cookies",
-                "Microsoft Edge Safe Storage",
-                "Microsoft Edge"
-            ),
-        ]
+        let home = NSHomeDirectory()
+        let candidates = browserCookieCandidates(home: home)
 
         var sawDB = false
         var lastKeyError: String?
         var cachedKey: [String: Data] = [:]
+        var attemptedKeychainServices: Set<String> = []
+        var allRows: [CookieRow] = []
 
         for c in candidates {
             guard FileManager.default.fileExists(atPath: c.path) else { continue }
@@ -172,12 +162,14 @@ public enum BrowserSessionImporter: Sendable {
             if let k = cachedKey[c.service] {
                 key = k
             } else {
+                // 一个浏览器的所有 profile 共用同一条 Safe Storage；失败后不要为每个 profile 重复弹窗。
+                guard attemptedKeychainServices.insert(c.service).inserted else { continue }
                 do {
                     key = try chromeEncryptionKey(service: c.service, account: c.account)
                     cachedKey[c.service] = key
                 } catch {
-                    lastKeyError = error.localizedDescription
-                    AppLog.error("Keychain \(c.service): \(error.localizedDescription)")
+                    lastKeyError = "钥匙串访问失败"
+                    AppLog.error("Browser keychain access failed · service=\(c.service)")
                     continue
                 }
             }
@@ -188,14 +180,18 @@ public enum BrowserSessionImporter: Sendable {
                     key: key,
                     hostNeedles: hostNeedles,
                     names: names,
-                    browserName: c.name
+                    browserName: c.name,
+                    profileID: c.profileID
                 )
-                if !rows.isEmpty { return rows }
+                allRows.append(contentsOf: rows)
             } catch {
                 AppLog.error("Cookie read \(c.path): \(error.localizedDescription)")
             }
         }
 
+        if !allRows.isEmpty {
+            return allRows.sorted { $0.lastAccess > $1.lastAccess }
+        }
         if !sawDB { throw ImportError.browserNotFound }
         if let lastKeyError { throw ImportError.keychainDenied(lastKeyError) }
         return []
@@ -206,7 +202,8 @@ public enum BrowserSessionImporter: Sendable {
         key: Data,
         hostNeedles: [String],
         names: [String],
-        browserName: String
+        browserName: String,
+        profileID: String
     ) throws -> [CookieRow] {
         // 复制 Cookies + WAL，避免 Chrome 打开时锁库/半截读
         let tmpDir = FileManager.default.temporaryDirectory
@@ -231,11 +228,13 @@ public enum BrowserSessionImporter: Sendable {
         let sql = """
         .mode list
         .separator '|'
-        SELECT host_key, name, hex(encrypted_value), IFNULL(value,'')
+        SELECT host_key, name, hex(encrypted_value), last_access_utc, IFNULL(value,'')
         FROM cookies
         WHERE (\(like))
           AND name IN (\(nameList))
-        LIMIT 40;
+          AND (expires_utc = 0 OR expires_utc > (strftime('%s','now') + 11644473600) * 1000000)
+        ORDER BY last_access_utc DESC
+        LIMIT 80;
         """
 
         let data = try runProcess(
@@ -248,12 +247,13 @@ public enum BrowserSessionImporter: Sendable {
 
         var rows: [CookieRow] = []
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            let parts = line.split(separator: "|", maxSplits: 3, omittingEmptySubsequences: false)
-            guard parts.count >= 4 else { continue }
+            let parts = line.split(separator: "|", maxSplits: 4, omittingEmptySubsequences: false)
+            guard parts.count >= 5 else { continue }
             let host = String(parts[0])
             let name = String(parts[1])
             let hex = String(parts[2])
-            let plainCol = String(parts[3])
+            let lastAccess = Int64(parts[3]) ?? 0
+            let plainCol = String(parts[4])
 
             let value: String
             if !plainCol.isEmpty {
@@ -264,7 +264,16 @@ public enum BrowserSessionImporter: Sendable {
                 continue
             }
             guard !value.isEmpty else { continue }
-            rows.append(CookieRow(host: host, name: name, value: value, browserName: browserName))
+            rows.append(
+                CookieRow(
+                    host: host,
+                    name: name,
+                    value: value,
+                    browserName: browserName,
+                    profileID: profileID,
+                    lastAccess: lastAccess
+                )
+            )
         }
         return rows
     }
@@ -329,9 +338,8 @@ public enum BrowserSessionImporter: Sendable {
         // 等管道读完
         usleep(50_000)
         if proc.terminationStatus != 0 {
-            let e = String(data: box.err, encoding: .utf8) ?? ""
             throw ImportError.cookieNotFound(
-                "读取失败（\(proc.terminationStatus)）：\(e.isEmpty ? executable : e)"
+                "读取浏览器数据失败（\(proc.terminationStatus)）。请退出 Chrome 后重试"
             )
         }
         return box.out
@@ -347,10 +355,10 @@ public enum BrowserSessionImporter: Sendable {
                 arguments: ["find-generic-password", "-w", "-s", service, "-a", account],
                 timeoutSeconds: 8
             )
-        } catch let e as ImportError {
-            throw ImportError.keychainDenied(e.localizedDescription)
+        } catch is ImportError {
+            throw ImportError.keychainDenied("钥匙串访问失败")
         } catch {
-            throw ImportError.keychainDenied(error.localizedDescription)
+            throw ImportError.keychainDenied("钥匙串访问失败")
         }
         let password = String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -379,6 +387,46 @@ public enum BrowserSessionImporter: Sendable {
         }
         guard status == kCCSuccess else { throw ImportError.decryptFailed }
         return derived
+    }
+
+    private static func browserCookieCandidates(
+        home: String
+    ) -> [(name: String, path: String, service: String, account: String, profileID: String)] {
+        let fileManager = FileManager.default
+
+        func profileCookiePaths(root: String) -> [(profileID: String, path: String)] {
+            let names = (try? fileManager.contentsOfDirectory(atPath: root)) ?? []
+            let profiles = names
+                .filter { $0 == "Default" || $0.hasPrefix("Profile ") }
+                .sorted { lhs, rhs in
+                    if lhs == "Default" { return true }
+                    if rhs == "Default" { return false }
+                    return lhs.localizedStandardCompare(rhs) == .orderedAscending
+                }
+            return profiles.map { (profileID: $0, path: root + "/\($0)/Cookies") }
+        }
+
+        let chromeRoot = home + "/Library/Application Support/Google/Chrome"
+        let edgeRoot = home + "/Library/Application Support/Microsoft Edge"
+        let chrome = profileCookiePaths(root: chromeRoot).map {
+            (
+                name: "Chrome",
+                path: $0.path,
+                service: "Chrome Safe Storage",
+                account: "Chrome",
+                profileID: $0.profileID
+            )
+        }
+        let edge = profileCookiePaths(root: edgeRoot).map {
+            (
+                name: "Edge",
+                path: $0.path,
+                service: "Microsoft Edge Safe Storage",
+                account: "Microsoft Edge",
+                profileID: $0.profileID
+            )
+        }
+        return chrome + edge
     }
 
     private static func decryptChromeV10(_ encrypted: Data, key: Data) -> String? {

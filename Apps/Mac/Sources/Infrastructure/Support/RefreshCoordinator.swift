@@ -157,18 +157,22 @@ public final class RefreshCoordinator {
                 return nil
             }
 
+            var acceptedPayload = payload
+            acceptedPayload.snapshots = self.retainingLastKnownValues(
+                for: payload.snapshots
+            )
             var outcome = RefreshOutcome.make(
                 generation: gen,
                 scope: request.scope,
                 trigger: request.trigger,
-                payload: payload,
+                payload: acceptedPayload,
                 now: self.clock.now
             )
-            self.acceptedSnapshots = payload.snapshots
+            self.acceptedSnapshots = acceptedPayload.snapshots
             self.lastAcceptedOutcome = outcome
             self.hasAcceptedCurrentGeneration = true
             self.acceptedWriteCount += 1
-            self.recordMetrics(for: outcome, startedAt: startedAt, peakConcurrency: payload.peakConcurrency)
+            self.recordMetrics(for: outcome, startedAt: startedAt, peakConcurrency: acceptedPayload.peakConcurrency)
             self.onSnapshotsAccepted?(outcome)
 
             let persist = await self.usageRecorder.recordUsage(
@@ -202,6 +206,29 @@ public final class RefreshCoordinator {
         }
 
         return .started
+    }
+
+    private func retainingLastKnownValues(for snapshots: [BalanceSnapshot]) -> [BalanceSnapshot] {
+        let previousByAccount = acceptedSnapshots.reduce(into: [UUID: BalanceSnapshot]()) {
+            $0[$1.accountId] = $1
+        }
+        return snapshots.map { current in
+            guard RefreshSnapshotClassification.isFailure(current),
+                  let previous = previousByAccount[current.accountId],
+                  previous.amount != nil
+            else {
+                return current
+            }
+
+            var retained = previous
+            retained.id = current.id
+            retained.providerKind = current.providerKind ?? previous.providerKind
+            retained.displayName = current.displayName
+            retained.source = current.source
+            retained.status = current.status
+            retained.errorMessage = current.errorMessage
+            return retained
+        }
     }
 
     public func cancel(reason: RefreshCancelReason) {

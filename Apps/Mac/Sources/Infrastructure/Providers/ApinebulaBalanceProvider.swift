@@ -2,7 +2,7 @@ import Foundation
 import Domain
 
 /// apinebula 余额（New-API 兼容站）。
-/// GET https://apinebula.ai/api/user/self
+/// GET https://apinebula.com/api/user/self
 ///
 /// **推荐**：Chrome 一键导入 session（UID 从 session 自动解析，无需手填密钥）。
 /// 也可粘贴 session Cookie；系统访问令牌为高级备选。
@@ -12,7 +12,7 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .apinebula
     private let http: any HTTPClient
     private static let quotaPerCNY: Double = 500_000
-    public static let defaultAPIBase = "https://apinebula.ai"
+    public static let defaultAPIBase = "https://apinebula.com"
 
     public init(http: any HTTPClient = URLSessionHTTPClient()) {
         self.http = http
@@ -54,8 +54,8 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
             forHTTPHeaderField: "User-Agent"
         )
-        request.setValue("https://apinebula.ai/zh/console/topup", forHTTPHeaderField: "Referer")
-        request.setValue("https://apinebula.ai", forHTTPHeaderField: "Origin")
+        request.setValue("https://apinebula.com/zh/console/topup", forHTTPHeaderField: "Referer")
+        request.setValue("https://apinebula.com", forHTTPHeaderField: "Origin")
         request.timeoutInterval = 20
 
         if let sessionValue {
@@ -77,12 +77,22 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
 
         let body = String(data: data, encoding: .utf8) ?? ""
         guard (200...299).contains(code) else {
+            if code == 401 || code == 403 {
+                throw BalanceProviderError.providerMessage(
+                    "登录已失效，请重新从 Chrome 导入 apinebula 登录态"
+                )
+            }
             throw BalanceProviderError.httpStatus(code, body)
         }
 
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         if let success = root["success"] as? Bool, success == false {
             let msg = (root["message"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "获取用户信息失败"
+            if Self.isAuthenticationFailure(msg) {
+                throw BalanceProviderError.providerMessage(
+                    "登录已失效，请重新从 Chrome 导入 apinebula 登录态"
+                )
+            }
             throw BalanceProviderError.providerMessage(msg)
         }
 
@@ -121,14 +131,11 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
             )
         }()
 
-        var detailParts: [String] = []
+        var detailParts: [String] = ["钱包余额 API"]
         if let username { detailParts.append(username) }
         detailParts.append("UID \(userId)")
-        if let quota, !isUnlimited {
-            detailParts.append(String(format: "剩余点数 %.0f", quota))
-        }
-        if let usedQuota, !isUnlimited {
-            detailParts.append(String(format: "已用 %.0f", usedQuota))
+        if let usedCNY, !isUnlimited {
+            detailParts.append(String(format: "累计已用 ¥%.2f", usedCNY))
         }
         if isUnlimited { detailParts.append("无限额度") }
         if useSession { detailParts.append("session") }
@@ -187,5 +194,14 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
         if let b = any as? Bool { return b }
         if let i = any as? Int { return i != 0 }
         return nil
+    }
+
+    private static func isAuthenticationFailure(_ message: String) -> Bool {
+        let normalized = message.lowercased()
+        return normalized.contains("unauthorized")
+            || normalized.contains("unauthenticated")
+            || normalized.contains("invalid session")
+            || message.contains("登录")
+            || message.contains("会话")
     }
 }

@@ -92,10 +92,18 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         }
         let rawName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
         displayName = rawName.isEmpty ? kind.displayName : rawName
-        baseURL = try c.decodeIfPresent(String.self, forKey: .baseURL) ?? kind.defaultBaseURL
+        baseURL = Self.currentWalletURL(
+            try c.decodeIfPresent(String.self, forKey: .baseURL),
+            kind: kind,
+            isConsole: false
+        ) ?? kind.defaultBaseURL
         let trimmedConsole = try c.decodeIfPresent(String.self, forKey: .consoleURL)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        consoleURL = (trimmedConsole?.isEmpty == false) ? trimmedConsole : kind.defaultConsoleURL
+        consoleURL = Self.currentWalletURL(
+            (trimmedConsole?.isEmpty == false) ? trimmedConsole : nil,
+            kind: kind,
+            isConsole: true
+        ) ?? kind.defaultConsoleURL
         let rawUserId = try c.decodeIfPresent(String.self, forKey: .userId)
         userId = rawUserId.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         secretRef = try c.decodeIfPresent(String.self, forKey: .secretRef) ?? BalanceAccount.makeNewSecretRef()
@@ -164,6 +172,28 @@ public struct BalanceAccount: Identifiable, Codable, Equatable, Sendable {
         if let d = Self.normalizedURLString(kind.defaultConsoleURL) { return d }
         // New-API 等：未单独填官网时，用 baseURL 打开
         return Self.normalizedURLString(baseURL)
+    }
+
+    /// Upgrade only the former built-in wallet URLs; preserve user-defined endpoints.
+    private static func currentWalletURL(_ stored: String?, kind: ProviderKind, isConsole: Bool) -> String? {
+        let legacy: String
+        switch kind {
+        case .minimax:
+            legacy = isConsole
+                ? "https://platform.minimaxi.com/console/recharge-records"
+                : "https://www.minimaxi.com"
+        case .apinebula:
+            legacy = isConsole
+                ? "https://apinebula.ai/zh/console/topup"
+                : "https://apinebula.ai"
+        default:
+            return stored
+        }
+        let normalized = stored?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard normalized == legacy else { return stored }
+        return isConsole ? kind.defaultConsoleURL : kind.defaultBaseURL
     }
 
     /// 补全 scheme，保证能用 `URL(string:)` 打开浏览器。

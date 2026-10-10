@@ -141,6 +141,49 @@ final class RefreshCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.acceptedSnapshots.first(where: { $0.accountId == accountA })?.amount, 30)
     }
 
+    func testQueryFailureKeepsLastKnownBalanceAndFetchedAt() async throws {
+        let previousDate = Date(timeIntervalSince1970: 1_786_900_000)
+        let previous = BalanceSnapshot(
+            accountId: accountA,
+            providerKind: .minimax,
+            displayName: "MiniMax",
+            source: .api,
+            amount: 394.91,
+            unit: "¥",
+            status: .healthy,
+            detail: "API 余额",
+            fetchedAt: previousDate
+        )
+        let failing = ControllableFakeProvider(
+            kind: .minimax,
+            snapshot: BalanceSnapshot(
+                accountId: accountA,
+                providerKind: .minimax,
+                displayName: "MiniMax",
+                source: .api,
+                status: .error,
+                fetchedAt: clockStart,
+                errorMessage: "登录已失效，请重新从浏览器导入"
+            )
+        )
+        let coordinator = makeCoordinator(
+            fetcher: ProviderBackedRefreshFetcher(providers: [accountA: failing])
+        )
+        coordinator.seedAcceptedSnapshots([previous])
+
+        XCTAssertEqual(
+            coordinator.request(.init(trigger: .manual), settings: settings([accountA])),
+            .started
+        )
+        _ = await coordinator.waitForCompletion()
+
+        let kept = try XCTUnwrap(coordinator.acceptedSnapshots.first)
+        XCTAssertEqual(kept.amount, 394.91)
+        XCTAssertEqual(kept.fetchedAt, previousDate)
+        XCTAssertEqual(kept.status, .error)
+        XCTAssertEqual(kept.errorMessage, "登录已失效，请重新从浏览器导入")
+    }
+
     func testUsageHistorySaveFailureDoesNotFailBalanceResult() async {
         let provider = ControllableFakeProvider(
             kind: .deepseek,

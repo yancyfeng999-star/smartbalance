@@ -509,9 +509,9 @@ struct APIAccountsSection: View {
         case .mimo:
             return "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
         case .minimax:
-            return "1. 用 Chrome 打开并登录 platform.minimaxi.com 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
+            return "1. 用 Chrome 打开并登录 platform.minimax.cn 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
         case .apinebula:
-            return "1. 用 Chrome 打开并登录 https://apinebula.ai/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
+            return "1. 用 Chrome 打开并登录 https://apinebula.com/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
         default:
             return "1. 用 Chrome 登录控制台\n2. 点「从 Chrome 导入并添加」"
         }

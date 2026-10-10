@@ -32,6 +32,8 @@ final class ApinebulaProviderTests: XCTestCase {
         XCTAssertEqual(snap.total!, 240.0, accuracy: 0.0001)
         XCTAssertTrue(snap.detail.contains("yancyfeng999"))
         XCTAssertTrue(snap.detail.contains("UID 12210"))
+        XCTAssertTrue(snap.detail.contains("钱包余额 API"))
+        XCTAssertFalse(snap.detail.contains("点数"))
         XCTAssertEqual(http.authorizationHeaders.first, "Bearer sys-token")
         XCTAssertEqual(http.customHeaders["New-API-User"]?.first, "12210")
     }
@@ -48,6 +50,40 @@ final class ApinebulaProviderTests: XCTestCase {
         XCTAssertTrue(http.customHeaders["Cookie"]?.first?.contains("session=") == true)
         XCTAssertTrue(http.authorizationHeaders.isEmpty)
         XCTAssertTrue(snap.detail.contains("session"))
+    }
+
+    func testUsesCurrentComWalletEndpoint() async throws {
+        let http = MockHTTPClient(statusCode: 200, json: standardJSON)
+        let provider = ApinebulaBalanceProvider(http: http)
+
+        _ = try await provider.fetchBalance(
+            account: account(),
+            credentials: ProviderCredentials(apiKey: "sys-token", userId: "12210")
+        )
+
+        XCTAssertEqual(http.requestedURLs.first, "https://apinebula.com/api/user/self")
+        XCTAssertEqual(ProviderKind.apinebula.defaultBaseURL, "https://apinebula.com")
+        XCTAssertEqual(
+            ProviderKind.apinebula.defaultConsoleURL,
+            "https://apinebula.com/zh/console/topup"
+        )
+    }
+
+    func testUnauthorizedResponseIsClassifiedAsLoginExpired() async {
+        let http = MockHTTPClient(statusCode: 401, body: Data("Unauthorized".utf8))
+        let provider = ApinebulaBalanceProvider(http: http)
+
+        do {
+            _ = try await provider.fetchBalance(
+                account: account(),
+                credentials: ProviderCredentials(apiKey: "sys-token", userId: "12210")
+            )
+            XCTFail("expected login-expired error")
+        } catch let BalanceProviderError.providerMessage(message) {
+            XCTAssertTrue(message.contains("登录已失效"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
     }
 
     func testMissingSessionFailsClearly() async {
@@ -71,8 +107,8 @@ final class ApinebulaProviderTests: XCTestCase {
         XCTAssertFalse(ProviderKind.apinebula.isManualEntry)
         XCTAssertFalse(ProviderKind.apinebula.needsUserId)
         XCTAssertTrue(ProviderKind.apinebula.supportsBrowserSessionImport)
-        XCTAssertEqual(ProviderKind.apinebula.defaultBaseURL, "https://apinebula.ai")
-        XCTAssertEqual(ProviderKind.apinebula.defaultConsoleURL, "https://apinebula.ai/zh/console/topup")
+        XCTAssertEqual(ProviderKind.apinebula.defaultBaseURL, "https://apinebula.com")
+        XCTAssertEqual(ProviderKind.apinebula.defaultConsoleURL, "https://apinebula.com/zh/console/topup")
         XCTAssertEqual(ProviderRegistry.provider(for: .apinebula).kind, .apinebula)
     }
 

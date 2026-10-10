@@ -90,4 +90,21 @@ final class MiniMaxProviderTests: XCTestCase {
         XCTAssertEqual(ProviderKind.minimax.displayName, "MiniMax")
         XCTAssertFalse(ProviderKind.apinebula.isManualEntry)
     }
+
+    func testUsesCurrentChinaWalletEndpoint() async throws {
+        let http = MockHTTPClient(statusCode: 200, json: fixtureJSON)
+        let provider = MiniMaxBalanceProvider(http: http)
+
+        _ = try await provider.fetchBalance(
+            account: BalanceAccount(kind: .minimax),
+            credentials: ProviderCredentials(apiKey: "jwt")
+        )
+
+        XCTAssertEqual(http.requestedURLs.first, "https://www.minimax.cn/account/query_balance")
+        XCTAssertEqual(ProviderKind.minimax.defaultBaseURL, "https://www.minimax.cn")
+        XCTAssertEqual(
+            ProviderKind.minimax.defaultConsoleURL,
+            "https://platform.minimax.cn/console/recharge-records"
+        )
+    }
 }

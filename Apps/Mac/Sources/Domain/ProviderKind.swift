@@ -61,8 +61,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .kimi: "https://api.moonshot.cn"
         case .volcengine: nil // 固定 billing.volcengineapi.com
         case .mimo: "https://platform.xiaomimimo.com"
-        case .minimax: "https://www.minimaxi.com"
-        case .apinebula: "https://apinebula.ai"
+        case .minimax: "https://www.minimax.cn"
+        case .apinebula: "https://apinebula.com"
         case .unsupported: nil
         }
     }
@@ -108,8 +108,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .kimi: "https://platform.kimi.com/console/api-keys"
         case .volcengine: "https://console.volcengine.com/finance/account-overview/"
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
-        case .minimax: "https://platform.minimaxi.com/console/recharge-records"
-        case .apinebula: "https://apinebula.ai/zh/console/topup"
+        case .minimax: "https://platform.minimax.cn/console/recharge-records"
+        case .apinebula: "https://apinebula.com/zh/console/topup"
         case .unsupported: nil
         }
     }
