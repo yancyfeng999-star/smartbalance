@@ -33,8 +33,17 @@
 
 用户完成 Xcode 27 许可确认后，复跑项目正式 `run-tests.sh`：**385 passed / 0 failed**（Domain 98 + Infrastructure 251 + App 36），Debug 构建成功。
 
+## 0.4.3 安装包验证
+
+- 通过项目 `release.sh` 生成 **0.4.3 / build 87**；Release 构建成功。
+- DMG 镜像完整性检查通过；DMG / PKG 中的 App 版本和构建号均与源码一致。
+- 安装包内 App 的 ad-hoc 签名校验通过，包含 `arm64` 与 `x86_64`。未进行 Developer ID 签名或 Apple 公证。
+- 四份本地中英文安装包 SHA-256 校验全部通过。GitHub 发布资产为英文 DMG、PKG 与 `SHA256SUMS.txt`。
+- 发布说明包含本次钱包修复；发布清理使用 `CLEANUP_PROJECT_ONLY=1`，不修改已安装 App 或系统图标缓存。
+- 发布入口：[v0.4.3](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.3)，实际发布状态以该页面为准。
+
 ## 未完成的交付验证
 
-- Release App、DMG / PKG、签名及应用内更新验证待发布流程完成。
+- 用户实际下载、安装和重启后的完整应用内更新流程尚未验证。
 - 未强制退出当前浏览器账号再登录第二个真实账号；多 Profile 选择和重复导入已检查，但真实跨账号切换仍需验收。
-- 未覆盖当前已安装 App。源码提交不代表新安装包已发布。
+- 用户自行更新；本次未覆盖当前已安装 App。
