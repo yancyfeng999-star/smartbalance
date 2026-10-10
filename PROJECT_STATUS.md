@@ -10,7 +10,7 @@
 | 本地测试 | 2026-10-09 `./scripts/run-tests.sh`：**398 passed / 0 failed**（Domain 98 + Infrastructure 264 + App 36） |
 | 构建与安装包 | Debug / Release **BUILD SUCCEEDED**；DMG / PKG 的 0.4.4 build 88、通用切片、App 严格签名检查和 SHA-256 均通过；仍为 ad-hoc，未公证 |
 | 运行时 | 独立身份 Debug 验收副本：MiniMax / APINebula 导入、刷新及干净重启后与实时 Chrome 人民币钱包一致；正式菜单栏包待用户安装验收 |
-| 已发布 | 以 GitHub [v0.4.4 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.4) 为准；安装包不代表用户已更新 |
+| 已发布 | GitHub [v0.4.4 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.4) 已发布，PR #11 已合并，远端三项资产重新下载与本地完全一致；0.4.3 更新检查已实测识别 0.4.4，未代替用户安装 |
 | 真实渠道 | 本次授权验证 MiniMax / APINebula 人民币钱包；其余渠道未重新执行真实网络验收 |
 | 用户已验收 | 否 |
 

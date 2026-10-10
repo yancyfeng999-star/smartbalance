@@ -40,7 +40,10 @@ macOS 系统日志在相同点击时间记录 `kTCCServiceSystemPolicyAppDataDet
 - 使用本地 Debug 验收副本（独立 bundle ID、临时普通窗口），真实设置中仅操作这两个授权平台。其他账号因副本代码身份不同显示待补，不代表用户安装版数据丢失，未重写其他渠道凭据。临时窗口/启动策略源码已还原，不进入发行包。
 - 0.4.4（build 88）Debug / Release 构建均 `BUILD SUCCEEDED`。DMG 校验通过；DMG / PKG 内 App 完全一致，包内版本与构建号一致；普通菜单栏身份 `com.smartbalance.zhiyu`、`LSUIElement=true`，含 arm64 / x86_64；`codesign --verify --deep --strict` 通过；四个本地中英文包 SHA-256 全部匹配。
 - 本地开源门禁 `open-source-check: PASS`。发行包仍为 ad-hoc 签名，未 Developer ID 签名/公证；不宣称其他 Mac 的 Gatekeeper 验收通过。
-- 远端发布结果在完成后补录；未完成前不宣称通过。
+- PR [#11](https://github.com/yancyfeng999-star/smartbalance/pull/11) 已合并，合并提交 `da1b6057911c0806597643e3bef2a1b48675f4e4`；tag `v0.4.4` 指向 `27afd60221570dcc5bde62706473ff8851fd1de0`，已验证 tag 为主分支祖先且发布时文件树一致。
+- [v0.4.4 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.4) 已发布，`latest` 为 v0.4.4，非草稿/非预发布，DMG、PKG、SHA256SUMS.txt 三项均 uploaded；重新下载三项与本地逐字节一致，远端 digest 与本地 SHA-256 一致。
+- 实际运行现有 `UpdateChecker(currentVersion: "0.4.3").check()`，返回 `available` / `0.4.4`，正确选中 PKG 并载入远端校验清单。只检查，不安装；不称为用户已完成升级。
+- 本次临时 UI 副本与 PKG 解包 App 已注销并归档，可恢复；没有覆盖或删除用户安装版。已重新启动原安装版 0.4.3。
 
 ## 安全与限制
 
