@@ -54,6 +54,7 @@ struct UsageProviderRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(summary.providerKind.displayName)
         .accessibilityValue(accessibilityValue)
+        .accessibilityIdentifier("usage.provider.\(summary.providerKind.rawValue)")
     }
 
     private var accountCountText: String {
@@ -77,9 +78,20 @@ struct UsageProviderRow: View {
     }
 
     private var accessibilityValue: String {
-        let amount = UsageDisplayFormatter.amount(summary.totalAmount, unit: summary.unit)
-        let accounts = summary.accountCount > 1 ? ", \(accountCountText)" : ""
-        return "\(amount), \(summary.unit), \(qualityText)\(accounts)"
+        UsageChartTextSummary.providerValue(
+            amount: UsageDisplayFormatter.amount(summary.totalAmount, unit: summary.unit),
+            unit: summary.unit,
+            qualityKey: qualityKey,
+            language: l10n.language
+        )
+    }
+
+    private var qualityKey: String {
+        switch summary.quality {
+        case .provider: "usage.provider_quality"
+        case .estimated: "usage.estimated_quality"
+        case .mixed: "usage.mixed_quality"
+        }
     }
 }
 

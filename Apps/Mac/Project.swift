@@ -118,6 +118,9 @@ let project = Project(
             ],
             resources: [
                 "Sources/App/Resources/**",
+            ],
+            dependencies: [
+                .target(name: "Domain"),
             ]
         ),
     ],

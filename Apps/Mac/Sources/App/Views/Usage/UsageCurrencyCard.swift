@@ -30,6 +30,27 @@ struct UsageCurrencyCard: View {
                     .monospacedDigit()
             }
 
+            Text(
+                UsageChartTextSummary.line(
+                    periodLabel: periodTitle,
+                    total: UsageDisplayFormatter.amount(summary.totalAmount, unit: summary.unit),
+                    pointCount: period == .day ? summary.providers.count : summary.dailyPoints.count,
+                    language: l10n.language
+                )
+            )
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(SBTheme.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier(UsageChartTextSummary.accessibilityIdentifier)
+            .accessibilityLabel(
+                UsageChartTextSummary.line(
+                    periodLabel: periodTitle,
+                    total: UsageDisplayFormatter.amount(summary.totalAmount, unit: summary.unit),
+                    pointCount: period == .day ? summary.providers.count : summary.dailyPoints.count,
+                    language: l10n.language
+                )
+            )
+
             if period != .day {
                 trendChart
             }

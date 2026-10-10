@@ -284,6 +284,10 @@ cat > "$STAGE/RELEASE_NOTES.md" <<EOF
 - **日期**：${DATE_STR}
 - **标签**：\`${TAG}\`
 
+## 本次更新
+
+${NOTES:-常规维护更新。}
+
 ## 安装包
 
 | 文件 | 怎么用 |
@@ -337,6 +341,10 @@ else
 fi
 
 echo ""
+echo "==> 清掉构建留下的 .app，只保留安装包"
+KEEP_RUNNING=1 "${ROOT}/scripts/cleanup-duplicate-apps.sh" || true
+
+echo ""
 echo "========== 打包完成 =========="
 echo "版本: ${VERSION} (build ${BUILD})"
 echo "本地暂存: ${STAGE}"
@@ -346,6 +354,7 @@ echo "上线资产（GitHub 英文名）："
 echo "  ${EN_NAME}-${VERSION}.dmg"
 echo "  ${EN_NAME}-${VERSION}.pkg"
 echo "标签: ${TAG}"
+echo "本机只有安装包，不会额外装一份 App。正式入口仍是 /Applications/${APP_NAME}.app"
 if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
   echo "（已额外复制到桌面 ${DESKTOP_OUT}/）"
 fi

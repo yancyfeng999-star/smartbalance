@@ -63,17 +63,46 @@ enum AppMotion {
         )
     }
 
-    static func toggleExpand(_ isExpanded: Binding<Bool>) {
-        withAnimation(expand) {
+    static func animation(_ preferred: Animation, reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : preferred
+    }
+
+    static func toggleExpand(_ isExpanded: Binding<Bool>, reduceMotion: Bool = false) {
+        if reduceMotion {
             isExpanded.wrappedValue.toggle()
+        } else {
+            withAnimation(expand) {
+                isExpanded.wrappedValue.toggle()
+            }
         }
     }
 
-    static func withExpand(_ body: () -> Void) {
-        withAnimation(expand, body)
+    static func withExpand(_ body: () -> Void, reduceMotion: Bool = false) {
+        if reduceMotion {
+            body()
+        } else {
+            withAnimation(expand, body)
+        }
     }
 
-    static func withSelection(_ body: () -> Void) {
-        withAnimation(selection, body)
+    static func withSelection(_ body: () -> Void, reduceMotion: Bool = false) {
+        if reduceMotion {
+            body()
+        } else {
+            withAnimation(selection, body)
+        }
+    }
+
+    /// Skip staggered appear work for large account lists so menu open stays cheap.
+    static let largeListStaggerCap = 8
+    static let maxAppearStagger: TimeInterval = 0.2
+
+    static func appearDelay(forIndex index: Int, itemCount: Int, reduceMotion: Bool) -> TimeInterval {
+        if reduceMotion || itemCount >= largeListStaggerCap { return 0 }
+        return min(maxAppearStagger, Double(index) * 0.05)
+    }
+
+    static func appearAnimation(forIndex index: Int, itemCount: Int, reduceMotion: Bool) -> Animation? {
+        animation(appear.delay(appearDelay(forIndex: index, itemCount: itemCount, reduceMotion: reduceMotion)), reduceMotion: reduceMotion)
     }
 }

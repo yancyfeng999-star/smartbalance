@@ -39,7 +39,7 @@ struct APIAccountsSection: View {
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ForEach(ProviderKind.allCases) { kind in
+            ForEach(ProviderKind.selectableCases) { kind in
                 platformCard(kind)
             }
         }
@@ -509,9 +509,9 @@ struct APIAccountsSection: View {
         case .mimo:
             return "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
         case .minimax:
-            return "1. 用 Chrome 打开并登录 platform.minimaxi.com 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
+            return "1. 用 Chrome 打开并登录 platform.minimax.cn 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
         case .apinebula:
-            return "1. 用 Chrome 打开并登录 https://apinebula.ai/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
+            return "1. 用 Chrome 打开并登录 https://apinebula.com/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
         default:
             return "1. 用 Chrome 登录控制台\n2. 点「从 Chrome 导入并添加」"
         }
@@ -591,6 +591,7 @@ struct APIAccountsSection: View {
         case .mimo: "iphone"
         case .minimax: "waveform"
         case .apinebula: "cloud.fill"
+        case .unsupported: "questionmark.circle"
         }
     }
 
@@ -607,6 +608,7 @@ struct APIAccountsSection: View {
         case .mimo: [Color(red: 0.95, green: 0.30, blue: 0.25), Color(red: 0.85, green: 0.2, blue: 0.2)]
         case .minimax: [Color(red: 0.55, green: 0.25, blue: 0.95), Color(red: 0.4, green: 0.15, blue: 0.85)]
         case .apinebula: [Color(red: 0.20, green: 0.55, blue: 0.90), Color(red: 0.12, green: 0.35, blue: 0.75)]
+        case .unsupported: [Color(red: 0.45, green: 0.45, blue: 0.48), Color(red: 0.32, green: 0.32, blue: 0.35)]
         }
     }
 

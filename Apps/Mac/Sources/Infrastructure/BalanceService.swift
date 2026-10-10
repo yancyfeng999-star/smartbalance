@@ -11,6 +11,7 @@ public actor BalanceService {
     private let perAccountTimeout: Duration = .seconds(15)
     /// 邮件发送上限；超时只记失败，不挡余额展示。
     private let smtpTimeout: Duration = .seconds(10)
+    private let fetchLimiter = RefreshConcurrencyLimiter()
 
     public init(
         secrets: LocalSecretStore = .shared,
@@ -22,7 +23,7 @@ public actor BalanceService {
         self.notifications = notifications
     }
 
-    public func refreshAll(settings: AppSettings) async -> (snapshots: [BalanceSnapshot], alerts: [AlertEvent], settings: AppSettings) {
+    public func refreshAll(settings: AppSettings) async -> (snapshots: [BalanceSnapshot], alerts: [AlertEvent], settings: AppSettings, peakConcurrency: Int) {
         var updated = settings
         let accounts = settings.enabledAccounts
 
@@ -31,8 +32,25 @@ public actor BalanceService {
         await withTaskGroup(of: (UUID, BalanceSnapshot).self) { group in
             for account in accounts {
                 group.addTask {
-                    let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
-                    return (account.id, snap)
+                    do {
+                        return try await self.fetchLimiter.withPermit {
+                            let snap = await self.refreshAPIWithTimeout(account: account, settings: settings)
+                            return (account.id, snap)
+                        }
+                    } catch {
+                        return (
+                            account.id,
+                            BalanceSnapshot(
+                                accountId: account.id,
+                                providerKind: account.kind,
+                                displayName: account.title,
+                                source: .api,
+                                status: .unknown,
+                                detail: "",
+                                errorMessage: nil
+                            )
+                        )
+                    }
                 }
             }
             for await (id, snap) in group {
@@ -54,7 +72,7 @@ public actor BalanceService {
             }
         }
 
-        return (snapshots, alerts, updated)
+        return (snapshots, alerts, updated, await fetchLimiter.peak)
     }
 
     private func refreshAPIWithTimeout(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {
@@ -76,6 +94,18 @@ public actor BalanceService {
     }
 
     public func refreshAPI(account: BalanceAccount, settings: AppSettings) async -> BalanceSnapshot {
+        if !account.kind.isRecognized {
+            return BalanceSnapshot(
+                accountId: account.id,
+                providerKind: account.kind,
+                displayName: account.title,
+                source: .api,
+                unit: account.resolvedManualUnit,
+                status: .setup,
+                detail: "未识别的渠道，已跳过查询",
+                errorMessage: "unrecognized provider"
+            )
+        }
         if account.kind.isManualEntry {
             return await fetchViaProvider(
                 account: account,

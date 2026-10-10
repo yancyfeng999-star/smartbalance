@@ -1,41 +1,46 @@
 import Foundation
+import Domain
 
 public struct UpdateCheckResult: Sendable, Equatable {
-    public enum Status: String, Sendable {
-        case upToDate
-        case available
-        case unknown
-        case failed
-    }
+    public typealias Status = UpdateCheckStatus
 
-    public var status: Status
+    public var status: UpdateCheckStatus
     public var currentVersion: String
     public var latestVersion: String?
     public var message: String
+    public var messageKey: String
+    public var messageArguments: [String]
     /// Release 页
     public var openURL: URL?
-    /// 安装包下载（优先 .pkg，有则一点更新自动静默安装）
+    /// 安装包下载（优先 .pkg）
     public var downloadURL: URL?
+    public var details: UpdateReleaseDetails?
 
     public init(
         status: Status,
         currentVersion: String,
         latestVersion: String? = nil,
         message: String,
+        messageKey: String = "",
+        messageArguments: [String] = [],
         openURL: URL? = nil,
-        downloadURL: URL? = nil
+        downloadURL: URL? = nil,
+        details: UpdateReleaseDetails? = nil
     ) {
         self.status = status
         self.currentVersion = currentVersion
         self.latestVersion = latestVersion
         self.message = message
+        self.messageKey = messageKey
+        self.messageArguments = messageArguments
         self.openURL = openURL
         self.downloadURL = downloadURL
+        self.details = details
     }
 }
 
 /// 检查更新（公开 GitHub Releases，无 Sparkle）。
-/// 有新版本时自动下载 **pkg** → 静默解包覆盖 → 重启，中间不弹窗。
+/// P1：只检查并返回版本说明，不自动下载或安装。
 public struct UpdateChecker: Sendable {
     public static let githubOwner = "yancyfeng999-star"
     public static let githubRepo = "smartbalance"
@@ -52,10 +57,19 @@ public struct UpdateChecker: Sendable {
     private static let requestTimeout: TimeInterval = 30
     private static let maxAttempts = 2
 
-    public init() {}
+    private let client: any HTTPClient
+    private let currentVersionOverride: String?
+
+    public init(client: (any HTTPClient)? = nil, currentVersion: String? = nil) {
+        self.client = client ?? UpdateAPIClient.makeDefault()
+        self.currentVersionOverride = currentVersion
+    }
 
     public func currentVersion() -> String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+        if let currentVersionOverride, !currentVersionOverride.isEmpty {
+            return currentVersionOverride
+        }
+        return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
     }
 
     public func check() async -> UpdateCheckResult {
@@ -64,7 +78,9 @@ public struct UpdateChecker: Sendable {
             return UpdateCheckResult(
                 status: .unknown,
                 currentVersion: current,
-                message: "当前 \(current)（本地构建）"
+                message: "local build \(current)",
+                messageKey: "update.check.local_build",
+                messageArguments: [current]
             )
         }
 
@@ -85,7 +101,8 @@ public struct UpdateChecker: Sendable {
         return UpdateCheckResult(
             status: .failed,
             currentVersion: current,
-            message: "检查失败：\(detail) · 可点下方打开 GitHub 手动下载",
+            message: "check failed: \(detail)",
+            messageKey: "update.check.failed",
             openURL: Self.releasesPage
         )
     }
@@ -98,21 +115,15 @@ public struct UpdateChecker: Sendable {
         request.timeoutInterval = Self.requestTimeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
 
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = Self.requestTimeout
-        config.timeoutIntervalForResource = Self.requestTimeout + 15
-        config.waitsForConnectivity = true
-        config.allowsConstrainedNetworkAccess = true
-        config.allowsExpensiveNetworkAccess = true
-        let session = URLSession(configuration: config)
-
-        let (data, response) = try await session.data(for: request)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let (data, response) = try await client.data(for: request)
+        let code = response.statusCode
         if code == 404 {
             return UpdateCheckResult(
                 status: .unknown,
                 currentVersion: current,
-                message: "当前 \(current) · 暂无公开 Release",
+                message: "no public release for \(current)",
+                messageKey: "update.check.no_release",
+                messageArguments: [current],
                 openURL: Self.releasesPage
             )
         }
@@ -120,42 +131,143 @@ public struct UpdateChecker: Sendable {
             return UpdateCheckResult(
                 status: .failed,
                 currentVersion: current,
-                message: "检查失败 HTTP \(code)",
+                message: "HTTP \(code)",
+                messageKey: "update.check.http_failed",
+                messageArguments: ["\(code)"],
                 openURL: Self.releasesPage
             )
         }
         guard
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let tag = json["tag_name"] as? String
+            json["tag_name"] is String
         else {
             return UpdateCheckResult(
                 status: .failed,
                 currentVersion: current,
-                message: "无法解析版本信息",
+                message: "unable to parse release",
+                messageKey: "update.check.parse_failed",
+                openURL: Self.releasesPage
+            )
+        }
+        var result = makeResult(from: json, current: current)
+        if result.status == .available, let sumsURL = result.details?.checksumManifestURL {
+            switch await fetchChecksumManifest(sumsURL) {
+            case .success(let text):
+                result.details?.checksumManifestText = text
+                result.details?.checksumManifestFetchFailed = false
+            case .failure:
+                result.details?.checksumManifestText = nil
+                result.details?.checksumManifestFetchFailed = true
+            }
+        }
+        return result
+    }
+
+    public func makeResult(from releaseJSON: [String: Any], current: String) -> UpdateCheckResult {
+        guard let tag = releaseJSON["tag_name"] as? String else {
+            return UpdateCheckResult(
+                status: .failed,
+                currentVersion: current,
+                message: "unable to parse release",
+                messageKey: "update.check.parse_failed",
                 openURL: Self.releasesPage
             )
         }
         let latest = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-        let html = (json["html_url"] as? String).flatMap(URL.init(string:))
-        let package = preferredPackageURL(from: json)
+        let html = (releaseJSON["html_url"] as? String).flatMap(URL.init(string:))
+        let package = preferredPackageAsset(from: releaseJSON)
+        let notesRaw = releaseJSON["body"] as? String ?? ""
+        let notes = UpdateReleaseNotes.plainTextSummary(notesRaw)
+        let publishedAt = Self.parsePublishedAt(releaseJSON["published_at"] as? String)
+        let details = UpdateReleaseDetails(
+            currentVersion: current,
+            targetVersion: latest,
+            publishedAt: publishedAt,
+            releaseNotesPlainText: notes,
+            asset: package,
+            minimumMacOS: UpdateMinimumOSParser.parse(fromReleaseNotes: notesRaw),
+            releasePageURL: html ?? Self.releasesPage,
+            checksumManifestURL: checksumManifestURL(from: releaseJSON)
+        )
 
-        if compareVersion(latest, current) > 0 {
+        if UpdateVersion.parse(latest) == nil {
+            return UpdateCheckResult(
+                status: .failed,
+                currentVersion: current,
+                latestVersion: latest,
+                message: "malformed version \(latest)",
+                messageKey: "update.check.parse_failed",
+                openURL: html ?? Self.releasesPage,
+                details: details
+            )
+        }
+
+        if let comparison = UpdateVersion.compare(latest, current), comparison > 0 {
             return UpdateCheckResult(
                 status: .available,
                 currentVersion: current,
                 latestVersion: latest,
-                message: "发现新版本 \(latest)，正在下载安装…",
+                message: "New version \(latest) is available",
+                messageKey: "update.check.available",
+                messageArguments: [latest],
                 openURL: html ?? Self.releasesPage,
-                downloadURL: package
+                downloadURL: package?.downloadURL,
+                details: details
             )
         }
         return UpdateCheckResult(
             status: .upToDate,
             currentVersion: current,
             latestVersion: latest,
-            message: "已是最新 \(current)",
-            openURL: html ?? Self.releasesPage
+            message: "Already up to date \(current)",
+            messageKey: "update.check.up_to_date",
+            messageArguments: [current],
+            openURL: html ?? Self.releasesPage,
+            details: details
         )
+    }
+
+    private func fetchChecksumManifest(_ url: URL) async -> Result<String, Error> {
+        var lastError: Error = URLError(.cannotParseResponse)
+        for attempt in 1...Self.maxAttempts {
+            var request = URLRequest(url: url)
+            request.setValue("SmartBalance (update-check)", forHTTPHeaderField: "User-Agent")
+            request.timeoutInterval = Self.requestTimeout
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            do {
+                let (data, response) = try await client.data(for: request)
+                guard (200...299).contains(response.statusCode) else {
+                    lastError = URLError(.badServerResponse)
+                    if attempt < Self.maxAttempts {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                    }
+                    continue
+                }
+                guard let text = String(data: data, encoding: .utf8) else {
+                    return .failure(URLError(.cannotParseResponse))
+                }
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return .failure(URLError(.zeroByteResource))
+                }
+                return .success(text)
+            } catch {
+                lastError = error
+                if attempt < Self.maxAttempts {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                }
+            }
+        }
+        return .failure(lastError)
+    }
+
+    private static func parsePublishedAt(_ raw: String?) -> Date? {
+        guard let raw else { return nil }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = withFraction.date(from: raw) { return date }
+        let basic = ISO8601DateFormatter()
+        basic.formatOptions = [.withInternetDateTime]
+        return basic.date(from: raw)
     }
 
     private func friendlyNetworkError(_ error: Error?) -> String {
@@ -182,48 +294,81 @@ public struct UpdateChecker: Sendable {
         return desc
     }
 
-    /// 优先 pkg（静默装）→ dmg → zip；同类型优先 SmartBalance 英文名。
+    /// 优先 pkg → dmg；同类型优先 SmartBalance。不再把 zip 当作安装包。
     func preferredPackageURL(from releaseJSON: [String: Any]) -> URL? {
-        guard let assets = releaseJSON["assets"] as? [[String: Any]] else { return nil }
-        let namesAndURLs: [(String, URL)] = assets.compactMap { asset in
-            guard
-                let name = asset["name"] as? String,
-                let urlStr = asset["browser_download_url"] as? String,
-                let url = URL(string: urlStr)
-            else { return nil }
-            return (name, url)
-        }
-        let ranked = namesAndURLs.compactMap { name, url -> (Int, URL)? in
-            let n = name.lowercased()
-            let branded = n.contains("smartbalance") || name.contains("智余")
-            let score: Int
-            if n.hasSuffix(".pkg") {
-                // SmartBalance-*.pkg 路径最稳
-                if n.contains("smartbalance") { score = 0 }
-                else if branded { score = 1 }
-                else { score = 2 }
-            } else if n.hasSuffix(".dmg") {
-                score = branded ? 10 : 11
-            } else if n.hasSuffix(".zip") {
-                score = branded ? 20 : 21
-            } else {
-                return nil
-            }
-            return (score, url)
-        }
-        return ranked.sorted { $0.0 < $1.0 }.first?.1
+        preferredPackageAsset(from: releaseJSON)?.downloadURL
     }
 
-    /// 简易 semver 比较：a > b → 1
-    private func compareVersion(_ a: String, _ b: String) -> Int {
-        let pa = a.split(separator: ".").compactMap { Int($0) }
-        let pb = b.split(separator: ".").compactMap { Int($0) }
-        let n = max(pa.count, pb.count)
-        for i in 0..<n {
-            let x = i < pa.count ? pa[i] : 0
-            let y = i < pb.count ? pb[i] : 0
-            if x != y { return x > y ? 1 : -1 }
+    func preferredPackageAsset(from releaseJSON: [String: Any]) -> UpdateAsset? {
+        guard let assets = releaseJSON["assets"] as? [[String: Any]] else { return nil }
+        let parsed: [UpdateAsset] = assets.compactMap { asset in
+            guard
+                let name = asset["name"] as? String,
+                UpdateAssetName.isAllowed(name),
+                let urlStr = asset["browser_download_url"] as? String,
+                let url = URL(string: urlStr),
+                let kind = UpdateAssetKind(rawValue: URL(fileURLWithPath: name).pathExtension.lowercased())
+            else { return nil }
+            return UpdateAsset(
+                fileName: name,
+                downloadURL: url,
+                byteSize: Self.int64(asset["size"]) ?? 0,
+                kind: kind
+            )
         }
-        return 0
+        return parsed.min { lhs, rhs in
+            score(lhs) < score(rhs)
+        }
+    }
+
+    func checksumManifestURL(from releaseJSON: [String: Any]) -> URL? {
+        guard let assets = releaseJSON["assets"] as? [[String: Any]] else { return nil }
+        for asset in assets {
+            guard
+                let name = asset["name"] as? String,
+                name.lowercased() == "sha256sums.txt",
+                let urlStr = asset["browser_download_url"] as? String,
+                let url = URL(string: urlStr)
+            else { continue }
+            return url
+        }
+        return nil
+    }
+
+    private func score(_ asset: UpdateAsset) -> Int {
+        let brandedEnglish = asset.fileName.lowercased().contains("smartbalance")
+        switch asset.kind {
+        case .pkg: return brandedEnglish ? 0 : 1
+        case .dmg: return brandedEnglish ? 10 : 11
+        }
+    }
+
+    private static func int64(_ any: Any?) -> Int64? {
+        if let value = any as? Int64 { return value }
+        if let value = any as? Int { return Int64(value) }
+        if let value = any as? NSNumber { return value.int64Value }
+        return nil
+    }
+}
+
+private struct UpdateAPIClient: HTTPClient {
+    let session: URLSession
+
+    static func makeDefault() -> UpdateAPIClient {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 45
+        config.waitsForConnectivity = true
+        config.allowsConstrainedNetworkAccess = true
+        config.allowsExpensiveNetworkAccess = true
+        return UpdateAPIClient(session: URLSession(configuration: config))
+    }
+
+    func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        return (data, http)
     }
 }

@@ -35,6 +35,9 @@ struct MockHTTPClient: HTTPClient, Sendable {
     /// Other request headers (e.g. `Dmx-Api-User`) in call order.
     var customHeaders: [String: [String]] { state.customHeaders }
 
+    /// Requested URL strings in call order.
+    var requestedURLs: [String] { state.requestedURLs }
+
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let auth = request.value(forHTTPHeaderField: "Authorization")
         var extras: [String: String] = [:]
@@ -50,7 +53,12 @@ struct MockHTTPClient: HTTPClient, Sendable {
         if let groupId = request.value(forHTTPHeaderField: "X-Group-Id") {
             extras["X-Group-Id"] = groupId
         }
-        let index = state.recordCall(authorization: auth, customHeaders: extras) - 1
+        let url = request.url ?? URL(string: "https://example.invalid")!
+        let index = state.recordCall(
+            authorization: auth,
+            customHeaders: extras,
+            url: url.absoluteString
+        ) - 1
         let code: Int
         let data: Data
         if let responses {
@@ -61,7 +69,6 @@ struct MockHTTPClient: HTTPClient, Sendable {
             code = statusCode
             data = body
         }
-        let url = request.url ?? URL(string: "https://example.invalid")!
         let response = HTTPURLResponse(
             url: url,
             statusCode: code,
@@ -78,6 +85,7 @@ private final class MockHTTPClientState: @unchecked Sendable {
     private var _callCount = 0
     private var _authorizationHeaders: [String] = []
     private var _customHeaders: [String: [String]] = [:]
+    private var _requestedURLs: [String] = []
 
     var callCount: Int {
         lock.lock()
@@ -97,8 +105,18 @@ private final class MockHTTPClientState: @unchecked Sendable {
         return _customHeaders
     }
 
+    var requestedURLs: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _requestedURLs
+    }
+
     @discardableResult
-    func recordCall(authorization: String?, customHeaders: [String: String] = [:]) -> Int {
+    func recordCall(
+        authorization: String?,
+        customHeaders: [String: String] = [:],
+        url: String? = nil
+    ) -> Int {
         lock.lock()
         defer { lock.unlock() }
         _callCount += 1
@@ -107,6 +125,9 @@ private final class MockHTTPClientState: @unchecked Sendable {
         }
         for (key, value) in customHeaders {
             _customHeaders[key, default: []].append(value)
+        }
+        if let url {
+            _requestedURLs.append(url)
         }
         return _callCount
     }

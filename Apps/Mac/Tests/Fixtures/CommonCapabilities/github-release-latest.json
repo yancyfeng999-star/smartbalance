@@ -1,0 +1,28 @@
+{
+  "tag_name": "v0.3.2",
+  "published_at": "2026-08-14T12:00:00Z",
+  "html_url": "https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.3.2",
+  "body": "## Changes\n\n- Fix <script>alert(1)</script> leak\n- See [docs](https://evil.example/docs)\n- Requires macOS 15.0\n",
+  "assets": [
+    {
+      "name": "SmartBalance-0.3.2.zip",
+      "browser_download_url": "https://github.com/yancyfeng999-star/smartbalance/releases/download/v0.3.2/SmartBalance-0.3.2.zip",
+      "size": 111
+    },
+    {
+      "name": "SmartBalance-0.3.2.dmg",
+      "browser_download_url": "https://github.com/yancyfeng999-star/smartbalance/releases/download/v0.3.2/SmartBalance-0.3.2.dmg",
+      "size": 22222222
+    },
+    {
+      "name": "SmartBalance-0.3.2.pkg",
+      "browser_download_url": "https://github.com/yancyfeng999-star/smartbalance/releases/download/v0.3.2/SmartBalance-0.3.2.pkg",
+      "size": 12345678
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "browser_download_url": "https://github.com/yancyfeng999-star/smartbalance/releases/download/v0.3.2/SHA256SUMS.txt",
+      "size": 120
+    }
+  ]
+}

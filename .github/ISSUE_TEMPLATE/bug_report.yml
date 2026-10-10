@@ -1,0 +1,61 @@
+name: Bug report
+description: 报告可以复现的智余问题
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请不要粘贴 API Key、Cookie、SMTP 密码、Keychain 内容、完整请求头、原始响应或未脱敏日志。
+        安全问题请阅读 SECURITY.md，使用私下报告渠道。
+  - type: input
+    id: version
+    attributes:
+      label: 智余版本
+      description: 设置中的版本或 Info.plist 对应的版本。
+      placeholder: 0.3.1 (build 82)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: macOS 环境
+      description: macOS 版本和 Apple Silicon/Intel 架构。
+      placeholder: macOS 15.x, Apple Silicon
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请按最小步骤描述如何触发问题。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 脱敏证据
+      description: 可附不含秘密的截图、错误分类或最小日志片段。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已删除 API Key、Cookie、密码、Keychain 内容和个人信息。
+          required: true
+        - label: 这不是安全漏洞报告；如是，我会改用 SECURITY.md 的私下渠道。
+          required: true
+

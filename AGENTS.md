@@ -38,7 +38,7 @@ https://github.com/yancyfeng999-star/smartbalance/releases
 | 内容 | 路径 |
 |------|------|
 | 设置 | `~/Library/Application Support/SmartBalance/settings.json` |
-| 密钥 | `~/Library/Application Support/SmartBalance/secrets.vault` |
+| 密钥 | macOS Keychain service `com.smartbalance.zhiyu.plain` |
 | 日志 | `~/Library/Logs/SmartBalance/app.log` |
 
 ---
@@ -78,11 +78,14 @@ xcodebuild -scheme SmartBalance -configuration Debug \
 # 正式发版（默认 patch，并上 GitHub）
 NOTES="修复 xxx" ./scripts/release.sh
 
-# 仅打包、不推远程（调试用）
+# 仅打包、不推远程（调试用）。打完只留 dmg/pkg，不要再装一份 App。
 SKIP_PUBLISH=1 NOTES="试包" ./scripts/release.sh
 
-# 测试
+# 测试（测完会清掉 DerivedData 里的 智余.app）
 ./scripts/run-tests.sh
+
+# 清掉启动台/聚焦里的重复入口，只留 /Applications/智余.app
+./scripts/cleanup-duplicate-apps.sh
 ```
 
 需要 `gh` 已登录（`gh auth status`），且对 `yancyfeng999-star/smartbalance` 有写权限。
@@ -130,7 +133,7 @@ Apps/Mac/Sources/
 
 ### 6.4 密钥 / 密码
 
-- API Key、SMTP 密码在 `secrets.vault`，不在 git
+- API Key、Cookie、SMTP 密码在 macOS 普通 Keychain，不在 git；旧版明文备份只在用户确认后导入
 - 日志出现 `Secret unlock failed` / `缺少 SMTP 密码` → 引导用户在设置里重新保存
 
 ---

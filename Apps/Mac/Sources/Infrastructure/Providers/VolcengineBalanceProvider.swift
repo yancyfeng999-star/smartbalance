@@ -7,7 +7,7 @@ import Domain
 /// 鉴权：Access Key ID + Secret Access Key（OpenAPI HMAC-SHA256 签名）
 /// 文档 / API Explorer：账单中心 · QueryBalanceAcct
 ///
-/// 密钥在 vault 中按两行保存：`AK\nSK`（见 `VolcengineSigner.packCredentials`）。
+/// 密钥在本机 Keychain 中按两行保存：`AK\nSK`（见 `VolcengineSigner.packCredentials`）。
 public struct VolcengineBalanceProvider: BalanceProvider {
     public let kind: ProviderKind = .volcengine
     private let http: any HTTPClient
