@@ -1,16 +1,16 @@
 # 项目状态
 
-**版本：** 0.4.3（build 87，以 `Apps/Mac/Sources/App/Info.plist` 为准）
-**阶段：** 钱包修复、完整测试和安装包验证完成；远端资产以 GitHub Release 为准
+**版本：** 0.4.4（build 88，以 `Apps/Mac/Sources/App/Info.plist` 为准）
+**阶段：** 浏览器导入权限反馈、凭据持久化及钱包重启验收完成；安装包和远端资产以验证记录与 GitHub Release 为准
 **远程：** https://github.com/yancyfeng999-star/smartbalance
 
 | 口径 | 状态 |
 |------|------|
 | 已实现（本分支代码） | 菜单栏余额、用量、设置信封、诊断、迁移、手动更新确认、安全模式、兼容性/用量健康收口 |
-| 本地测试 | 2026-10-09 `./scripts/run-tests.sh`：**385 passed / 0 failed**（Domain 98 + Infrastructure 251 + App 36） |
-| Debug / Release 构建 | 同日 `xcodebuild` 均 **BUILD SUCCEEDED**；Release 含 arm64+x86_64 切片；DMG / PKG 版本、ad-hoc 签名与 SHA-256 已核对 |
-| 运行时 | 当前机器的 MiniMax / APINebula 源码查询与 Chrome 网页钱包一致；新安装包的完整菜单栏交互待用户验收 |
-| 已发布 | 以 GitHub [v0.4.3 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.3) 为准；安装包不代表用户已更新 |
+| 本地测试 | 2026-10-09 `./scripts/run-tests.sh`：**398 passed / 0 failed**（Domain 98 + Infrastructure 264 + App 36） |
+| 构建与安装包 | Debug / Release **BUILD SUCCEEDED**；DMG / PKG 的 0.4.4 build 88、通用切片、App 严格签名检查和 SHA-256 均通过；仍为 ad-hoc，未公证 |
+| 运行时 | 独立身份 Debug 验收副本：MiniMax / APINebula 导入、刷新及干净重启后与实时 Chrome 人民币钱包一致；正式菜单栏包待用户安装验收 |
+| 已发布 | 以 GitHub [v0.4.4 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.4) 为准；安装包不代表用户已更新 |
 | 真实渠道 | 本次授权验证 MiniMax / APINebula 人民币钱包；其余渠道未重新执行真实网络验收 |
 | 用户已验收 | 否 |
 
@@ -29,7 +29,7 @@
 - 诊断包 allowlist；设置迁移 v2 不含密钥值
 - 检查更新：查看说明 → 用户确认 → 下载 → 校验 → 安装
 - Apache-2.0 开源协议、贡献/安全/行为准则、第三方声明与本地开源门禁
-- 最新验证：[钱包修复与 0.4.3 安装包](docs/superpowers/verification/2026-10-09-wallet-balances-verification.md)；历史通用能力记录仍保留
+- 最新验证：[浏览器导入与凭据持久化修复](docs/superpowers/verification/2026-10-10-browser-import-verification.md)；[0.4.3 钱包记录](docs/superpowers/verification/2026-10-09-wallet-balances-verification.md)和历史通用能力记录仍保留
 
 - [AGENTS.md](./AGENTS.md)
 - [docs/AGENT_RELEASE_WORKFLOW.md](./docs/AGENT_RELEASE_WORKFLOW.md)
@@ -61,11 +61,13 @@ AGENTS.md          # Agent 入口
 - [docs/DATA_AND_PRIVACY.md](./docs/DATA_AND_PRIVACY.md) — 本地数据、联网和备份边界
 - [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) — 发布前验证和证据分层
 
-## 手工验收（当前机器未做交互验收）
+## 手工验收边界
 
 | 场景 | 备注 |
 |------|------|
-| `/Applications/智余.app` 运行 | 本次保留已安装 0.4.2；用户自行更新至 0.4.3 |
-| 本分支菜单栏弹层 | 当前机器未点：首次启动、取消刷新、用量日/周/月、更新确认、safe mode、VoiceOver |
+| `/Applications/智余.app` 运行 | 本次保留已安装 0.4.3；用户自行更新至 0.4.4。未覆盖或重新安装用户 App |
+| 本分支交互 | 导入权限提示、选择目录、取消、草稿保留、原账号重新导入、刷新和重启已验收；首次启动、用量日/周/月、更新安装、VoiceOver 未重新执行 |
 | 浅色/深色 / 打开后台 | 代码路径仍在；本记录未做现场点按 |
-| 真实渠道 / SMTP | MiniMax / APINebula 源码查询已核对；真实第二账号切换与 SMTP 未执行 |
+| 真实渠道 / SMTP | MiniMax / APINebula 人民币钱包 App 查询已核对；真实第二账号切换、主动退出网页登录和 SMTP 未执行 |
+
+当前为 ad-hoc 签名。升级后若旧凭据显示待补，需在新版本重新导入或填写一次；本次修复保证主动保存时读回核对，不承诺跨签名自动继承。重新保存保留旧钥匙串条目，不删除或放宽 ACL。

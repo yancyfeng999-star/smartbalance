@@ -15,6 +15,9 @@ public enum BrowserSessionImporter: Sendable {
     public enum ImportError: Error, LocalizedError, Sendable {
         case unsupportedKind
         case browserNotFound
+        case browserAccessDenied
+        case browserReadFailed
+        case invalidBrowserDirectory
         case keychainDenied(String)
         case cookieNotFound(String)
         case decryptFailed
@@ -26,6 +29,12 @@ public enum BrowserSessionImporter: Sendable {
                 return "当前平台不支持浏览器导入"
             case .browserNotFound:
                 return "未找到 Chrome / Edge。请安装并登录控制台后重试"
+            case .browserAccessDenied:
+                return "macOS 未允许智余读取浏览器数据。请点「选择浏览器目录并导入」，在系统窗口中选择 Chrome 或 Edge 数据目录后重试。也可手动填写 Cookie"
+            case .browserReadFailed:
+                return "浏览器数据读取失败，请重试或手动填写 Cookie（这不代表未登录）"
+            case .invalidBrowserDirectory:
+                return "请选择 Chrome / Edge 数据目录，或其中的 Default / Profile 用户目录"
             case .keychainDenied(let s):
                 return "无法读取浏览器钥匙串：\(s)。若弹出权限请点「允许」后重试"
             case .cookieNotFound(let s):
@@ -39,11 +48,11 @@ public enum BrowserSessionImporter: Sendable {
     }
 
     /// 异步导入（始终在非主线程执行）。
-    public static func importSessionAsync(for kind: ProviderKind) async throws -> Credential {
+    public static func importSessionAsync(for kind: ProviderKind, browserDirectory: URL? = nil) async throws -> Credential {
         try await withCheckedThrowingContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    cont.resume(returning: try importSession(for: kind))
+                    cont.resume(returning: try importSession(for: kind, browserDirectory: browserDirectory))
                 } catch {
                     cont.resume(throwing: error)
                 }
@@ -52,21 +61,22 @@ public enum BrowserSessionImporter: Sendable {
     }
 
     /// 同步导入；仅应在后台队列调用。
-    public static func importSession(for kind: ProviderKind) throws -> Credential {
+    public static func importSession(for kind: ProviderKind, browserDirectory: URL? = nil) throws -> Credential {
         switch kind {
-        case .mimo: return try importMiMo()
-        case .minimax: return try importMiniMax()
-        case .apinebula: return try importApinebula()
+        case .mimo: return try importMiMo(browserDirectory: browserDirectory)
+        case .minimax: return try importMiniMax(browserDirectory: browserDirectory)
+        case .apinebula: return try importApinebula(browserDirectory: browserDirectory)
         default: throw ImportError.unsupportedKind
         }
     }
 
     // MARK: - Platforms
 
-    private static func importMiMo() throws -> Credential {
+    private static func importMiMo(browserDirectory: URL?) throws -> Credential {
         let cookies = try loadCookies(
             hostNeedles: ["xiaomimimo"],
-            names: ["api-platform_serviceToken", "userId"]
+            names: ["api-platform_serviceToken", "userId"],
+            browserDirectory: browserDirectory
         )
         let token = cookies.first(where: { $0.name == "api-platform_serviceToken" })?.value
         let userId = cookies.first(where: { $0.name == "userId" })?.value
@@ -81,10 +91,11 @@ public enum BrowserSessionImporter: Sendable {
         return Credential(secret: token, userId: userId, source: cookies.first?.browserName ?? "Chrome")
     }
 
-    private static func importMiniMax() throws -> Credential {
+    private static func importMiniMax(browserDirectory: URL?) throws -> Credential {
         let cookies = try loadCookies(
             hostNeedles: ["minimax.cn", "minimaxi", "minimax.io"],
-            names: ["_token", "minimax_group_id_v2"]
+            names: ["_token", "minimax_group_id_v2"],
+            browserDirectory: browserDirectory
         )
         let currentDomainCookies = cookies.filter { $0.host.contains("minimax.cn") }
         let activeProfile = currentDomainCookies.first?.profileID
@@ -107,11 +118,12 @@ public enum BrowserSessionImporter: Sendable {
         return Credential(secret: secret, userId: groupId, source: cookies.first?.browserName ?? "Chrome")
     }
 
-    private static func importApinebula() throws -> Credential {
+    private static func importApinebula(browserDirectory: URL?) throws -> Credential {
         // 当前控制台在 .com；.ai 仅作旧域名后备，避免选到已过期旧会话。
         let cookies = try loadCookies(
             hostNeedles: ["apinebula.com", "apinebula.ai", "apinebula"],
-            names: ["session"]
+            names: ["session"],
+            browserDirectory: browserDirectory
         )
         let session =
             cookies.first(where: { $0.name == "session" && $0.host.contains("apinebula.com") })?.value
@@ -144,18 +156,25 @@ public enum BrowserSessionImporter: Sendable {
         var lastAccess: Int64
     }
 
-    private static func loadCookies(hostNeedles: [String], names: [String]) throws -> [CookieRow] {
+    private static func loadCookies(hostNeedles: [String], names: [String], browserDirectory: URL?) throws -> [CookieRow] {
         let home = NSHomeDirectory()
-        let candidates = browserCookieCandidates(home: home)
+        let candidates = try browserCookieCandidates(home: home, selectedDirectory: browserDirectory)
 
         var sawDB = false
         var lastKeyError: String?
         var cachedKey: [String: Data] = [:]
         var attemptedKeychainServices: Set<String> = []
         var allRows: [CookieRow] = []
+        var lastReadError: ImportError?
 
         for c in candidates {
-            guard FileManager.default.fileExists(atPath: c.path) else { continue }
+            do {
+                _ = try FileManager.default.attributesOfItem(atPath: c.path)
+            } catch {
+                if isMissingFile(error) { continue }
+                lastReadError = isAccessDenied(error) ? .browserAccessDenied : .browserReadFailed
+                continue
+            }
             sawDB = true
 
             let key: Data
@@ -185,13 +204,15 @@ public enum BrowserSessionImporter: Sendable {
                 )
                 allRows.append(contentsOf: rows)
             } catch {
-                AppLog.error("Cookie read \(c.path): \(error.localizedDescription)")
+                lastReadError = isAccessDenied(error) ? .browserAccessDenied : (error as? ImportError ?? .browserReadFailed)
+                AppLog.error("Browser cookie read failed · browser=\(c.name) profile=\(c.profileID)")
             }
         }
 
         if !allRows.isEmpty {
             return allRows.sorted { $0.lastAccess > $1.lastAccess }
         }
+        if let lastReadError { throw lastReadError }
         if !sawDB { throw ImportError.browserNotFound }
         if let lastKeyError { throw ImportError.keychainDenied(lastKeyError) }
         return []
@@ -279,8 +300,11 @@ public enum BrowserSessionImporter: Sendable {
     }
 
     private static func copyIfExists(_ src: String, to dst: String) throws {
-        guard FileManager.default.fileExists(atPath: src) else { return }
-        try FileManager.default.copyItem(atPath: src, toPath: dst)
+        do {
+            try FileManager.default.copyItem(atPath: src, toPath: dst)
+        } catch {
+            if !isMissingFile(error) { throw error }
+        }
     }
 
     /// 带超时 + 并发读管道，避免 stdout 塞满导致进程死锁。
@@ -389,13 +413,20 @@ public enum BrowserSessionImporter: Sendable {
         return derived
     }
 
-    private static func browserCookieCandidates(
-        home: String
-    ) -> [(name: String, path: String, service: String, account: String, profileID: String)] {
-        let fileManager = FileManager.default
+    static func browserCookieCandidates(
+        home: String,
+        selectedDirectory: URL? = nil,
+        listDirectory: (String) throws -> [String] = FileManager.default.contentsOfDirectory(atPath:)
+    ) throws -> [(name: String, path: String, service: String, account: String, profileID: String)] {
 
-        func profileCookiePaths(root: String) -> [(profileID: String, path: String)] {
-            let names = (try? fileManager.contentsOfDirectory(atPath: root)) ?? []
+        func profileCookiePaths(root: String) throws -> [(profileID: String, path: String)] {
+            let names: [String]
+            do {
+                names = try listDirectory(root)
+            } catch {
+                if isMissingFile(error) { return [] }
+                throw isAccessDenied(error) ? ImportError.browserAccessDenied : ImportError.browserReadFailed
+            }
             let profiles = names
                 .filter { $0 == "Default" || $0.hasPrefix("Profile ") }
                 .sorted { lhs, rhs in
@@ -408,7 +439,29 @@ public enum BrowserSessionImporter: Sendable {
 
         let chromeRoot = home + "/Library/Application Support/Google/Chrome"
         let edgeRoot = home + "/Library/Application Support/Microsoft Edge"
-        let chrome = profileCookiePaths(root: chromeRoot).map {
+        let selectedPath = selectedDirectory?.standardizedFileURL.path
+        func paths(in root: String) throws -> [(profileID: String, path: String)] {
+            guard let selectedPath else { return try profileCookiePaths(root: root) }
+            if selectedPath == root { return try profileCookiePaths(root: root) }
+            let url = URL(fileURLWithPath: selectedPath)
+            let profile = url.lastPathComponent
+            if url.deletingLastPathComponent().path == root,
+               profile == "Default" || profile.hasPrefix("Profile ") {
+                return [(profileID: profile, path: selectedPath + "/Cookies")]
+            }
+            return []
+        }
+        if let selectedPath {
+            let url = URL(fileURLWithPath: selectedPath)
+            let roots = [chromeRoot, edgeRoot]
+            let profile = url.lastPathComponent
+            guard roots.contains(selectedPath)
+                || (roots.contains(url.deletingLastPathComponent().path)
+                    && (profile == "Default" || profile.hasPrefix("Profile "))) else {
+                throw ImportError.invalidBrowserDirectory
+            }
+        }
+        let chrome = try paths(in: chromeRoot).map {
             (
                 name: "Chrome",
                 path: $0.path,
@@ -417,7 +470,7 @@ public enum BrowserSessionImporter: Sendable {
                 profileID: $0.profileID
             )
         }
-        let edge = profileCookiePaths(root: edgeRoot).map {
+        let edge = try paths(in: edgeRoot).map {
             (
                 name: "Edge",
                 path: $0.path,
@@ -427,6 +480,20 @@ public enum BrowserSessionImporter: Sendable {
             )
         }
         return chrome + edge
+    }
+
+    static func isAccessDenied(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain && nsError.code == CocoaError.fileReadNoPermission.rawValue { return true }
+        if nsError.domain == NSPOSIXErrorDomain && [Int(EPERM), Int(EACCES)].contains(nsError.code) { return true }
+        return (nsError.userInfo[NSUnderlyingErrorKey] as? Error).map(isAccessDenied) ?? false
+    }
+
+    private static func isMissingFile(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain,
+           [CocoaError.fileReadNoSuchFile.rawValue, CocoaError.fileNoSuchFile.rawValue].contains(nsError.code) { return true }
+        return nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOENT)
     }
 
     private static func decryptChromeV10(_ encrypted: Data, key: Data) -> String? {

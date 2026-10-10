@@ -106,6 +106,9 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     @Published var updateErrorSummary: String?
     /// 从浏览器导入 Cookie 进行中（防重复点、防主线程卡死）
     @Published var browserImporting = false
+    /// 导入结果保留在对应平台的按钮旁，不依赖自动消失的首页 banner。
+    @Published var browserImportMessages: [ProviderKind: String] = [:]
+    @Published var browserImportDirectoryRequired: Set<ProviderKind> = []
     private let updateChecker = UpdateChecker()
     private var releaseDownloader: ReleaseDownloader?
     private var updateTask: Task<Void, Never>?
@@ -706,6 +709,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
 
     // MARK: - API accounts
 
+    @discardableResult
     func addAccount(
         kind: ProviderKind,
         displayName: String,
@@ -714,7 +718,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         userId: String? = nil,
         secret: String,
         manualAmount: Double? = nil
-    ) async {
+    ) async -> Bool {
         let normalized = normalizeSessionCredential(kind: kind, secret: secret, userId: userId)
         let account = BalanceAccount(
             kind: kind,
@@ -732,14 +736,21 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
                 try secrets.set(normalized.secret, account: account.secretRef)
             } catch {
                 banner = "密钥保存失败：\(error.localizedDescription)"
-                return
+                return false
             }
         }
-        settings.accounts.append(account)
+        var savedSettings = settings
+        savedSettings.accounts.append(account)
+        do {
+            try store.save(savedSettings)
+        } catch {
+            banner = "账号设置保存失败，未添加账号"
+            return false
+        }
+        settings = savedSettings
         if selectedAccountId == nil {
             selectedAccountId = account.id
         }
-        persist()
         refreshCredentialReentryState()
         // 立刻出现在首页
         if !snapshots.contains(where: { $0.accountId == account.id }) {
@@ -758,6 +769,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         rescheduleManualReminders()
         banner = kind.isManualEntry ? "已添加手录账号 · 每天 10:00 提醒核对" : "账号已保存"
         refresh()
+        return true
     }
 
     func removeAccount(_ id: UUID) {
@@ -798,27 +810,37 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     }
 
     /// 给已有账号补填/更新密钥（不必删号重加）。
-    func updateAccountSecret(id: UUID, secret: String) async {
-        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    func updateAccountSecret(id: UUID, secret: String, userId: String? = nil) async -> Bool {
+        guard let idx = settings.accounts.firstIndex(where: { $0.id == id }) else { return false }
         let acc = settings.accounts[idx]
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             banner = "密钥不能为空"
-            return
+            return false
         }
-        let normalized = normalizeSessionCredential(kind: acc.kind, secret: trimmed, userId: acc.userId)
+        let normalized = normalizeSessionCredential(kind: acc.kind, secret: trimmed, userId: userId ?? acc.userId)
         do {
-            try secrets.set(normalized.secret, account: acc.secretRef)
+            // Explicit re-entry creates an item owned by this build. Updating an
+            // old ad-hoc build's item can succeed while its read ACL stays stale.
+            // Keep the previous item/reference until the new settings are saved.
+            let replacementRef = UUID().uuidString
+            try secrets.set(normalized.secret, account: replacementRef)
+            var savedSettings = settings
+            savedSettings.accounts[idx].secretRef = replacementRef
             if let uid = normalized.userId, !uid.isEmpty {
-                settings.accounts[idx].userId = uid
-                persist()
+                savedSettings.accounts[idx].userId = uid
             }
+            try store.save(savedSettings)
+            settings = savedSettings
             refreshCredentialReentryState()
             banner = "已更新 \(acc.title) 的密钥"
             objectWillChange.send()
             requestUsageBaselineResetAndRefresh(for: [id])
+            return true
         } catch {
             banner = "密钥保存失败：\(error.localizedDescription)"
+            return false
         }
     }
 
@@ -846,32 +868,37 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     }
 
     /// 新用户：从本机 Chrome/Edge 导入控制台登录态并添加账号（纯后台，绝不堵 UI）。
-    func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "") async {
+    @discardableResult
+    func importBrowserSessionAndAdd(kind: ProviderKind, displayName: String = "", consoleURL: String? = nil) async -> Bool {
         guard kind.supportsBrowserSessionImport else {
             banner = "该平台不支持浏览器导入"
-            return
+            return false
         }
-        guard !browserImporting else { return }
+        guard !browserImporting else { return false }
         browserImporting = true
-        banner = "正在从 Chrome 读取登录态（请稍候，勿重复点击）…"
+        defer { browserImporting = false }
+        setBrowserImportMessage("正在读取浏览器登录态，请稍候…", for: kind)
         let name = displayName
         do {
-            let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
-            await addAccount(
+            guard let cred = try await readBrowserSession(for: kind) else { return false }
+            let saved = await addAccount(
                 kind: kind,
                 displayName: name,
                 baseURL: kind.defaultBaseURL,
-                consoleURL: kind.defaultConsoleURL,
+                consoleURL: consoleURL ?? kind.defaultConsoleURL,
                 userId: cred.userId,
                 secret: cred.secret
             )
-            browserImporting = false
-            banner = "已从 \(cred.source) 导入 \(kind.displayName) 登录态"
+            guard saved else {
+                setBrowserImportMessage(banner ?? "账号保存失败，未添加账号。请重试", for: kind)
+                return false
+            }
+            browserImportDirectoryRequired.remove(kind)
+            setBrowserImportMessage("已从 \(cred.source) 导入并添加 \(kind.displayName) 账号，余额正在刷新", for: kind)
+            return true
         } catch {
-            let msg = error.localizedDescription
-            browserImporting = false
-            banner = msg
-            AppLog.error("Browser import failed: \(msg)")
+            reportBrowserImportError(error, for: kind)
+            return false
         }
     }
 
@@ -884,23 +911,64 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         }
         guard !browserImporting else { return }
         browserImporting = true
-        banner = "正在从 Chrome 更新登录态（请稍候）…"
+        defer { browserImporting = false }
         let kind = acc.kind
         let title = acc.title
+        setBrowserImportMessage("正在更新浏览器登录态，请稍候…", for: kind)
         do {
-            let cred = try await BrowserSessionImporter.importSessionAsync(for: kind)
-            await updateAccountSecret(id: id, secret: cred.secret)
-            if let uid = cred.userId, !uid.isEmpty {
-                updateAccountUserId(id: id, userId: uid)
+            guard let cred = try await readBrowserSession(for: kind) else { return }
+            guard await updateAccountSecret(id: id, secret: cred.secret, userId: cred.userId) else {
+                setBrowserImportMessage(banner ?? "登录态保存失败，原账号未改动。请重试", for: kind)
+                return
             }
-            browserImporting = false
-            banner = "已从 \(cred.source) 更新 \(title) 登录态"
+            browserImportDirectoryRequired.remove(kind)
+            setBrowserImportMessage("已从 \(cred.source) 更新 \(title) 登录态，余额正在刷新", for: kind)
         } catch {
-            let msg = error.localizedDescription
-            browserImporting = false
-            banner = msg
-            AppLog.error("Browser re-import failed: \(msg)")
+            reportBrowserImportError(error, for: kind)
         }
+    }
+
+    private func setBrowserImportMessage(_ message: String, for kind: ProviderKind) {
+        browserImportMessages[kind] = message
+        banner = message
+    }
+
+    private func reportBrowserImportError(_ error: Error, for kind: ProviderKind) {
+        if case .browserAccessDenied = error as? BrowserSessionImporter.ImportError {
+            browserImportDirectoryRequired.insert(kind)
+        }
+        // ImportError 文案不包含 Cookie、Token 或外部进程 stderr。
+        let message = (error as? BrowserSessionImporter.ImportError)?.localizedDescription
+            ?? "浏览器登录态导入失败，请重试或手动填写 Cookie"
+        setBrowserImportMessage(message, for: kind)
+        AppLog.error("Browser import failed · provider=\(kind.rawValue) · \(message)")
+    }
+
+    private func readBrowserSession(for kind: ProviderKind) async throws -> BrowserSessionImporter.Credential? {
+        var directory: URL?
+        if browserImportDirectoryRequired.contains(kind) {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.title = "允许智余读取浏览器登录态"
+            panel.message = "选择 Chrome 或 Edge 数据目录，或其中的 Default / Profile 用户目录。只读取当前平台登录 Cookie，不修改浏览器文件。"
+            panel.prompt = "选择并导入"
+            panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support/Google/Chrome", isDirectory: true)
+            NSApp.activate(ignoringOtherApps: true)
+            let response = await withCheckedContinuation { continuation in
+                panel.begin { continuation.resume(returning: $0) }
+            }
+            guard response == .OK, let selected = panel.url else {
+                setBrowserImportMessage("已取消导入，未添加账号或修改原登录态。可再次选择目录，或手动填写 Cookie", for: kind)
+                return nil
+            }
+            directory = selected
+        }
+        let scoped = directory?.startAccessingSecurityScopedResource() ?? false
+        defer { if scoped { directory?.stopAccessingSecurityScopedResource() } }
+        return try await BrowserSessionImporter.importSessionAsync(for: kind, browserDirectory: directory)
     }
 
     /// 补填 / 修改用户 ID（New-API、DMXAPI 等需要）。

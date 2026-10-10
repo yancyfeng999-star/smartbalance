@@ -76,7 +76,7 @@ struct APIAccountsSection: View {
         ) {
             VStack(alignment: .leading, spacing: 10) {
                 if accounts.isEmpty {
-                    Text(kind.isManualEntry ? "尚未添加 · 展开下方表单手录余额" : "尚未添加 · 粘贴密钥后保存")
+                    Text(kind.isManualEntry ? "尚未添加 · 展开下方表单手录余额" : (kind.supportsBrowserSessionImport ? "尚未添加 · 从浏览器导入或手动保存" : "尚未添加 · 粘贴密钥后保存"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(SBTheme.muted)
                 } else {
@@ -186,17 +186,18 @@ struct APIAccountsSection: View {
                 editEditor(for: acc)
                     .transition(AppMotion.expandContent)
                 if acc.kind.supportsBrowserSessionImport {
-                    Button(model.browserImporting ? "导入中…" : "从 Chrome 重新导入登录态") {
+                    Button(browserImportButtonTitle(for: acc.kind, existing: true)) {
                         Task {
                             await model.importBrowserSession(intoAccountId: acc.id)
                         }
-                        editAccountId = nil
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(SBTheme.accent)
+                    .accessibilityIdentifier("browser.reimport.\(acc.id.uuidString)")
                     .disabled(model.browserImporting)
                     .padding(.top, 2)
+                    browserImportFeedback(for: acc.kind)
                 }
             }
         }
@@ -446,17 +447,20 @@ struct APIAccountsSection: View {
             }
 
             if kind.supportsBrowserSessionImport {
-                Button(model.browserImporting ? "导入中…" : "从 Chrome 导入并添加") {
+                Button(browserImportButtonTitle(for: kind)) {
+                    let name = draftName
+                    let consoleURL = draftConsoleURL
                     Task {
-                        await model.importBrowserSessionAndAdd(kind: kind, displayName: draftName)
-                    }
-                    // 导入在后台跑；成功后会 refresh，这里清草稿便于再添
-                    if !model.browserImporting {
-                        resetDraft(for: kind)
+                        let saved = await model.importBrowserSessionAndAdd(kind: kind, displayName: name, consoleURL: consoleURL)
+                        if saved, expandedKey == kind.rawValue {
+                            resetDraft(for: kind)
+                        }
                     }
                 }
                 .buttonStyle(SBButtonStyle(kind: .accent))
+                .accessibilityIdentifier("browser.add.\(kind.rawValue)")
                 .disabled(model.browserImporting)
+                browserImportFeedback(for: kind)
                 Button("手动填写后保存") {
                     Task {
                         await submitAdd(kind: kind)
@@ -475,6 +479,31 @@ struct APIAccountsSection: View {
                 .buttonStyle(SBButtonStyle(kind: .accent))
                 .disabled(addDisabled(kind))
             }
+        }
+    }
+
+    private func browserImportButtonTitle(for kind: ProviderKind, existing: Bool = false) -> String {
+        if model.browserImporting { return "导入中…" }
+        if model.browserImportDirectoryRequired.contains(kind) {
+            return existing ? "选择目录并重新导入" : "选择浏览器目录并导入"
+        }
+        return existing ? "从 Chrome 重新导入登录态" : "从 Chrome 导入并添加"
+    }
+
+    @ViewBuilder
+    private func browserImportFeedback(for kind: ProviderKind) -> some View {
+        if let message = model.browserImportMessages[kind] {
+            HStack(alignment: .top, spacing: 6) {
+                if model.browserImporting {
+                    ProgressView().controlSize(.mini)
+                }
+                Text(message)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(model.browserImportDirectoryRequired.contains(kind) ? SBTheme.warn : SBTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+            .accessibilityElement(children: .combine)
         }
     }
 
@@ -554,7 +583,7 @@ struct APIAccountsSection: View {
             secret = draftSecret
         }
         let console = draftConsoleURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        await model.addAccount(
+        let saved = await model.addAccount(
             kind: kind,
             displayName: draftName,
             baseURL: kind.needsBaseURL ? draftBaseURL : kind.defaultBaseURL,
@@ -563,7 +592,11 @@ struct APIAccountsSection: View {
             secret: secret,
             manualAmount: kind.isManualEntry ? amount : nil
         )
-        resetDraft(for: kind)
+        if saved, expandedKey == kind.rawValue {
+            resetDraft(for: kind)
+        } else if !saved, kind.supportsBrowserSessionImport {
+            model.browserImportMessages[kind] = "密钥保存失败，填写内容已保留。请重试"
+        }
     }
 
     private func resetDraft(for kind: ProviderKind) {

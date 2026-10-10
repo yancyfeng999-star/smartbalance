@@ -143,6 +143,7 @@ rm -rf "$APP_SRC"
 # 本项目 DerivedData + 全局 Xcode DerivedData 里残留的 智余.app
 rm -rf "${ROOT}/build/DerivedData/Build/Products" 2>/dev/null || true
 rm -rf "${DERIVED}/Build/Products" 2>/dev/null || true
+if [[ "${CLEANUP_PROJECT_ONLY:-0}" != "1" ]]; then
 while IFS= read -r leftover; do
   [[ -z "$leftover" ]] && continue
   [[ "$leftover" == "/Applications/${APP_NAME}.app" ]] && continue
@@ -152,6 +153,7 @@ while IFS= read -r leftover; do
   rm -rf "$leftover"
 done < <(find "${HOME}/Library/Developer/Xcode/DerivedData" \
   -path '*SmartBalance*' -name "${APP_NAME}.app" -type d 2>/dev/null || true)
+fi
 
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$WORK/app/${APP_NAME}.app"
@@ -211,6 +213,10 @@ hdiutil create \
 
 MOUNT_DIR="$WORK/mnt"
 mkdir -p "$MOUNT_DIR"
+DEVICE=""
+VOL_PATH="$MOUNT_DIR"
+# Headless packaging must not drive Finder or scan unrelated mounted volumes.
+if [[ "${SKIP_DMG_LAYOUT:-0}" != "1" ]]; then
 DEVICE="$(hdiutil attach -readwrite -noverify -noautoopen "$RW_DMG" | awk '/Apple_HFS|Apple_APFS|GUID_partition_scheme/ {print $1; exit}')"
 VOL_PATH="$(ls -d /Volumes/${APP_NAME}* 2>/dev/null | head -1 || true)"
 if [[ -n "${VOL_PATH:-}" && -d "$VOL_PATH" ]]; then
@@ -240,6 +246,7 @@ APPLESCRIPT
   hdiutil detach "$VOL_PATH" -force 2>/dev/null || hdiutil detach "$DEVICE" -force 2>/dev/null || true
 else
   hdiutil detach "$DEVICE" -force 2>/dev/null || true
+fi
 fi
 # 确保卷已卸下再 convert，避免「资源暂时不可用」
 sleep 0.8
@@ -321,6 +328,7 @@ EOF
 
 printf '%s\n' "==> [5/5] 清理（默认不复制到桌面，发版只上 GitHub）"
 # 避免桌面残留裸 .app / 旧发布夹导致 Spotlight 多个智余
+if [[ "${CLEANUP_PROJECT_ONLY:-0}" != "1" ]]; then
 if [[ -x "$LSREG" && -d "${HOME}/Desktop/${APP_NAME}.app" ]]; then
   "$LSREG" -u "${HOME}/Desktop/${APP_NAME}.app" 2>/dev/null || true
 fi
@@ -331,6 +339,7 @@ for vol in /Volumes/${APP_NAME}* /Volumes/${EN_NAME}*; do
   hdiutil detach "$vol" -force 2>/dev/null || true
 done
 shopt -u nullglob
+fi
 if [[ "${COPY_TO_DESKTOP}" == "1" ]]; then
   rm -rf "${DESKTOP_OUT}"
   mkdir -p "${DESKTOP_OUT}"
