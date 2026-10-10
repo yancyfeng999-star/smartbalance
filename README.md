@@ -107,7 +107,7 @@ cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 
 ## 更新（GitHub Releases）
 
-产品版本以 Info.plist 为准（当前 **0.3.2 / 83**）。已发布包以 GitHub Releases 上的 tag 为准。
+产品版本和构建号以 `Apps/Mac/Sources/App/Info.plist` 为准。已发布包以 GitHub Releases 上的 tag 为准。
 
 检查更新流程是手动确认，不会因为启动应用而静默替换：
 

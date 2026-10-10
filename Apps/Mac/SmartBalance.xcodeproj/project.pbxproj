@@ -219,6 +219,7 @@
 		ED1546818E0A00C3649B46F4 /* AlertChannelsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EB39095094CE9898ECCA2A /* AlertChannelsSection.swift */; };
 		EDF513D6B0AA774563D82530 /* SettingsTransferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BE5CB8CD5E826C589A2857B /* SettingsTransferView.swift */; };
 		EE31A900C3FA17FCB8997FCE /* VolcengineBalanceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25CDDCD9DA0711BE2EB4147 /* VolcengineBalanceProvider.swift */; };
+		F12B88543B65C88F162A35DF /* WalletAccountMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC88CA6065F4E115C731C59 /* WalletAccountMigrationTests.swift */; };
 		F14A7535CEC9ECFD52734E61 /* RecoveryMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB72B985609C574FD69BB894 /* RecoveryMarker.swift */; };
 		F408E4378A848785F458910E /* BalanceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A81C173273B9D42AD654E3 /* BalanceSnapshot.swift */; };
 		F41BDA821A1D7689B8343B53 /* PinnedBalanceWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874A99FADE042A0E1E3D8317 /* PinnedBalanceWindow.swift */; };
@@ -513,6 +514,7 @@
 		B354EE7B38B3CB046EA00DF6 /* CrashRecoveryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashRecoveryStore.swift; sourceTree = "<group>"; };
 		B92BCD2E0188D6492EAC7395 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		BA9EE2F71455A98947D22665 /* InfrastructureTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "InfrastructureTests-Info.plist"; sourceTree = "<group>"; };
+		BAC88CA6065F4E115C731C59 /* WalletAccountMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletAccountMigrationTests.swift; sourceTree = "<group>"; };
 		BF2BF335BCCB49E9F8CA6AEE /* BalanceAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceAccount.swift; sourceTree = "<group>"; };
 		BF5637A3FBDD0924ECEDB43B /* MenuBarStatusItemDriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusItemDriverTests.swift; sourceTree = "<group>"; };
 		C0CC4A9C0B27726B9BFB20A5 /* UsageSummaryBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSummaryBuilderTests.swift; sourceTree = "<group>"; };
@@ -954,6 +956,7 @@
 				86E869802134F0C3EE8C0F7B /* UpdateModelsTests.swift */,
 				84FC2759A6334CA0B67F9E86 /* UsageAccumulatorTests.swift */,
 				C0CC4A9C0B27726B9BFB20A5 /* UsageSummaryBuilderTests.swift */,
+				BAC88CA6065F4E115C731C59 /* WalletAccountMigrationTests.swift */,
 			);
 			path = DomainTests;
 			sourceTree = "<group>";
@@ -1574,6 +1577,7 @@
 				2AA7B773A7C1A64B7165C1AD /* UpdateModelsTests.swift in Sources */,
 				B40E32184C27C930F2C86394 /* UsageAccumulatorTests.swift in Sources */,
 				2DD9D886ECB8CB8E2ED4C4F7 /* UsageSummaryBuilderTests.swift in Sources */,
+				F12B88543B65C88F162A35DF /* WalletAccountMigrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

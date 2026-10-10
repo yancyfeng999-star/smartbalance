@@ -31,8 +31,10 @@
 
 `verify-open-source.sh` 与 `git diff --check` 通过。凭据不进入验证文档或提交文件；测试使用模拟凭据。
 
+用户完成 Xcode 27 许可确认后，复跑项目正式 `run-tests.sh`：**385 passed / 0 failed**（Domain 98 + Infrastructure 251 + App 36），Debug 构建成功。
+
 ## 未完成的交付验证
 
-- Xcode 27 尚未接受许可，`tuist generate` 与 `xcodebuild` 构建被拦截。因此完整项目测试、Release App、DMG / PKG、签名及应用内更新尚未确认；直接运行的上述 XCTest 不能替代这些步骤。
+- Release App、DMG / PKG、签名及应用内更新验证待发布流程完成。
 - 未强制退出当前浏览器账号再登录第二个真实账号；多 Profile 选择和重复导入已检查，但真实跨账号切换仍需验收。
 - 未覆盖当前已安装 App。源码提交不代表新安装包已发布。

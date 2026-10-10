@@ -20,6 +20,20 @@ KEEP="/Applications/智余.app"
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 KEEP_RUNNING="${KEEP_RUNNING:-0}"
 
+# 发布/测试只清理本项目构建副本，避免触碰已安装 App、系统缓存或其他临时目录。
+if [[ "${CLEANUP_PROJECT_ONLY:-0}" == "1" ]]; then
+  while IFS= read -r app; do
+    [[ -d "$app" ]] || continue
+    if [[ -x "$LSREG" ]]; then
+      "$LSREG" -u "$app" 2>/dev/null || true
+    fi
+    rm -rf "$app"
+  done < <(find "${REPO_ROOT}/Apps/Mac/build" \
+    \( -name "智余.app" -o -name "SmartBalance.app" \) -type d -prune 2>/dev/null || true)
+  echo "==> 已清理本项目构建副本，保留已安装 App"
+  exit 0
+fi
+
 if [[ "${KEEP_RUNNING}" != "1" ]]; then
   echo "==> 退出运行中的智余"
   pkill -x "智余" 2>/dev/null || true

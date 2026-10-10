@@ -284,6 +284,10 @@ cat > "$STAGE/RELEASE_NOTES.md" <<EOF
 - **日期**：${DATE_STR}
 - **标签**：\`${TAG}\`
 
+## 本次更新
+
+${NOTES:-常规维护更新。}
+
 ## 安装包
 
 | 文件 | 怎么用 |
