@@ -38,7 +38,9 @@ macOS 系统日志在相同点击时间记录 `kTCCServiceSystemPolicyAppDataDet
 - 真实 App UI：权限被拒绝时显示具体错误；系统目录选择取消后草稿名称保留、账号数不变；确认 Chrome 目录后成功添加 MiniMax；APINebula 对原账号重新导入，未重复添加。
 - 软件与实时 Chrome 网页核对：MiniMax 人民币钱包 **¥394.91**，APINebula 人民币钱包 **¥199.47**。二者刷新及最终构建干净退出/重启后均仍显示一致余额，无需再次导入。
 - 使用本地 Debug 验收副本（独立 bundle ID、临时普通窗口），真实设置中仅操作这两个授权平台。其他账号因副本代码身份不同显示待补，不代表用户安装版数据丢失，未重写其他渠道凭据。临时窗口/启动策略源码已还原，不进入发行包。
-- Release 包与远端发布结果在完成后补录；未完成前不宣称通过。
+- 0.4.4（build 88）Debug / Release 构建均 `BUILD SUCCEEDED`。DMG 校验通过；DMG / PKG 内 App 完全一致，包内版本与构建号一致；普通菜单栏身份 `com.smartbalance.zhiyu`、`LSUIElement=true`，含 arm64 / x86_64；`codesign --verify --deep --strict` 通过；四个本地中英文包 SHA-256 全部匹配。
+- 本地开源门禁 `open-source-check: PASS`。发行包仍为 ad-hoc 签名，未 Developer ID 签名/公证；不宣称其他 Mac 的 Gatekeeper 验收通过。
+- 远端发布结果在完成后补录；未完成前不宣称通过。
 
 ## 安全与限制
 
