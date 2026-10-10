@@ -27,6 +27,8 @@ public final class LocalSecretStore: @unchecked Sendable {
     public func set(_ value: String, account: String) throws {
         try queue.sync {
             try saveToKeychain(key: account, value: value)
+            // Do not let the memory cache hide an unreadable legacy ACL.
+            try Self.verifyReadBack(loadFromKeychain(key: account), matches: value)
             memory[account] = value
         }
     }
@@ -100,6 +102,10 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     func keychainLookupCountForTesting(account: String) -> Int {
         queue.sync { lookupCounts[account] ?? 0 }
+    }
+
+    static func verifyReadBack(_ stored: String?, matches expected: String) throws {
+        guard stored == expected else { throw SecretStoreError.verificationFailed }
     }
 
     // MARK: - Keychain
@@ -202,12 +208,15 @@ public final class LocalSecretStore: @unchecked Sendable {
 
     public enum SecretStoreError: Error, LocalizedError {
         case encodingFailed
+        case verificationFailed
         case keychainFailed(OSStatus)
 
         public var errorDescription: String? {
             switch self {
             case .encodingFailed:
                 "密钥编码失败"
+            case .verificationFailed:
+                "密钥写入后无法安全读取，未完成保存。原账号配置已保留"
             case .keychainFailed(let status):
                 "Keychain 操作失败: \(status)"
             }

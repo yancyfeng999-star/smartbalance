@@ -31,6 +31,14 @@ open ~/Desktop/智余.app
 | MiniMax | **推荐**：Chrome 登录充值页后点「从 Chrome 导入」；或手贴 `_token`+`group_id` |
 | apinebula | Chrome 登录后一键导入（自动读 session 查余额） |
 
+### 浏览器导入提示权限不足
+
+MiniMax、MiMo、APINebula 的「从 Chrome 导入并添加」会在按钮下持续显示进度与结果。导入失败不会清空填写内容，也不会添加空账号；重新导入失败会保留原账号凭据。
+
+如果 macOS 拒绝读取浏览器数据，按钮会变为「选择浏览器目录并导入」。点击后，在系统文件夹选择窗口中确认 Chrome 数据目录 `~/Library/Application Support/Google/Chrome`，或其 `Default` / `Profile …` 用户目录；Edge 对应 `~/Library/Application Support/Microsoft Edge`。选定单个用户目录时，只导入该用户的登录态，便于切换账号。取消窗口不会改动账号。
+
+这一步是对选定目录的明确授权，不需要给智余开启全盘访问权限，也不会修改浏览器文件。若仍无法读取，可手动填写当前平台的 Cookie。浏览器 Safe Storage 钥匙串访问与目录权限是两回事，系统可能单独要求允许读取；智余不会把浏览器凭据放入配置、日志或公开文件。
+
 回首页点 **刷新**。
 
 ### 2. 报警

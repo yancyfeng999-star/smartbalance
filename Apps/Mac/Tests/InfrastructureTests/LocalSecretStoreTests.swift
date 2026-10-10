@@ -3,6 +3,20 @@ import XCTest
 @testable import Infrastructure
 
 final class LocalSecretStoreTests: XCTestCase {
+    func testUnreadableWriteIsNotReportedAsSaved() {
+        XCTAssertThrowsError(try LocalSecretStore.verifyReadBack(nil, matches: "private-value")) { error in
+            XCTAssertFalse(error.localizedDescription.contains("private-value"))
+        }
+    }
+
+    func testMismatchedWriteIsNotReportedAsSaved() {
+        XCTAssertThrowsError(try LocalSecretStore.verifyReadBack("old", matches: "new"))
+    }
+
+    func testMatchingReadBackIsAccepted() {
+        XCTAssertNoThrow(try LocalSecretStore.verifyReadBack("new", matches: "new"))
+    }
+
     func testOrdinaryKeychainSecretCanBeReadByANewStoreInstance() throws {
         let account = "test.ordinary-keychain.\(UUID().uuidString)"
         let writer = LocalSecretStore()

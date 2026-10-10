@@ -7,7 +7,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
 | 版本 | 0.4.3 |
-| 验证 | 最新钱包修复与 385 项测试见 [钱包验证记录](docs/superpowers/verification/2026-10-09-wallet-balances-verification.md)。用户安装和跨账号切换需单独验收 |
+| 验证 | 最新导入修复与 398 项测试见 [导入验证记录](docs/superpowers/verification/2026-10-10-browser-import-verification.md)。已核对两家钱包及重启；用户安装和真实第二账号切换需单独验收 |
 
 ---
 
