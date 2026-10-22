@@ -30,7 +30,7 @@ public enum BrowserSessionImporter: Sendable {
             case .browserNotFound:
                 return "未找到 Chrome / Edge。请安装并登录控制台后重试"
             case .browserAccessDenied:
-                return "macOS 未允许智余读取浏览器数据。请点「选择浏览器目录并导入」，在系统窗口中选择 Chrome 或 Edge 数据目录后重试。也可手动填写 Cookie"
+                return "macOS 未允许智余读取浏览器数据。请点「授权目录并重新连接」，在系统窗口中选择 Chrome 或 Edge 数据目录后重试。这是目录权限问题，不代表网站未登录"
             case .browserReadFailed:
                 return "浏览器数据读取失败，请重试或手动填写 Cookie（这不代表未登录）"
             case .invalidBrowserDirectory:
