@@ -21,6 +21,8 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     case minimax
     /// apinebula：Chrome 导入 session 自动查余额（New-API 兼容）
     case apinebula
+    /// Bytebroad 人民币钱包，使用浏览器 session。
+    case bytebroad
     /// 旧设置或用量里出现的未识别渠道；读入保留，不作为可添加平台。
     case unsupported
 
@@ -45,6 +47,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "小米 MiMo"
         case .minimax: "MiniMax"
         case .apinebula: "apinebula"
+        case .bytebroad: "Bytebroad"
         case .unsupported: "未识别渠道"
         }
     }
@@ -63,6 +66,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "https://platform.xiaomimimo.com"
         case .minimax: "https://www.minimax.cn"
         case .apinebula: "https://apinebula.com"
+        case .bytebroad: "https://token.bytebroad.com.cn"
         case .unsupported: nil
         }
     }
@@ -110,6 +114,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "https://platform.xiaomimimo.com/console/balance"
         case .minimax: "https://platform.minimax.cn/console/recharge-records"
         case .apinebula: "https://apinebula.com/zh/console/topup"
+        case .bytebroad: "https://token.bytebroad.com.cn/wallet"
         case .unsupported: nil
         }
     }
@@ -141,6 +146,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
         case .mimo: "粘贴 serviceToken 或整段 Cookie"
         case .minimax: "粘贴 _token 与 group，或整段 Cookie"
         case .apinebula: "session Cookie（推荐从 Chrome 一键导入）"
+        case .bytebroad: "浏览器登录后自动连接人民币钱包"
         case .unsupported: "此渠道无法识别，请在支持该平台的版本中重新配置"
         }
     }
@@ -175,7 +181,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     /// 支持从 Chrome 一键导入控制台登录态（不手填密钥）。
     public var supportsBrowserSessionImport: Bool {
         switch self {
-        case .mimo, .minimax, .apinebula: true
+        case .mimo, .minimax, .apinebula, .bytebroad: true
         case .unsupported: false
         default: false
         }
@@ -195,7 +201,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable, Identifiable 
     public var defaultManualUnit: String {
         switch self {
         // 吉米币 / 老张 USD 在 Provider 内已折算为人民币再展示
-        case .mimo, .minimax, .apinebula, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
+        case .mimo, .minimax, .apinebula, .bytebroad, .deepseek, .kimi, .dmxapi, .volcengine, .viraltok, .laozhang: "¥"
         case .openrouter, .newapi: "USD"
         case .unsupported: "¥"
         }

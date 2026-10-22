@@ -2,7 +2,7 @@ import Foundation
 import Domain
 import CommonCrypto
 
-/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供 MiMo / MiniMax / apinebula 一键导入。
+/// 从本机 Chrome / Edge 读取已登录控制台的 Cookie，供浏览器钱包渠道一键导入。
 ///
 /// - Important: 全部逻辑可重入后台线程；禁止在 MainActor 上同步调用。
 public enum BrowserSessionImporter: Sendable {
@@ -30,7 +30,7 @@ public enum BrowserSessionImporter: Sendable {
             case .browserNotFound:
                 return "未找到 Chrome / Edge。请安装并登录控制台后重试"
             case .browserAccessDenied:
-                return "macOS 未允许智余读取浏览器数据。请点「选择浏览器目录并导入」，在系统窗口中选择 Chrome 或 Edge 数据目录后重试。也可手动填写 Cookie"
+                return "macOS 未允许智余读取浏览器数据。请点「授权目录并重新连接」，在系统窗口中选择 Chrome 或 Edge 数据目录后重试。这是目录权限问题，不代表网站未登录"
             case .browserReadFailed:
                 return "浏览器数据读取失败，请重试或手动填写 Cookie（这不代表未登录）"
             case .invalidBrowserDirectory:
@@ -66,6 +66,7 @@ public enum BrowserSessionImporter: Sendable {
         case .mimo: return try importMiMo(browserDirectory: browserDirectory)
         case .minimax: return try importMiniMax(browserDirectory: browserDirectory)
         case .apinebula: return try importApinebula(browserDirectory: browserDirectory)
+        case .bytebroad: return try importBytebroad(browserDirectory: browserDirectory)
         default: throw ImportError.unsupportedKind
         }
     }
@@ -78,17 +79,40 @@ public enum BrowserSessionImporter: Sendable {
             names: ["api-platform_serviceToken", "userId"],
             browserDirectory: browserDirectory
         )
-        let token = cookies.first(where: { $0.name == "api-platform_serviceToken" })?.value
-        let userId = cookies.first(where: { $0.name == "userId" })?.value
-        guard let token, !token.isEmpty else {
+        return try miMoCredential(from: cookies)
+    }
+
+    static func miMoCredential(from cookies: [CookieRow]) throws -> Credential {
+        guard let tokenRow = cookies.first(where: { $0.name == "api-platform_serviceToken" && !$0.value.isEmpty }) else {
             throw ImportError.cookieNotFound(
                 "未找到 MiMo 登录态。请先在 Chrome 登录 https://platform.xiaomimimo.com/console/balance 后再导入"
             )
         }
-        guard let userId, !userId.isEmpty else {
+        guard let userId = cookies.first(where: {
+            $0.name == "userId" && $0.browserName == tokenRow.browserName && $0.profileID == tokenRow.profileID
+        })?.value, !userId.isEmpty else {
             throw ImportError.cookieNotFound("找到 serviceToken，但缺少 userId。请确认已登录控制台")
         }
-        return Credential(secret: token, userId: userId, source: cookies.first?.browserName ?? "Chrome")
+        return Credential(secret: tokenRow.value, userId: userId, source: tokenRow.browserName)
+    }
+
+    private static func importBytebroad(browserDirectory: URL?) throws -> Credential {
+        try bytebroadCredential(from: loadCookies(
+            hostNeedles: ["token.bytebroad.com.cn"], names: ["session"], browserDirectory: browserDirectory
+        ))
+    }
+
+    static func bytebroadCredential(from cookies: [CookieRow]) throws -> Credential {
+        guard let row = cookies.first(where: {
+            $0.host.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased() == "token.bytebroad.com.cn"
+                && $0.name == "session" && !$0.value.isEmpty
+        }) else {
+            throw ImportError.cookieNotFound("未找到 Bytebroad 登录态。请打开官网登录，完成后点击「重新连接」")
+        }
+        guard let uid = SessionCookieParser.extractNewAPISessionUserId(fromSession: row.value) else {
+            throw ImportError.cookieNotFound("无法识别 Bytebroad 会话账号。请打开官网刷新或登录后重新连接")
+        }
+        return Credential(secret: row.value, userId: uid, source: row.browserName)
     }
 
     private static func importMiniMax(browserDirectory: URL?) throws -> Credential {
@@ -147,7 +171,7 @@ public enum BrowserSessionImporter: Sendable {
 
     // MARK: - Cookie load
 
-    private struct CookieRow: Sendable {
+    struct CookieRow: Sendable {
         var host: String
         var name: String
         var value: String
@@ -158,14 +182,17 @@ public enum BrowserSessionImporter: Sendable {
 
     private static func loadCookies(hostNeedles: [String], names: [String], browserDirectory: URL?) throws -> [CookieRow] {
         let home = NSHomeDirectory()
-        let candidates = try browserCookieCandidates(home: home, selectedDirectory: browserDirectory)
+        var directoryReadError: ImportError?
+        let candidates = try discoverBrowserCookieCandidates(
+            home: home, selectedDirectory: browserDirectory, onReadError: { directoryReadError = $0 }
+        )
 
         var sawDB = false
         var lastKeyError: String?
         var cachedKey: [String: Data] = [:]
         var attemptedKeychainServices: Set<String> = []
         var allRows: [CookieRow] = []
-        var lastReadError: ImportError?
+        var lastReadError: ImportError? = directoryReadError
 
         for c in candidates {
             do {
@@ -362,9 +389,7 @@ public enum BrowserSessionImporter: Sendable {
         // 等管道读完
         usleep(50_000)
         if proc.terminationStatus != 0 {
-            throw ImportError.cookieNotFound(
-                "读取浏览器数据失败（\(proc.terminationStatus)）。请退出 Chrome 后重试"
-            )
+            throw ImportError.browserReadFailed
         }
         return box.out
     }
@@ -418,6 +443,16 @@ public enum BrowserSessionImporter: Sendable {
         selectedDirectory: URL? = nil,
         listDirectory: (String) throws -> [String] = FileManager.default.contentsOfDirectory(atPath:)
     ) throws -> [(name: String, path: String, service: String, account: String, profileID: String)] {
+        try discoverBrowserCookieCandidates(home: home, selectedDirectory: selectedDirectory,
+            onReadError: nil, listDirectory: listDirectory)
+    }
+
+    private static func discoverBrowserCookieCandidates(
+        home: String,
+        selectedDirectory: URL? = nil,
+        onReadError: ((ImportError) -> Void)?,
+        listDirectory: (String) throws -> [String] = FileManager.default.contentsOfDirectory(atPath:)
+    ) throws -> [(name: String, path: String, service: String, account: String, profileID: String)] {
 
         func profileCookiePaths(root: String) throws -> [(profileID: String, path: String)] {
             let names: [String]
@@ -461,7 +496,17 @@ public enum BrowserSessionImporter: Sendable {
                 throw ImportError.invalidBrowserDirectory
             }
         }
-        let chrome = try paths(in: chromeRoot).map {
+        var discoveryError: ImportError?
+        func availablePaths(in root: String) -> [(profileID: String, path: String)] {
+            do { return try paths(in: root) }
+            catch {
+                let issue = error as? ImportError ?? .browserReadFailed
+                discoveryError = discoveryError ?? issue
+                onReadError?(issue)
+                return []
+            }
+        }
+        let chrome = availablePaths(in: chromeRoot).map {
             (
                 name: "Chrome",
                 path: $0.path,
@@ -470,7 +515,7 @@ public enum BrowserSessionImporter: Sendable {
                 profileID: $0.profileID
             )
         }
-        let edge = try paths(in: edgeRoot).map {
+        let edge = availablePaths(in: edgeRoot).map {
             (
                 name: "Edge",
                 path: $0.path,
@@ -479,7 +524,9 @@ public enum BrowserSessionImporter: Sendable {
                 profileID: $0.profileID
             )
         }
-        return chrome + edge
+        let result = chrome + edge
+        if result.isEmpty, let discoveryError { throw discoveryError }
+        return result
     }
 
     static func isAccessDenied(_ error: Error) -> Bool {

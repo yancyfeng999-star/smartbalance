@@ -34,7 +34,7 @@ struct APIAccountsSection: View {
 
     private var nestedList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("点平台卡片展开，添加密钥 / Cookie 或手录金额")
+            Text("点平台卡片展开；浏览器渠道登录后点击连接，无需复制 Cookie")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -185,7 +185,15 @@ struct APIAccountsSection: View {
             if editAccountId == acc.id {
                 editEditor(for: acc)
                     .transition(AppMotion.expandContent)
-                if acc.kind.supportsBrowserSessionImport {
+            }
+            if acc.kind.supportsBrowserSessionImport {
+                HStack(spacing: 10) {
+                    Button("打开官网登录") { model.openBrowserLogin(for: acc.kind) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SBTheme.accent)
+                        .accessibilityIdentifier("browser.login.\(acc.id.uuidString)")
+                        .disabled(model.browserImporting)
                     Button(browserImportButtonTitle(for: acc.kind, existing: true)) {
                         Task {
                             await model.importBrowserSession(intoAccountId: acc.id)
@@ -197,8 +205,8 @@ struct APIAccountsSection: View {
                     .accessibilityIdentifier("browser.reimport.\(acc.id.uuidString)")
                     .disabled(model.browserImporting)
                     .padding(.top, 2)
-                    browserImportFeedback(for: acc.kind)
                 }
+                browserImportFeedback(for: acc.kind)
             }
         }
         .padding(8)
@@ -213,6 +221,12 @@ struct APIAccountsSection: View {
     }
 
     private func accountStatusLine(_ acc: BalanceAccount) -> String {
+        if model.snapshots.contains(where: { $0.accountId == acc.id && $0.connectionIssue == .loginRequired }) {
+            return "登录已失效 · 重新连接后恢复刷新"
+        }
+        if acc.kind.supportsBrowserSessionImport, missingCredential(acc) {
+            return "尚未连接 · 点击重新连接自动获取登录态"
+        }
         if acc.kind.isManualEntry {
             if let amt = acc.manualAmount {
                 let when = acc.manualUpdatedAt.map { Self.shortDate.string(from: $0) } ?? "—"
@@ -398,7 +412,7 @@ struct APIAccountsSection: View {
 
     private func addForm(for kind: ProviderKind) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(kind.isManualEntry ? "添加手录账号" : "添加密钥")
+            Text(kind.isManualEntry ? "添加手录账号" : (kind.supportsBrowserSessionImport ? "连接浏览器账号" : "添加密钥"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
 
@@ -447,6 +461,12 @@ struct APIAccountsSection: View {
             }
 
             if kind.supportsBrowserSessionImport {
+                Button("打开官网登录") { model.openBrowserLogin(for: kind) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
+                    .accessibilityIdentifier("browser.login.\(kind.rawValue)")
+                    .disabled(model.browserImporting)
                 Button(browserImportButtonTitle(for: kind)) {
                     let name = draftName
                     let consoleURL = draftConsoleURL
@@ -461,15 +481,6 @@ struct APIAccountsSection: View {
                 .accessibilityIdentifier("browser.add.\(kind.rawValue)")
                 .disabled(model.browserImporting)
                 browserImportFeedback(for: kind)
-                Button("手动填写后保存") {
-                    Task {
-                        await submitAdd(kind: kind)
-                    }
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(SBTheme.accent)
-                .disabled(addDisabled(kind) || model.browserImporting)
             } else {
                 Button(kind.isManualEntry ? "添加手录账号" : "保存密钥") {
                     Task {
@@ -483,11 +494,12 @@ struct APIAccountsSection: View {
     }
 
     private func browserImportButtonTitle(for kind: ProviderKind, existing: Bool = false) -> String {
-        if model.browserImporting { return "导入中…" }
+        if model.browserImporting { return "正在自动连接…" }
         if model.browserImportDirectoryRequired.contains(kind) {
-            return existing ? "选择目录并重新导入" : "选择浏览器目录并导入"
+            return "授权目录并重新连接"
         }
-        return existing ? "从 Chrome 重新导入登录态" : "从 Chrome 导入并添加"
+        if model.browserLoginRequiredKinds.contains(kind) { return "登录完成，重新连接" }
+        return existing ? "重新连接" : "自动连接并添加"
     }
 
     @ViewBuilder
@@ -511,7 +523,7 @@ struct APIAccountsSection: View {
     @ViewBuilder
     private func cookieProviderSetup(kind: ProviderKind) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("新用户怎么接")
+            Text("浏览器连接")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(SBTheme.text)
             Text(cookieSetupGuide(kind))
@@ -519,31 +531,29 @@ struct APIAccountsSection: View {
                 .foregroundStyle(SBTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // apinebula 不展示密钥/UID 输入为主路径；高级折叠在「手动填写」
-            if kind != .apinebula {
-                SecureField(kind.credentialHintCN, text: $draftSecret)
+            DisclosureGroup("高级：手动填写 Cookie") {
+                SecureField("Cookie 或会话值", text: $draftSecret)
                     .textFieldStyle(.roundedBorder)
-                TextField(kind.userIdHintCN, text: $draftUserId)
-                    .textFieldStyle(.roundedBorder)
-                Text("高级：也可整段 Cookie 粘进密钥框，会自动拆字段")
+                if kind.needsUserId {
+                    TextField(kind.userIdHintCN, text: $draftUserId)
+                        .textFieldStyle(.roundedBorder)
+                }
+                Text("仅作为备选；自动连接会从浏览器读取会话并识别 UID")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(SBTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
+                Button("手动填写后保存") { Task { await submitAdd(kind: kind) } }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SBTheme.accent)
+                    .disabled(addDisabled(kind) || model.browserImporting)
             }
+            .font(.system(size: 11, weight: .medium))
         }
     }
 
     private func cookieSetupGuide(_ kind: ProviderKind) -> String {
-        switch kind {
-        case .mimo:
-            return "1. 用 Chrome 打开并登录 platform.xiaomimimo.com 控制台\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 Cookies 里的 serviceToken / userId 粘贴到下面"
-        case .minimax:
-            return "1. 用 Chrome 打开并登录 platform.minimax.cn 充值/余额页\n2. 点下方「从 Chrome 导入并添加」\n3. 若失败，可把 _token 与 minimax_group_id_v2 粘贴到下面"
-        case .apinebula:
-            return "1. 用 Chrome 打开并登录 https://apinebula.com/zh/console/topup\n2. 点下方「从 Chrome 导入并添加」\n3. 自动读取 session 并查余额，无需手填密钥"
-        default:
-            return "1. 用 Chrome 登录控制台\n2. 点「从 Chrome 导入并添加」"
-        }
+        "1. 已登录？直接点「自动连接并添加」\n2. 需要登录时，点「打开官网登录」并完成登录\n3. 回到智余点「登录完成，重新连接」，自动获取余额\n首次权限不足时，请在系统窗口确认浏览器目录。无需手抄 Cookie / UID"
     }
 
     private func addDisabled(_ kind: ProviderKind) -> Bool {
@@ -624,6 +634,7 @@ struct APIAccountsSection: View {
         case .mimo: "iphone"
         case .minimax: "waveform"
         case .apinebula: "cloud.fill"
+        case .bytebroad: "b.circle.fill"
         case .unsupported: "questionmark.circle"
         }
     }
@@ -641,6 +652,7 @@ struct APIAccountsSection: View {
         case .mimo: [Color(red: 0.95, green: 0.30, blue: 0.25), Color(red: 0.85, green: 0.2, blue: 0.2)]
         case .minimax: [Color(red: 0.55, green: 0.25, blue: 0.95), Color(red: 0.4, green: 0.15, blue: 0.85)]
         case .apinebula: [Color(red: 0.20, green: 0.55, blue: 0.90), Color(red: 0.12, green: 0.35, blue: 0.75)]
+        case .bytebroad: [Color(red: 0.10, green: 0.48, blue: 0.83), Color(red: 0.08, green: 0.30, blue: 0.61)]
         case .unsupported: [Color(red: 0.45, green: 0.45, blue: 0.48), Color(red: 0.32, green: 0.32, blue: 0.35)]
         }
     }

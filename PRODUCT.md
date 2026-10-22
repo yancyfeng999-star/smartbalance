@@ -13,8 +13,10 @@
 ### 余额
 
 1. **API 直查** — 各平台 Key / 系统令牌 / AK·SK
-2. **控制台 Cookie** — MiMo / MiniMax / **apinebula** 可从 Chrome 一键导入登录态自动查余额
+2. **浏览器登录态** — MiMo / MiniMax / apinebula / **Bytebroad** 可自动查找 Chrome / Edge 登录态并查询钱包；Bytebroad 仅按该站点人民币钱包和累计消费统计
 3. **系统令牌** — New-API / DMXAPI 等仍可贴令牌 + 用户 ID
+
+登录失效与目录访问被拒绝分别提示。提供“打开官网登录”和“登录完成，重新连接”；连接前先验证钱包，成功后才保存凭据。失败保留原账号、余额及更新时间。登录提醒仅在已启用且系统已授权通知时发送，每次运行中同一账号恢复前最多一次；不后台读取浏览器、不自动打开网站。
 
 ### 用量统计
 
@@ -66,4 +68,4 @@
 3. 主页 ↔ 用量 ↔ 设置窗口不跳尺寸
 4. 密钥只存在本机 Keychain（普通条目，不启用指纹/密码门禁），不进 settings.json
 
-以上是产品目标。本仓库当前 Info.plist 为 **0.3.2（build 83）**。通用能力代码已合入 `release/0.3.2`，是否已对用户发布以 GitHub Release 为准。验证记录：[docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md](docs/superpowers/verification/2026-08-14-mac-common-capabilities-verification.md)。
+以上是产品目标，不是全部场景已验收的声明。版本以 `Apps/Mac/Sources/App/Info.plist` 为准，公开发布以 GitHub Release 为准。最新验证：[浏览器连接与 Bytebroad 钱包](docs/superpowers/verification/2026-10-21-bytebroad-browser-connection-verification.md)；历史通用能力记录继续保留。

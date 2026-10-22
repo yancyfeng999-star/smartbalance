@@ -13,6 +13,9 @@ struct BalanceCardView: View {
     var onSelect: (() -> Void)? = nil
     var onLongPress: (() -> Void)? = nil
     var onErrorAction: ((ErrorNextAction) -> Void)? = nil
+    var onBrowserLogin: (() -> Void)? = nil
+    var onBrowserReconnect: (() -> Void)? = nil
+    var browserConnecting: Bool = false
     /// 默认折叠，与设置页折叠卡一致。
     @State private var isExpanded = false
     @State private var isHovering = false
@@ -94,7 +97,19 @@ struct BalanceCardView: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     metersRow
-                    if snapshot.status == .error || snapshot.status == .setup, let onErrorAction {
+                    if snapshot.connectionIssue == .loginRequired {
+                        Text("登录已失效 · 已保留上次余额和更新时间")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(SBTheme.warn)
+                        HStack(spacing: 10) {
+                            Button("打开官网登录") { onBrowserLogin?() }
+                            Button(browserConnecting ? "正在连接…" : "登录完成，重新连接") { onBrowserReconnect?() }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(SBTheme.accent)
+                        .disabled(browserConnecting)
+                    } else if snapshot.status == .error || snapshot.status == .setup, let onErrorAction {
                         let kind = SupportViewMapping.cardKind(
                             status: snapshot.status,
                             errorMessage: snapshot.errorMessage

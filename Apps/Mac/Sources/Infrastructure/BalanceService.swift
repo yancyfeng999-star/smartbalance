@@ -173,7 +173,11 @@ public actor BalanceService {
                 source: .api,
                 status: .error,
                 detail: "",
-                errorMessage: error.localizedDescription
+                errorMessage: error.localizedDescription,
+                connectionIssue: {
+                    if case .authenticationExpired = error as? BalanceProviderError { return .loginRequired }
+                    return nil
+                }()
             )
         }
     }

@@ -46,7 +46,7 @@ public struct MiMoBalanceProvider: BalanceProvider {
         let body = String(data: data, encoding: .utf8) ?? ""
         guard (200...299).contains(code) else {
             if code == 401 || code == 403 {
-                throw BalanceProviderError.providerMessage("登录已失效，请重新从浏览器复制 Cookie")
+                throw BalanceProviderError.authenticationExpired
             }
             throw BalanceProviderError.httpStatus(code, body)
         }
