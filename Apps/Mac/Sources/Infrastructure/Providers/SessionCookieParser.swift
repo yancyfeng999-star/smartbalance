@@ -88,6 +88,12 @@ public enum SessionCookieParser: Sendable {
         var nearId: [Int] = []
         var others: [Int] = []
 
+        // Prefer the actual gob map entry: "id" followed by the concrete "int"
+        // payload. Scanning every even byte mistakes small UIDs for type/name bytes.
+        for blob in blobs {
+            if let id = exactGobUserID(in: [UInt8](blob)) { return String(id) }
+        }
+
         for blob in blobs {
             if let idRange = blob.range(of: Data("id".utf8)) {
                 let from = idRange.lowerBound
@@ -99,6 +105,46 @@ public enum SessionCookieParser: Sendable {
 
         let pick = (nearId + others).first { $0 >= 1 && $0 <= 50_000_000 }
         return pick.map(String.init)
+    }
+
+    /// Only a well-formed securecookie envelope and its exact gob `id:int`
+    /// entry are accepted. This is an ID hint, NOT authentication or MAC validation.
+    public static func extractNewAPISessionUserId(fromSession session: String) -> String? {
+        guard let outer = base64URLDecode(session.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+        let parts = splitASCII(outer, separator: UInt8(ascii: "|"))
+        guard parts.count >= 3, let encoded = String(data: parts[1], encoding: .utf8),
+              let gob = base64URLDecode(encoded), let id = exactGobUserID(in: [UInt8](gob)) else { return nil }
+        return String(id)
+    }
+
+    private static func exactGobUserID(in bytes: [UInt8]) -> UInt64? {
+        let marker = Array("id".utf8) + [0x03] + Array("int".utf8) + [0x04]
+        guard bytes.count > marker.count else { return nil }
+        for index in 0...(bytes.count - marker.count) {
+            guard Array(bytes[index..<(index + marker.count)]) == marker,
+                  index == 0 || [0x00, 0x02].contains(bytes[index - 1]) else { continue }
+            let lengthOffset = index + marker.count
+            guard let (length, prefixCount) = gobUnsigned(bytes, at: lengthOffset), length <= 16,
+                  lengthOffset + prefixCount < bytes.count else { continue }
+            let start = lengthOffset + prefixCount
+            guard bytes[start] == 0,
+                  let (value, count) = gobUnsigned(bytes, at: start + 1),
+                  UInt64(count + 1) <= length,
+                  value > 0, value % 2 == 0, value / 2 <= 50_000_000 else { continue }
+            return value / 2
+        }
+        return nil
+    }
+
+    private static func gobUnsigned(_ bytes: [UInt8], at offset: Int) -> (UInt64, Int)? {
+        guard offset < bytes.count else { return nil }
+        let first = bytes[offset]
+        if first < 128 { return (UInt64(first), 1) }
+        let count = 256 - Int(first)
+        guard (1...8).contains(count), offset + count < bytes.count else { return nil }
+        var value: UInt64 = 0
+        for byte in bytes[(offset + 1)...(offset + count)] { value = (value << 8) | UInt64(byte) }
+        return (value, count + 1)
     }
 
     private static func gobIntCandidates(in bytes: [UInt8]) -> [Int] {

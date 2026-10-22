@@ -23,6 +23,7 @@ public protocol BalanceProvider: Sendable {
 public enum BalanceProviderError: Error, LocalizedError, Sendable {
     case missingCredential
     case missingUserId
+    case authenticationExpired
     case invalidURL
     case httpStatus(Int, String)
     case decodeFailed(String)
@@ -32,6 +33,7 @@ public enum BalanceProviderError: Error, LocalizedError, Sendable {
         switch self {
         case .missingCredential: "缺少 API 密钥"
         case .missingUserId: "缺少用户 ID"
+        case .authenticationExpired: "登录已失效，请打开官网登录，完成后点击「重新连接」"
         case .invalidURL: "Base URL 无效"
         case .httpStatus(let code, let body): "HTTP \(code): \(body.prefix(200))"
         case .decodeFailed(let msg): "解析失败: \(msg)"

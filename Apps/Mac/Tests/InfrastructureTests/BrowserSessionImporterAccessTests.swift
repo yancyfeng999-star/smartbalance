@@ -3,6 +3,14 @@ import XCTest
 @testable import Infrastructure
 
 final class BrowserSessionImporterAccessTests: XCTestCase {
+    func testBlockedChromeDoesNotPreventDiscoveringAccessibleEdge() throws {
+        let candidates = try BrowserSessionImporter.browserCookieCandidates(home: "/fixture") { path in
+            if path.hasSuffix("Google/Chrome") { throw CocoaError(.fileReadNoPermission) }
+            return ["Default"]
+        }
+        XCTAssertEqual(candidates.map(\.name), ["Edge"])
+    }
+
     func testDirectoryPermissionDenialIsNotSwallowedAsMissingBrowser() {
         XCTAssertThrowsError(try BrowserSessionImporter.browserCookieCandidates(home: "/fixture") { path in
             if path.hasSuffix("Google/Chrome") {

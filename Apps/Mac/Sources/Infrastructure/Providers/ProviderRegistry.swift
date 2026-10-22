@@ -15,6 +15,7 @@ public enum ProviderRegistry {
         case .mimo: MiMoBalanceProvider()
         case .minimax: MiniMaxBalanceProvider()
         case .apinebula: ApinebulaBalanceProvider()
+        case .bytebroad: BytebroadBalanceProvider()
         case .unsupported: UnsupportedBalanceProvider()
         }
     }

@@ -29,7 +29,8 @@ if [[ "${CLEANUP_PROJECT_ONLY:-0}" == "1" ]]; then
     fi
     rm -rf "$app"
   done < <(find "${REPO_ROOT}/Apps/Mac/build" \
-    \( -name "智余.app" -o -name "SmartBalance.app" \) -type d -prune 2>/dev/null || true)
+    -path "${REPO_ROOT}/Apps/Mac/build/removed-app-copies.noindex" -prune -o \
+    \( -name "智余.app" -o -name "SmartBalance.app" \) -type d -print -prune 2>/dev/null || true)
   echo "==> 已清理本项目构建副本，保留已安装 App"
   exit 0
 fi

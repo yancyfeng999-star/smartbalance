@@ -78,9 +78,7 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
         let body = String(data: data, encoding: .utf8) ?? ""
         guard (200...299).contains(code) else {
             if code == 401 || code == 403 {
-                throw BalanceProviderError.providerMessage(
-                    "登录已失效，请重新从 Chrome 导入 apinebula 登录态"
-                )
+                throw BalanceProviderError.authenticationExpired
             }
             throw BalanceProviderError.httpStatus(code, body)
         }
@@ -89,9 +87,7 @@ public struct ApinebulaBalanceProvider: BalanceProvider {
         if let success = root["success"] as? Bool, success == false {
             let msg = (root["message"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "获取用户信息失败"
             if Self.isAuthenticationFailure(msg) {
-                throw BalanceProviderError.providerMessage(
-                    "登录已失效，请重新从 Chrome 导入 apinebula 登录态"
-                )
+                throw BalanceProviderError.authenticationExpired
             }
             throw BalanceProviderError.providerMessage(msg)
         }

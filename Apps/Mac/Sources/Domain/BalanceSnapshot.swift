@@ -17,6 +17,7 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
     public var fetchedAt: Date
     public var errorMessage: String?
     public var mailSubject: String?
+    public var connectionIssue: BrowserConnectionIssue?
 
     public init(
         id: UUID? = nil,
@@ -33,7 +34,8 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
         detail: String = "",
         fetchedAt: Date = Date(),
         errorMessage: String? = nil,
-        mailSubject: String? = nil
+        mailSubject: String? = nil,
+        connectionIssue: BrowserConnectionIssue? = nil
     ) {
         // 稳定 id：与 accountId 一致，避免每次刷新重建 ForEach 身份、丢展开态
         self.id = id ?? accountId
@@ -51,6 +53,7 @@ public struct BalanceSnapshot: Identifiable, Codable, Equatable, Sendable {
         self.fetchedAt = fetchedAt
         self.errorMessage = errorMessage
         self.mailSubject = mailSubject
+        self.connectionIssue = connectionIssue
     }
 
     public var primaryText: String {

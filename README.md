@@ -7,7 +7,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
 | 版本 | 0.4.4 |
-| 验证 | 最新导入修复与 398 项测试见 [导入验证记录](docs/superpowers/verification/2026-10-10-browser-import-verification.md)。已核对两家钱包及重启；用户安装和真实第二账号切换需单独验收 |
+| 验证 | 426 项测试通过；Bytebroad 真实浏览器导入和人民币钱包已核对。界面、安装及其他验收边界见 [连接验证记录](docs/superpowers/verification/2026-10-21-bytebroad-browser-connection-verification.md) |
 
 ---
 
@@ -45,9 +45,11 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 | API Key | DeepSeek · OpenRouter · Kimi · ViralTok · 老张 API |
 | 令牌 + 用户 ID | New-API · DMXAPI |
 | AK/SK | 火山引擎 |
-| 控制台 Cookie（Chrome 一键导入） | 小米 MiMo · MiniMax · apinebula |
+| 浏览器登录态（Chrome / Edge 自动查找） | 小米 MiMo · MiniMax · apinebula · Bytebroad（人民币钱包） |
 
 ViralTok 吉米币×7.3、老张 USD×7 → **人民币** 展示与报警。
+
+浏览器渠道直接点“自动连接并添加”；需要登录时点“打开官网登录”，登录后回到智余点“登录完成，重新连接”。无需复制 Cookie 或 UID。目录权限不足会单独提示授权，不会当成网站退出登录；查询失败保留上次余额和成功更新时间。
 
 ## 本地用量统计
 
@@ -99,9 +101,9 @@ SKIP_PUBLISH=1 ./scripts/release.sh
 cd Apps/Mac && ./scripts/cleanup-duplicate-apps.sh
 ```
 
-本地试装也请装到应用程序：`./scripts/build-test-app.sh`（不再放桌面）。
+开发验收副本应使用隔离身份和 `.noindex` 目录，不覆盖用户的 `/Applications/智余.app`；验收后注销本次副本。`build-test-app.sh` 会替换本机安装，只有明确需要试装时才使用。
 
-测试：`./scripts/run-tests.sh`（2026-10-09 复跑 385 passed / 0 failed；真实渠道核对见钱包验证记录）
+测试：`./scripts/run-tests.sh`；2026-10-21 使用隔离 DerivedData 运行同三组测试，426 passed / 0 failed（Domain 105 + Infrastructure 285 + App 36）。
 
 ---
 

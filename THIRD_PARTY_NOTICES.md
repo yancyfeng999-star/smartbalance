@@ -29,6 +29,8 @@ Swift toolchain、Xcode、SwiftUI、AppKit、Security、UserNotifications、Swif
 
 Provider logo 和 App 图像资源属于仓库中的产品资源；新增或替换资源时，贡献者必须在 PR 中说明来源、创作主体、许可证或商标使用依据。来源无法确认、许可证不允许随 App 分发或可能误导用户的资源不得合入发布版本。
 
+Bytebroad 的名称和官网链接（`https://token.bytebroad.com.cn`）仅用于识别该服务。本次未下载或复制其 logo，图标使用应用自行绘制的字母 B 回退标识；不表示官方合作或背书，也未新增第三方运行时依赖。
+
 ### 当前仓库资源审计边界
 
 - 随 App 构建的图像资源位于 `Apps/Mac/Sources/App/Resources/Assets.xcassets`，包括 `AppIcon`、`AppLogo`、`MenuBarIcon` 和 `Provider_*.imageset`。

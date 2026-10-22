@@ -49,7 +49,7 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
         let body = String(data: data, encoding: .utf8) ?? ""
         guard (200...299).contains(code) else {
             if code == 401 || code == 403 {
-                throw BalanceProviderError.providerMessage("登录已失效，请重新从浏览器复制 _token")
+                throw BalanceProviderError.authenticationExpired
             }
             throw BalanceProviderError.httpStatus(code, body)
         }
@@ -58,7 +58,7 @@ public struct MiniMaxBalanceProvider: BalanceProvider {
         if let baseResp = root["base_resp"] as? [String: Any] {
             let statusCode = number(baseResp["status_code"]).map { Int($0) } ?? 0
             if statusCode == 1004 {
-                throw BalanceProviderError.providerMessage("登录已失效，请重新从浏览器复制 _token")
+                throw BalanceProviderError.authenticationExpired
             }
             if statusCode != 0 {
                 let msg = (baseResp["status_msg"] as? String).flatMap { $0.isEmpty ? nil : $0 }

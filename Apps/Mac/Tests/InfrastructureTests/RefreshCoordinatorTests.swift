@@ -163,7 +163,8 @@ final class RefreshCoordinatorTests: XCTestCase {
                 source: .api,
                 status: .error,
                 fetchedAt: clockStart,
-                errorMessage: "登录已失效，请重新从浏览器导入"
+                errorMessage: "登录已失效，请重新从浏览器导入",
+                connectionIssue: .loginRequired
             )
         )
         let coordinator = makeCoordinator(
@@ -182,6 +183,7 @@ final class RefreshCoordinatorTests: XCTestCase {
         XCTAssertEqual(kept.fetchedAt, previousDate)
         XCTAssertEqual(kept.status, .error)
         XCTAssertEqual(kept.errorMessage, "登录已失效，请重新从浏览器导入")
+        XCTAssertEqual(kept.connectionIssue, .loginRequired)
     }
 
     func testUsageHistorySaveFailureDoesNotFailBalanceResult() async {

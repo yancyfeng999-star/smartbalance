@@ -79,8 +79,9 @@ final class ApinebulaProviderTests: XCTestCase {
                 credentials: ProviderCredentials(apiKey: "sys-token", userId: "12210")
             )
             XCTFail("expected login-expired error")
-        } catch let BalanceProviderError.providerMessage(message) {
-            XCTAssertTrue(message.contains("登录已失效"))
+        } catch BalanceProviderError.authenticationExpired {
+            // The existing advanced system-token path tries Bearer, then bare token.
+            XCTAssertEqual(http.callCount, 2)
         } catch {
             XCTFail("unexpected error: \(error)")
         }

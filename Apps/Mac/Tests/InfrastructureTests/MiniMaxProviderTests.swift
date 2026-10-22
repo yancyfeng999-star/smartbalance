@@ -59,9 +59,9 @@ final class MiniMaxProviderTests: XCTestCase {
                 account: BalanceAccount(kind: .minimax),
                 credentials: ProviderCredentials(apiKey: "x")
             )
-            XCTFail("expected providerMessage")
-        } catch BalanceProviderError.providerMessage(let msg) {
-            XCTAssertTrue(msg.contains("登录已失效") || msg.contains("cookie"))
+            XCTFail("expected authenticationExpired")
+        } catch BalanceProviderError.authenticationExpired {
+            XCTAssertEqual(http.callCount, 1)
         } catch {
             XCTFail("unexpected: \(error)")
         }

@@ -107,7 +107,14 @@ struct HomeView: View {
                         errorMessage: snap.errorMessage
                     ) ?? .refreshFailed
                     model.performErrorAction(action, kind: kind)
-                }
+                },
+                onBrowserLogin: {
+                    if let kind = snap.providerKind { model.openBrowserLogin(for: kind) }
+                },
+                onBrowserReconnect: {
+                    Task { await model.importBrowserSession(intoAccountId: snap.accountId) }
+                },
+                browserConnecting: model.browserImporting
             )
             .frame(maxWidth: .infinity)
             .id(snap.accountId)

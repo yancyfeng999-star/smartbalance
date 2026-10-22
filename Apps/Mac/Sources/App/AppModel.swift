@@ -109,6 +109,9 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
     /// 导入结果保留在对应平台的按钮旁，不依赖自动消失的首页 banner。
     @Published var browserImportMessages: [ProviderKind: String] = [:]
     @Published var browserImportDirectoryRequired: Set<ProviderKind> = []
+    @Published var browserLoginRequiredKinds: Set<ProviderKind> = []
+    private var browserDirectories: [ProviderKind: URL] = [:]
+    private var browserLoginReminders = BrowserLoginReminderPolicy()
     private let updateChecker = UpdateChecker()
     private var releaseDownloader: ReleaseDownloader?
     private var updateTask: Task<Void, Never>?
@@ -511,6 +514,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         if snapshots.isEmpty, !settings.enabledAccounts.isEmpty {
             snapshots = Self.placeholderSnapshots(from: settings)
         }
+        updateBrowserLoginStatus()
         if !outcome.alerts.isEmpty {
             recentAlerts = Array((outcome.alerts + recentAlerts).prefix(RefreshFetchLimits.maxRetainedRecentAlerts))
             if let fail = outcome.alerts.first(where: {
@@ -528,6 +532,32 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         lastRefreshAt = Date()
         try? store.save(settings)
         AppLog.info("Refresh snapshots accepted · cards=\(snapshots.count) gen=\(outcome.generation)")
+    }
+
+    private func updateBrowserLoginStatus() {
+        for snapshot in snapshots where snapshot.providerKind?.supportsBrowserSessionImport == true {
+            guard let kind = snapshot.providerKind else { continue }
+            if snapshot.connectionIssue == .loginRequired {
+                browserLoginRequiredKinds.insert(kind)
+                browserImportMessages[kind] = "登录已失效。请打开官网登录，完成后点击「登录完成，重新连接」。上次余额和更新时间已保留。"
+            } else if snapshot.errorMessage == nil, ![BalanceStatus.error, .setup, .unknown].contains(snapshot.status),
+                      !snapshots.contains(where: { $0.providerKind == kind && $0.connectionIssue == .loginRequired }) {
+                if browserLoginRequiredKinds.remove(kind) != nil {
+                    browserImportMessages[kind] = "连接已恢复，钱包余额已更新"
+                }
+            }
+            let shouldRemind = browserLoginReminders.shouldRemind(for: snapshot)
+            if shouldRemind, settings.alertChannels.macNotificationEnabled,
+               RecoveryLaunchPolicy.allowsNotificationDelivery(route: sessionRoute) {
+                Task {
+                    await MacNotificationService.shared.post(
+                        title: "智余 · \(kind.displayName) 需要重新登录",
+                        body: "请在智余点「打开官网登录」，完成后点「重新连接」。已保留上次余额。",
+                        id: "browser-login-\(snapshot.accountId.uuidString)"
+                    )
+                }
+            }
+        }
     }
 
     private func applyRefreshTerminal(_ outcome: RefreshOutcome?) {
@@ -862,6 +892,11 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         case .apinebula:
             let r = SessionCookieParser.resolveApinebula(secret: secret, userId: userId)
             return (r.session, r.userId)
+        case .bytebroad:
+            let r = SessionCookieParser.resolveApinebula(secret: secret, userId: userId)
+            let explicit = userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (r.session, (explicit?.isEmpty == false ? explicit : nil)
+                ?? SessionCookieParser.extractNewAPISessionUserId(fromSession: r.session))
         default:
             return (secret.trimmingCharacters(in: .whitespacesAndNewlines), userId)
         }
@@ -881,6 +916,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         let name = displayName
         do {
             guard let cred = try await readBrowserSession(for: kind) else { return false }
+            try await validateBrowserWallet(kind: kind, credential: cred)
             let saved = await addAccount(
                 kind: kind,
                 displayName: name,
@@ -894,6 +930,7 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
                 return false
             }
             browserImportDirectoryRequired.remove(kind)
+            browserLoginRequiredKinds.remove(kind)
             setBrowserImportMessage("已从 \(cred.source) 导入并添加 \(kind.displayName) 账号，余额正在刷新", for: kind)
             return true
         } catch {
@@ -917,11 +954,13 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         setBrowserImportMessage("正在更新浏览器登录态，请稍候…", for: kind)
         do {
             guard let cred = try await readBrowserSession(for: kind) else { return }
+            try await validateBrowserWallet(kind: kind, credential: cred, account: acc)
             guard await updateAccountSecret(id: id, secret: cred.secret, userId: cred.userId) else {
                 setBrowserImportMessage(banner ?? "登录态保存失败，原账号未改动。请重试", for: kind)
                 return
             }
             browserImportDirectoryRequired.remove(kind)
+            browserLoginRequiredKinds.remove(kind)
             setBrowserImportMessage("已从 \(cred.source) 更新 \(title) 登录态，余额正在刷新", for: kind)
         } catch {
             reportBrowserImportError(error, for: kind)
@@ -937,15 +976,53 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         if case .browserAccessDenied = error as? BrowserSessionImporter.ImportError {
             browserImportDirectoryRequired.insert(kind)
         }
+        if case .cookieNotFound = error as? BrowserSessionImporter.ImportError {
+            browserImportDirectoryRequired.remove(kind)
+            browserLoginRequiredKinds.insert(kind)
+        }
+        if case .authenticationExpired = error as? BalanceProviderError {
+            browserLoginRequiredKinds.insert(kind)
+        }
         // ImportError 文案不包含 Cookie、Token 或外部进程 stderr。
-        let message = (error as? BrowserSessionImporter.ImportError)?.localizedDescription
-            ?? "浏览器登录态导入失败，请重试或手动填写 Cookie"
+        let message: String
+        if let importError = error as? BrowserSessionImporter.ImportError {
+            message = importError.localizedDescription
+        } else if case .authenticationExpired = error as? BalanceProviderError {
+            message = "登录已失效，请打开官网登录，完成后点击「登录完成，重新连接」。原账号未改动"
+        } else {
+            message = "登录态已找到，但钱包查询失败。原账号未改动，请稍后重新连接；无需因此重新登录"
+        }
         setBrowserImportMessage(message, for: kind)
         AppLog.error("Browser import failed · provider=\(kind.rawValue) · \(message)")
     }
 
+    private func validateBrowserWallet(
+        kind: ProviderKind, credential: BrowserSessionImporter.Credential, account: BalanceAccount? = nil
+    ) async throws {
+        setBrowserImportMessage("已找到登录态，正在核对钱包余额…", for: kind)
+        let candidate = account ?? BalanceAccount(kind: kind, userId: credential.userId)
+        _ = try await ProviderRegistry.provider(for: kind).fetchBalance(
+            account: candidate,
+            credentials: ProviderCredentials(apiKey: credential.secret,
+                baseURL: kind.defaultBaseURL, userId: credential.userId)
+        )
+        try Task.checkCancellation()
+    }
+
     private func readBrowserSession(for kind: ProviderKind) async throws -> BrowserSessionImporter.Credential? {
-        var directory: URL?
+        // Try the previously selected profile or automatic browser discovery first.
+        // Only a real permission denial opens the system directory chooser.
+        var directory = browserDirectories[kind]
+        if !browserImportDirectoryRequired.contains(kind) {
+            let scoped = directory?.startAccessingSecurityScopedResource() ?? false
+            defer { if scoped { directory?.stopAccessingSecurityScopedResource() } }
+            do {
+                return try await BrowserSessionImporter.importSessionAsync(for: kind, browserDirectory: directory)
+            } catch BrowserSessionImporter.ImportError.browserAccessDenied {
+                browserImportDirectoryRequired.insert(kind)
+                setBrowserImportMessage("需要一次目录授权：请在系统窗口确认 Chrome 或 Edge 用户目录，之后自动查找登录态", for: kind)
+            }
+        }
         if browserImportDirectoryRequired.contains(kind) {
             let panel = NSOpenPanel()
             panel.canChooseFiles = false
@@ -968,7 +1045,24 @@ final class AppModel: ObservableObject, AppSleepWakeHandling {
         }
         let scoped = directory?.startAccessingSecurityScopedResource() ?? false
         defer { if scoped { directory?.stopAccessingSecurityScopedResource() } }
-        return try await BrowserSessionImporter.importSessionAsync(for: kind, browserDirectory: directory)
+        do {
+            let credential = try await BrowserSessionImporter.importSessionAsync(for: kind, browserDirectory: directory)
+            browserDirectories[kind] = directory
+            return credential
+        } catch let error as BrowserSessionImporter.ImportError {
+            // A valid readable directory may not have a login yet. Keep that
+            // user selection for the explicit reconnect click after logging in.
+            if case .cookieNotFound = error { browserDirectories[kind] = directory }
+            throw error
+        }
+    }
+
+    func openBrowserLogin(for kind: ProviderKind) {
+        guard kind.supportsBrowserSessionImport,
+              let value = kind.defaultConsoleURL, let url = URL(string: value) else { return }
+        browserLoginRequiredKinds.insert(kind)
+        setBrowserImportMessage("已打开 \(kind.displayName) 官网。请完成登录并刷新钱包页，再回到智余点击「登录完成，重新连接」；无需复制 Cookie 或 UID", for: kind)
+        BrowserLauncher.open(url)
     }
 
     /// 补填 / 修改用户 ID（New-API、DMXAPI 等需要）。

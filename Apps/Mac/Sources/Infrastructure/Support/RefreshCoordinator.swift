@@ -227,6 +227,7 @@ public final class RefreshCoordinator {
             retained.source = current.source
             retained.status = current.status
             retained.errorMessage = current.errorMessage
+            retained.connectionIssue = current.connectionIssue
             return retained
         }
     }
