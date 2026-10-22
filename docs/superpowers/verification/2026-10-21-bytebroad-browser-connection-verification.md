@@ -60,7 +60,10 @@ Xcode 输出本机 CoreSimulator 组件版本警告，macOS 三组测试仍成�
 | SHA-256 | 四个中/英文安装包校验全部通过 |
 | 原安装和数据 | 已安装 0.4.4 build 88 未覆盖；App 可执行文件、设置和用量历史哈希保持不变 |
 | 系统入口 | 本次生成的构建 App 已注销/清理，Spotlight 仅返回正式安装；此前可恢复归档保留 |
-| 远端与更新 | 待 PR 合并、GitHub 资产回下载和旧版更新检查后补记 |
+| 分支合并 | [PR #12](https://github.com/yancyfeng999-star/smartbalance/pull/12) 已合并 main，merge commit `735f768`；`v0.5.0`（`16be1fd`）为 main 祖先，本机 main 已快进同步 |
+| 远端 Release | [v0.5.0](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.5.0) 非草稿、非预发布；DMG、PKG、SHA256SUMS 三项资产已上传 |
+| 资产回查 | 三项远端资产回下载后与本地逐字节一致；两个英文安装包 SHA-256 通过 |
+| 更新发现 | 实际 UpdateChecker 以 `currentVersion=0.4.4` 联网返回 `available`、`latest=0.5.0`、`SmartBalance-0.5.0.pkg`、`checksums=true`。该源码与 0.4.4 未发生变化；这不是用户 App 已安装/重启的证据 |
 
 用户安装不由 Agent 代办。所有命令为本地等价门禁，不代表 CI、正式升级安装或用户验收已通过。
 

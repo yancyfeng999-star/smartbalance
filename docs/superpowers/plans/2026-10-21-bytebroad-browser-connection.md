@@ -2,6 +2,8 @@
 
 日期：2026-10-21。模式：Standard，凭据和发布严格门禁。
 
+执行状态：已实现，426 项本地测试通过，真实 Bytebroad 导入/钱包已核对，0.5.0 build 89 已发布且 PR #12 合并 main。正式安装和未覆盖场景见 [验证记录](../verification/2026-10-21-bytebroad-browser-connection-verification.md)。
+
 ## 需求与边界
 
 - 增加 Bytebroad 人民币钱包余额、累计消费、报警及现有天/周/月用量统计。

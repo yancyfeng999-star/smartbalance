@@ -10,7 +10,7 @@
 | 本地测试 | 2026-10-21 隔离 DerivedData：**426 passed / 0 failed**（Domain 105 + Infrastructure 285 + App 36），非 CI |
 | 构建与安装包 | Debug 和 Release 构建通过；DMG/PKG 均为 0.5.0 build 89、arm64 + x86_64，App 内容相同，严格签名校验和 SHA-256 通过。仍为 ad-hoc，未公证 |
 | 运行时 | 实际 Chrome 自动发现、会话导入及 Bytebroad Provider 查询与官网人民币钱包一致；原生 UI 使用实际视图与内存虚构模型验收，不冒充正式保存/重启验收 |
-| 已发布 | 最近公开版本 [v0.4.4](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.4.4)；0.5.0 的远端发布、合并和更新检查待完成后补记 |
+| 已发布 | [v0.5.0 Release](https://github.com/yancyfeng999-star/smartbalance/releases/tag/v0.5.0) 已发布，PR #12 已合并 main；远端 DMG/PKG/校验文件回下载与本地一致；以 0.4.4 为当前版本的实际 UpdateChecker 已识别 0.5.0 和校验清单，未代装 |
 | 真实渠道 | 本次验证 Bytebroad；MiniMax / APINebula 旧验证记录保留，其余渠道未重新执行真实网络验收 |
 | 用户已验收 | 否 |
 
