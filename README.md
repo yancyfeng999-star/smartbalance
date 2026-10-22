@@ -6,7 +6,7 @@ macOS 菜单栏应用：查询各平台 **API / Token 余额**，在本机按 **
 |--|--|
 | 平台 | macOS 15+ |
 | 形态 | 菜单栏（无 Dock） |
-| 版本 | 0.4.4 |
+| 版本 | 0.5.0 |
 | 验证 | 426 项测试通过；Bytebroad 真实浏览器导入和人民币钱包已核对。界面、安装及其他验收边界见 [连接验证记录](docs/superpowers/verification/2026-10-21-bytebroad-browser-connection-verification.md) |
 
 ---
